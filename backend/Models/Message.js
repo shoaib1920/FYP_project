@@ -1,14 +1,15 @@
-// models/Message.js (MongoDB Schema)
 const mongoose = require('mongoose');
 
 const messageSchema = new mongoose.Schema({
-  senderId: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'User' },
-  receiverId: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'User' },
-  message: { type: String, required: true },
+  senderId: { type: mongoose.Schema.Types.ObjectId, required: true },
+  receiverId: { type: mongoose.Schema.Types.ObjectId, required: true },
+  message: { type: String, default: '' },
+  fileUrl: { type: String, default: null },
+  fileName: { type: String, default: null },
+  fileSize: { type: Number, default: null },
+  fileType: { type: String, enum: ['image', 'video', 'document', null], default: null },
   timestamp: { type: Date, default: Date.now },
   status: { type: String, enum: ['sent', 'delivered', 'read'], default: 'sent' },
 });
 
-const Message = mongoose.model('Message', messageSchema);
-
-module.exports = Message;
+module.exports = mongoose.model('Message', messageSchema);

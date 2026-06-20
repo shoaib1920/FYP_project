@@ -8,29 +8,35 @@ import AllUserGroups from "../Students";
 // import TemplateManager from "../TemplateManager";
 import ChatBox from "../ChatBox";
 import Feedback from "../Feedbacks";
-import ProjectApprovals from "../ProjectApproval";
+import ProposalApprovals from "../ProjectProposals";
+import SupervisorDepartments from "../DepartmentManagement";
+import FYPProjects from "../FYPProjects";
+import SupervisorTemplateManager from "../TemplateManager";
 // import Students from "../Students";
 
 // Icons
-import { FaHome, FaTasks, FaUserGraduate, FaProjectDiagram, FaComments, FaSignOutAlt, FaClipboardList,FaFileSignature } from "react-icons/fa";
+import { FaHome, FaTasks, FaUserGraduate, FaComments, FaSignOutAlt, FaBuilding, FaClipboardList, FaFolderOpen } from "react-icons/fa";
 
 const Main = ({ defaultModule = "Dashboard" }) => {
   const navigate = useNavigate();
   const [activeModule, setActiveModule] = useState(defaultModule);
-  const [studentName, setStudentName] = useState("");
+  const [supervisorName, setSupervisorName] = useState("");
 
   useEffect(() => {
-    const userData = localStorage.getItem("user");
-    if (userData) {
+    const supervisorData = localStorage.getItem("supervisorData");
+    if (supervisorData) {
       try {
-        const parsedUser = JSON.parse(userData);
-        setStudentName(parsedUser.name);
-        console.log("✅ Loaded student name:", parsedUser.name);
+        const parsed = JSON.parse(supervisorData);
+        setSupervisorName(parsed.name || "");
       } catch (error) {
-        console.error("❌ Failed to parse user from localStorage", error);
+        console.error("❌ Failed to parse supervisor data from localStorage", error);
       }
     }
   }, []);
+
+  const initials = supervisorName
+    ? supervisorName.split(" ").filter(Boolean).map((w) => w[0]).join("").toUpperCase().slice(0, 2)
+    : "S";
 
   useEffect(() => {
     setActiveModule(defaultModule);
@@ -52,31 +58,51 @@ const Main = ({ defaultModule = "Dashboard" }) => {
     <div className={styles.main_wrapper}>
       <aside className={styles.sidebar}>
         <div className={styles.sidebar_header}>
+          <div className={styles.brand_icon}><FaFolderOpen /></div>
           <h2>Supervisor Panel</h2>
         </div>
+
+        {/* <div className={styles.profile_card}>
+          <div className={styles.profile_avatar}>{initials}</div>
+          <div className={styles.profile_info}>
+            <span className={styles.profile_name}>{supervisorName || "Supervisor"}</span>
+            <span className={styles.profile_role}>Supervisor</span>
+          </div>
+        </div> */}
+
         <nav className={styles.sidebar_nav}>
           <button onClick={() => ShowModule("Dashboard")} className={activeModule === "Dashboard" ? styles.active : ""}>
             <FaHome /> Dashboard
           </button>
-           <button onClick={() => ShowModule("CreateProject")} className={activeModule === "CreateProject" ? styles.active : ""}>
-            <FaProjectDiagram /> Create Project
+
+          <div className={styles.nav_section_label}>Workflow</div>
+          <button onClick={() => ShowModule("proposal-approval")} className={activeModule === "proposal-approval" ? styles.active : ""}>
+            <FaClipboardList /> Proposals
           </button>
-           <button onClick={() => ShowModule("AssignProject")} className={activeModule === "AssignProject" ? styles.active : ""}>
-            <FaClipboardList /> Assign Project
-          </button> 
-         
-           <button onClick={() => ShowModule("project-approval")} className={activeModule === "project-approval" ? styles.active : ""}>
-           <FaFileSignature /> Project Approval
-         </button>
+          <button onClick={() => ShowModule("fyp-projects")} className={activeModule === "fyp-projects" ? styles.active : ""}>
+            <FaFolderOpen /> FYP Projects
+          </button>
           <button onClick={() => ShowModule("AllUserGroups")} className={activeModule === "AllUserGroups" ? styles.active : ""}>
             <FaUserGraduate /> Students
+          </button>
+
+          <div className={styles.nav_section_label}>Resources</div>
+          <button
+            onClick={() => ShowModule("DepartmentManagement")}
+            className={activeModule === "DepartmentManagement" ? styles.active : ""}
+          >
+            <FaBuilding /> Departments
+          </button>
+          <button onClick={() => ShowModule("fyp-templates")} className={activeModule === "fyp-templates" ? styles.active : ""}>
+            <FaFolderOpen /> Templates
           </button>
           <button onClick={() => ShowModule("ChatBox")} className={activeModule === "ChatBox" ? styles.active : ""}>
             <FaComments /> Chat
           </button>
           <button onClick={() => ShowModule("Feedback")} className={activeModule === "Feedback" ? styles.active : ""}>
             <FaTasks /> Feedback
-          </button> 
+          </button>
+
           <button onClick={handleLogout} className={styles.logout_btn}>
             <FaSignOutAlt /> Logout
           </button>
@@ -87,7 +113,10 @@ const Main = ({ defaultModule = "Dashboard" }) => {
         {activeModule === "Dashboard" && <Dashboard setActiveModule={setActiveModule} />}
         {activeModule === "CreateProject" && <CreateProject />}
       {activeModule === "AssignProject" && <AssignProject />}
-      {activeModule === "project-approval"   && <ProjectApprovals />}  
+      {activeModule === "DepartmentManagement" && <SupervisorDepartments />}
+      {activeModule === "proposal-approval" && <ProposalApprovals />}
+      {activeModule === "fyp-projects"       && <FYPProjects />}
+      {activeModule === "fyp-templates"     && <SupervisorTemplateManager />}
            {activeModule === "AllUserGroups" && <AllUserGroups />} 
         {activeModule === "ChatBox" && <ChatBox />}
        {activeModule === "Feedback" && <Feedback />} 

@@ -25,8 +25,9 @@ const supervisorSchema = new mongoose.Schema({
   },
 
   department: {
-    type: String,
-    default: null
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Department",
+    default: null,
   },
 
   designation: {
@@ -34,11 +35,25 @@ const supervisorSchema = new mongoose.Schema({
     default: "Supervisor"
   },
 
+
+  employeeId: {
+    type: String,
+    required: true,
+    unique: true,
+    trim: true
+  },
+
   status: {
     type: String,
     enum: ["Active", "Inactive"],
     default: "Active"
   },
+
+  resetPasswordToken: { type: String, default: null },
+  resetPasswordExpires: { type: Date, default: null },
+  isEmailVerified: { type: Boolean, default: false },
+  emailVerificationToken: { type: String, default: null },
+  emailVerificationExpires: { type: Date, default: null },
 
   createdAt: {
     type: Date,

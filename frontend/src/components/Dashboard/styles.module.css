@@ -6,6 +6,13 @@
 	color: #333;
 }
 
+.noResults {
+  padding: 10px 12px;
+  color: #777;
+  text-align: center;
+  font-style: italic;
+}
+
 /* 🔥 Title */
 .title {
 	text-align: center;

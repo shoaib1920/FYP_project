@@ -81,8 +81,19 @@ const deleteTask = async (req, res) => {
 // All Tasks List 
 const TaskList = async (req, res) =>{
 	try {
-	 const tasks = await Task.find();
-			res.status(200).json(tasks);
+		const { createdBy, isAssigned } = req.query;
+		const filter = {};
+		
+		if (createdBy) {
+			filter.createdBy = createdBy;
+		}
+		
+		if (isAssigned !== undefined) {
+			filter.isAssigned = isAssigned === 'true';
+		}
+		
+		const tasks = await Task.find(filter);
+		res.status(200).json(tasks);
 	}
 	catch  (error) {
         res.status(500).json({	
@@ -106,143 +117,223 @@ const storage = multer.diskStorage({
 
 // Multer Middleware
 const upload = multer({ storage: storage }).single("taskFile");
+const submissionUpload = multer({ storage: storage }).single("submissionFile");
+
+// const createTask = async (req, res) => {
+// 	upload(req, res, async (err) => {
+// 		if (err) {
+// 			return res.status(500).json({ success: false, message: "File upload failed" });
+// 		}
+
+// 		try {
+// 			const { title, description, taskCode, startDate, dueDate, priority, projectId } = req.body;
+// 			const taskFile = req.file ? req.file.filename : null; // File ka naam store karo
+
+// 			if (!taskFile) {
+// 				return res.status(400).json({ success: false, message: "Please upload a file" });
+// 			}
+
+// 			const newTask = new Task({
+// 				title,
+// 				description,
+// 				taskFile,
+// 				taskCode,
+// 				startDate,
+// 				dueDate,
+// 				priority,
+// 				projectId,
+// 			});
+
+// 			await newTask.save();
+
+// 			res.status(201).json({ success: true, message: "Task Created Successfully!", task: newTask });
+// 		} catch (error) {
+// 			console.error("Task Creation Error:", error);
+// 			res.status(500).json({ success: false, message: "Internal Server Error" });
+// 		}
+// 	});
+// };
+
+
 
 const createTask = async (req, res) => {
-	upload(req, res, async (err) => {
-		if (err) {
-			return res.status(500).json({ success: false, message: "File upload failed" });
-		}
+  upload(req, res, async (err) => {
+    if (err) {
+      return res.status(500).json({
+        success: false,
+        message: "File upload failed",
+      });
+    }
 
-		try {
-			const { title, description, taskCode, startDate, dueDate, priority, projectId } = req.body;
-			const taskFile = req.file ? req.file.filename : null; // File ka naam store karo
+    try {
+      const {
+        title,
+        description,
+        taskCode,
+        startDate,
+        dueDate,
+        priority,
+        projectId,
+        createdBy,
+        studentJoinCode,
+      } = req.body;
 
-			if (!taskFile) {
-				return res.status(400).json({ success: false, message: "Please upload a file" });
-			}
+      const taskFile = req.file ? req.file.filename : null;
 
-			const newTask = new Task({
-				title,
-				description,
-				taskFile,
-				taskCode,
-				startDate,
-				dueDate,
-				priority,
-				projectId,
-			});
+      const newTask = new Task({
+        title,
+        description,
+        taskFile,
+        taskCode,
+        startDate,
+        dueDate,
+        priority,
+        projectId,
+        createdBy,
+        studentJoinCode,
+        isAssigned: false,
+      });
 
-			await newTask.save();
+      await newTask.save();
 
-			res.status(201).json({ success: true, message: "Task Created Successfully!", task: newTask });
-		} catch (error) {
-			console.error("Task Creation Error:", error);
-			res.status(500).json({ success: false, message: "Internal Server Error" });
-		}
-	});
+      res.status(201).json({
+        success: true,
+        message: "Task Created Successfully!",
+        task: newTask,
+      });
+    } catch (error) {
+      console.error("Task Creation Error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Internal Server Error",
+      });
+    }
+  });
+};
+const submitProject = async (req, res) => {
+  submissionUpload(req, res, async (err) => {
+    if (err) {
+      return res.status(500).json({ success: false, message: "File upload failed" });
+    }
+
+    try {
+      const { taskId, userId, note } = req.body;
+
+      if (!taskId || !userId) {
+        return res.status(400).json({ success: false, message: "taskId and userId are required." });
+      }
+
+      if (!note || !note.trim()) {
+        return res.status(400).json({ success: false, message: "A submission note describing your work is required." });
+      }
+
+      const assignment = await TaskAssignment.findById(taskId);
+      if (!assignment) {
+        return res.status(404).json({ success: false, message: "Task assignment not found." });
+      }
+
+      if (assignment.status === "Approved") {
+        return res.status(400).json({ success: false, message: "This task has already been approved and can't be resubmitted." });
+      }
+
+      const update = {
+        status: "Completed",
+        submissionNote: note.trim(),
+        submittedAt: new Date(),
+        reviewNote: null,
+        reviewedAt: null,
+      };
+
+      if (req.file) {
+        update.submissionFile = req.file.filename;
+      }
+
+      const assignmentUpdateResult = await TaskAssignment.updateOne(
+        { _id: taskId },
+        { $set: update }
+      );
+
+      res.status(200).json({
+        success: true,
+        message: "Project submitted successfully. Awaiting review.",
+        assignmentUpdate: assignmentUpdateResult,
+      });
+    } catch (error) {
+      console.error("Submission error:", error);
+      res.status(500).json({ success: false, error: "Submission failed." });
+    }
+  });
 };
 
-const submitProject = async (req, res) => {
-	// console.log("Submission request body:", req.body);
-	// Step 1: Extract data from request body
-	const { taskId, userId, note } = req.body;
-  
-	try {
-  
-	  // Step 2: Update the task assignment
-	  const assignmentUpdateResult = await TaskAssignment.updateOne(
-		{ _id: taskId},
-		{ $set: { status: "Completed" } }
-	  );
-  
-	 // Step 3: Update the user's summary
-const summaryUpdateResult = await UserProjectSummary.updateOne(
-	{ userId: userId },
-	{
-	  $inc: {
-		completedProjects: 1,
-		pendingProjects: -1, // ⬅️ pendingProjects ko 1 se kam karo
-	  },
-	}
-  );
-  
-  
-	  res.status(200).json({
-		success: true,
-		message: "Project submitted successfully.",
-		assignmentUpdate: assignmentUpdateResult,
-		summaryUpdate: summaryUpdateResult,
-	  });
-	} catch (error) {
-	  console.error("Submission error:", error);
-	  res.status(500).json({ error: "Submission failed." });
-	}
-  };
-  
-  const approveTask = async (req, res) => {
-	const taskId = req.params.id;
-	const { userId } = req.body;
+const approveTask = async (req, res) => {
+  const taskId = req.params.id;
+  const { userId, note } = req.body;
 
-	try {
-	  const assignmentUpdateResult = await TaskAssignment.updateOne(
-		{ _id: taskId },
-		{ $set: { status: "Approved" } }
-	  );
-  
-	  const summaryUpdateResult = await UserProjectSummary.updateOne(
-		{ userId: userId },
-		{
-		  $inc: {
-			completedProjects: 1,
-			pendingProjects: -1,
-		  },
-		}
-	  );
-  
-	  return res.status(200).json({
-		success: true,
-		message: "Task approved successfully",
-		assignmentUpdate: assignmentUpdateResult,
-		summaryUpdate: summaryUpdateResult,
-	  });
-	} catch (error) {
-	  console.error("Approve Task Error:", error);
-	  return res.status(500).json({ success: false, message: "Server Error" });
-	}
-  };
- 
-  
-  const rejectTask = async (req, res) => {
-	const taskId = req.params.id;
-	const { userId } = req.body;
-  
-	try {
-	  const assignmentUpdateResult = await TaskAssignment.updateOne(
-		{ _id: taskId },
-		{ $set: { status: "Rejected" } }
-	  );
-  
-	  // Optional: Decrease pendingProjects if needed
-	  const summaryUpdateResult = await UserProjectSummary.updateOne(
-		{ userId: userId },
-		{
-		  $inc: {
-			pendingProjects: -1
-		  }
-		}
-	  );
-  
-	  return res.status(200).json({
-		success: true,
-		message: "Task rejected successfully",
-		assignmentUpdate: assignmentUpdateResult,
-		summaryUpdate: summaryUpdateResult
-	  });
-	} catch (error) {
-	  console.error("Reject Task Error:", error);
-	  return res.status(500).json({ success: false, message: "Server Error" });
-	}
-  };
+  try {
+    const assignment = await TaskAssignment.findById(taskId);
+    if (!assignment) {
+      return res.status(404).json({ success: false, message: "Task assignment not found." });
+    }
+    if (assignment.status !== "Completed") {
+      return res.status(400).json({ success: false, message: "Only submitted tasks awaiting review can be approved." });
+    }
+
+    const assignmentUpdateResult = await TaskAssignment.updateOne(
+      { _id: taskId },
+      { $set: { status: "Approved", reviewNote: note || null, reviewedAt: new Date() } }
+    );
+
+    const summaryUpdateResult = await UserProjectSummary.updateOne(
+      { userId: userId },
+      {
+        $inc: {
+          completedProjects: 1,
+          pendingProjects: -1,
+        },
+      }
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Task approved successfully",
+      assignmentUpdate: assignmentUpdateResult,
+      summaryUpdate: summaryUpdateResult,
+    });
+  } catch (error) {
+    console.error("Approve Task Error:", error);
+    return res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+
+const rejectTask = async (req, res) => {
+  const taskId = req.params.id;
+  const { note } = req.body;
+
+  try {
+    const assignment = await TaskAssignment.findById(taskId);
+    if (!assignment) {
+      return res.status(404).json({ success: false, message: "Task assignment not found." });
+    }
+    if (assignment.status !== "Completed") {
+      return res.status(400).json({ success: false, message: "Only submitted tasks awaiting review can be rejected." });
+    }
+
+    const assignmentUpdateResult = await TaskAssignment.updateOne(
+      { _id: taskId },
+      { $set: { status: "Rejected", reviewNote: note || null, reviewedAt: new Date() } }
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Task rejected successfully",
+      assignmentUpdate: assignmentUpdateResult,
+    });
+  } catch (error) {
+    console.error("Reject Task Error:", error);
+    return res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
   
   
   

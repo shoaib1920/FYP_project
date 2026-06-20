@@ -1,129 +1,177 @@
-// controllers/templateController.js
-const Template       = require("../Models/Template");
-const Project        = require("../Models/SupervisorModels/Project");
-const StudentGroup   = require("../Models/Team");
-const path           = require("path");
-const fs             = require("fs");
-const jwt = require("jsonwebtoken");
-const User = require("../Models/Users");
+const Template = require("../Models/Template");
+const Project  = require("../Models/Project");   // new FYP project model
+const Team     = require("../Models/Team");
+const path     = require("path");
+const fs       = require("fs");
 
-/* ────────────────────────────────────────────────────────────
-   GET  /api/templates             → list (most‑recent first)
-   ──────────────────────────────────────────────────────────── */
-exports.getAllTemplates = async (req, res) => {
-  const templates = await Template.find().sort({ createdAt: -1 });
-  res.json({ templates: templates.map((t) => t.toPublic()) });
-};
-
-/* ────────────────────────────────────────────────────────────
-   POST /api/templates/upload
-        body‑fields:  projectId, groupId
-        file‑field :  template  (handled by multer)
-   ──────────────────────────────────────────────────────────── */
-exports.createTemplate = async (req, res) => {
+// ─────────────────────────────────────────────
+// POST /templates/global   (Admin only)
+// ─────────────────────────────────────────────
+exports.uploadGlobalTemplate = async (req, res) => {
   try {
-    
+    const { title, description, category, uploadedByName } = req.body;
 
-    // 1️⃣ Validate required fields
-    const { projectId, groupId, assignBy } = req.body;
-    if (!projectId || !groupId || !assignBy) {
-      throw new Error("Missing required fields (projectId, groupId, assignBy)");
+    if (!title || !category) {
+      return res.status(400).json({ error: "title and category are required" });
     }
     if (!req.file) {
-      throw new Error("No file uploaded");
+      return res.status(400).json({ error: "No file uploaded" });
     }
 
-    // 2️⃣ Lookups
-    const project = await Project.findById(projectId).lean();
-    if (!project) throw new Error("Project not found");
+    const ALLOWED = ["Proposal", "Progress Report", "Final Report", "Defense", "General"];
+    if (!ALLOWED.includes(category)) {
+      return res.status(400).json({ error: "Invalid category" });
+    }
 
-    const group = await StudentGroup.findById(groupId).lean();
-    if (!group) throw new Error("Student group not found");
-console.log("grups>>",group);
-    // 3️⃣ Extract file info
-    const fileType = path.extname(req.file.originalname).slice(1); // removes the dot
-    const fileUrl = `/uploads/templates/${req.file.filename}`;
+    const fileType = path.extname(req.file.originalname).slice(1).toLowerCase();
+    const fileUrl  = `/uploads/templates/${req.file.filename}`;
 
-    // 4️⃣ Save to DB
     const template = await Template.create({
-      projectId,
-      projectName: project.title || project.name,
-      groupId,
-      groupName: group.subject,
-      fileName: req.file.filename,
+      title,
+      description: description || "",
+      scope:          "GLOBAL",
+      category,
+      uploadedBy:     req.user._id,
+      uploadedByRole: "admin",
+      uploadedByName: uploadedByName || "Admin",
+      fileName:     req.file.filename,
       originalName: req.file.originalname,
       fileType,
       fileUrl,
-      assignedBy: assignBy,
     });
 
-    res.status(201).json({ template: template.toPublic() });
-
+    res.status(201).json({ success: true, template: template.toPublic() });
   } catch (err) {
-    console.error("Template create error →", err.message);
-    res.status(400).json({ error: err.message });
+    console.error("uploadGlobalTemplate error:", err);
+    res.status(500).json({ error: err.message });
   }
 };
 
-/* ────────────────────────────────────────────────────────────
-   PATCH /api/templates/:id
-   ──────────────────────────────────────────────────────────── */
-exports.updateTemplate = async (req, res) => {
+// ─────────────────────────────────────────────
+// POST /templates/project   (Supervisor only)
+// ─────────────────────────────────────────────
+exports.uploadProjectTemplate = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { title, description, category, fypProjectId, uploadedByName } = req.body;
 
-    /* Only allow specific fields to be updated */
-    const updatable = (({ projectId, groupId }) => ({ projectId, groupId }))(
-      req.body
-    );
-
-    /* If they changed project/group, fetch names again */
-    if (updatable.projectId) {
-      const p = await Project.findById(updatable.projectId).lean();
-      if (!p) throw new Error("Project not found");
-      updatable.projectName = p.title || p.name;
+    if (!title || !category || !fypProjectId) {
+      return res.status(400).json({ error: "title, category and fypProjectId are required" });
     }
-    if (updatable.groupId) {
-      const g = await StudentGroup.findById(updatable.groupId).lean();
-      if (!g) throw new Error("Group not found");
-      updatable.groupName = g.name;
+    if (!req.file) {
+      return res.status(400).json({ error: "No file uploaded" });
     }
 
-    const updated = await Template.findByIdAndUpdate(id, updatable, {
-      new: true,
-      runValidators: true,
+    const project = await Project.findById(fypProjectId).lean();
+    if (!project) return res.status(404).json({ error: "FYP project not found" });
+
+    // Verify supervisor owns this project
+    if (String(project.supervisorId) !== String(req.user._id)) {
+      return res.status(403).json({ error: "You can only upload templates for your own projects" });
+    }
+
+    const fileType = path.extname(req.file.originalname).slice(1).toLowerCase();
+    const fileUrl  = `/uploads/templates/${req.file.filename}`;
+
+    const template = await Template.create({
+      title,
+      description: description || "",
+      scope:          "PROJECT",
+      category,
+      uploadedBy:     req.user._id,
+      uploadedByRole: "supervisor",
+      uploadedByName: uploadedByName || "Supervisor",
+      fypProjectId:   project._id,
+      teamId:         project.teamId,
+      fileName:     req.file.filename,
+      originalName: req.file.originalname,
+      fileType,
+      fileUrl,
     });
-    if (!updated) return res.status(404).json({ error: "Not found" });
 
-    res.json({ template: updated.toPublic() });
+    res.status(201).json({ success: true, template: template.toPublic() });
   } catch (err) {
-    console.error("Template update error →", err);
-    res.status(400).json({ error: err.message });
+    console.error("uploadProjectTemplate error:", err);
+    res.status(500).json({ error: err.message });
   }
 };
 
-/* ────────────────────────────────────────────────────────────
-   DELETE /api/templates/:id
-   ──────────────────────────────────────────────────────────── */
+// ─────────────────────────────────────────────
+// GET /templates/global   — all GLOBAL templates (any role)
+// ─────────────────────────────────────────────
+exports.getGlobalTemplates = async (req, res) => {
+  try {
+    const templates = await Template.find({ scope: "GLOBAL" }).sort({ createdAt: -1 }).lean();
+    res.json({ success: true, templates });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// ─────────────────────────────────────────────
+// GET /templates/project/:fypProjectId   — PROJECT templates for one project
+// ─────────────────────────────────────────────
+exports.getProjectTemplates = async (req, res) => {
+  try {
+    const { fypProjectId } = req.params;
+    const templates = await Template.find({ scope: "PROJECT", fypProjectId })
+      .sort({ createdAt: -1 })
+      .lean();
+    res.json({ success: true, templates });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// ─────────────────────────────────────────────
+// GET /templates/supervisor   — templates uploaded by logged-in supervisor
+// ─────────────────────────────────────────────
+exports.getSupervisorTemplates = async (req, res) => {
+  try {
+    const templates = await Template.find({ uploadedBy: req.user._id, scope: "PROJECT" })
+      .populate("fypProjectId", "title")
+      .populate("teamId", "subject")
+      .sort({ createdAt: -1 })
+      .lean();
+    res.json({ success: true, templates });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// ─────────────────────────────────────────────
+// GET /templates/admin   — GLOBAL templates uploaded by admin (for admin list)
+// ─────────────────────────────────────────────
+exports.getAdminTemplates = async (req, res) => {
+  try {
+    const templates = await Template.find({ uploadedBy: req.user._id, scope: "GLOBAL" })
+      .sort({ createdAt: -1 })
+      .lean();
+    res.json({ success: true, templates });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// ─────────────────────────────────────────────
+// DELETE /templates/:id
+// ─────────────────────────────────────────────
 exports.deleteTemplate = async (req, res) => {
   try {
-    const { id } = req.params;
-    const tpl = await Template.findByIdAndDelete(id);
+    const tpl = await Template.findByIdAndDelete(req.params.id);
     if (!tpl) return res.status(404).json({ error: "Not found" });
 
-    /* remove local file (skip if using cloud storage) */
-    const localPath = path.join(
-      __dirname,
-      "..",
-      "uploads",
-      "templates",
-      tpl.fileName
-    );
+    const localPath = path.join(__dirname, "..", "uploads", "templates", tpl.fileName);
     if (fs.existsSync(localPath)) fs.unlinkSync(localPath);
 
-    res.json({ message: "Deleted" });
+    res.json({ success: true, message: "Deleted" });
   } catch (err) {
-    console.error("Template delete error →", err);
+    console.error("deleteTemplate error:", err);
     res.status(400).json({ error: err.message });
   }
 };
+
+// kept for legacy callers that still hit the old routes
+exports.getAllTemplates    = exports.getGlobalTemplates;
+exports.createTemplate     = exports.uploadGlobalTemplate;
+exports.getTemplateById    = (req, res) => res.status(410).json({ error: "Use /templates/global or /templates/project/:id" });
+exports.updateTemplate     = (req, res) => res.status(410).json({ error: "Update not supported" });

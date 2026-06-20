@@ -1,88 +1,132 @@
 .main_wrapper {
-    display: flex;
-    height: 100vh;
-    background-color: #f4f7fa;
-  }
-  
-  /* Sidebar */
-  .sidebar {
-    width: 250px;
-    background-color: #1f2937; /* dark slate gray */
-    color: #fff;
-    display: flex;
-    flex-direction: column;
-    padding: 20px;
-    box-shadow: 3px 0 10px rgba(0, 0, 0, 0.1);
-  }
-  
-  .sidebar_header h2 {
-    font-size: 22px;
-    margin-bottom: 30px;
-    text-align: center;
-    color: #10b981; /* emerald */
-    font-weight: 600;
-  }
-  
-  .sidebar_nav {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-  }
-  
-  .sidebar_nav button {
-    background: none;
-    border: none;
-    color: #d1d5db;
-    font-size: 16px;
-    padding: 12px 15px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    transition: background 0.3s, color 0.3s;
-    text-align: left;
-    cursor: pointer;
-  }
-  
-  .sidebar_nav button:hover {
-    background-color: #374151;
-    color: #ffffff;
-  }
-  
-  .sidebar_nav button svg {
-    font-size: 18px;
-  }
-  
-  .active {
-    background-color: #10b981 !important;
-    color: white !important;
-    font-weight: bold;
-  }
-  
-  /* Logout Button */
-  .logout_btn {
-    margin-top: auto;
-    background-color: #ef4444; /* red */
-    color: white;
-    font-weight: 500;
-    padding: 10px 15px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    border: none;
-    cursor: pointer;
-    transition: background 0.3s ease;
-  }
-  
-  .logout_btn:hover {
-    background-color: #dc2626;
-  }
-  
-  /* Content Area */
-  .content_area {
-    flex: 1;
-   
-    overflow-y: auto;
-  }
-  
+  display: flex;
+  height: 100vh;
+  background-color: #f4f7fa;
+}
+
+/* ── Sidebar ── */
+.sidebar {
+  width: 264px;
+  flex-shrink: 0;
+  background: linear-gradient(180deg, #0f1b3d 0%, #111827 100%);
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  padding: 20px 16px;
+  box-shadow: 3px 0 16px rgba(0, 0, 0, 0.18);
+  overflow-y: auto;
+}
+
+/* ── Brand header ── */
+.sidebar_header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 6px 18px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.brand_icon {
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(135deg, #2563eb, #1e40af);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  color: white;
+  flex-shrink: 0;
+}
+
+.sidebar_header h2 {
+  font-size: 17px;
+  font-weight: 700;
+  color: #f1f5f9;
+  margin: 0;
+  letter-spacing: -0.2px;
+}
+
+/* ── Nav ── */
+.sidebar_nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.nav_section_label {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  padding: 14px 15px 4px;
+}
+
+.sidebar_nav button {
+  background: none;
+  border: none;
+  border-left: 3px solid transparent;
+  color: #cbd5e1;
+  font-size: 14.5px;
+  font-weight: 500;
+  padding: 11px 13px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: background 0.18s, color 0.18s, border-color 0.18s;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sidebar_nav button svg {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.sidebar_nav button:hover {
+  background-color: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+}
+
+.active {
+  background-color: rgba(37, 99, 235, 0.18) !important;
+  border-left-color: #3b82f6 !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+.active svg {
+  color: #60a5fa;
+}
+
+/* ── Logout Button ── */
+.logout_btn {
+  margin-top: 16px;
+  background: rgba(239, 68, 68, 0.12);
+  color: #fca5a5;
+  font-weight: 600;
+  padding: 11px 13px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease;
+  font-size: 14.5px;
+}
+
+.logout_btn:hover {
+  background-color: #ef4444;
+  color: white;
+}
+
+/* ── Content Area ── */
+.content_area {
+  flex: 1;
+  overflow-y: auto;
+}

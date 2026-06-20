@@ -1,69 +1,203 @@
-.container,
-.loginContainer {
+.page {
+  width: 100%;
   min-height: 100vh;
+  background: #f8fafc;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 20px;
 }
 
-.container {
-  background: linear-gradient(to top right, #a7f3d0, #93c5fd); /* green to blue */
-}
-
-.loginContainer {
-  background: linear-gradient(to top right, #bfdbfe, #ddd6fe); /* blue to purple */
-}
-
-.formContainer {
-  background-color: white;
-  padding: 2rem;
-  border-radius: 1rem;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+.card {
+  background: #fff;
   width: 100%;
-  max-width: 600px;
+  max-width: 420px;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
 }
 
-.heading {
-  font-size: 1.75rem;
-  font-weight: 700;
+.banner {
+  background: linear-gradient(135deg, #1e40af 0%, #2563eb 60%, #3b82f6 100%);
+  padding: 32px 30px 26px;
   text-align: center;
-  margin-bottom: 1.5rem;
+}
+
+.bannerIcon {
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 12px;
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  color: white;
+  backdrop-filter: blur(4px);
+}
+
+.bannerTag {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.78);
+  margin-bottom: 6px;
+}
+
+.bannerTitle {
+  font-size: 24px;
+  font-weight: 800;
+  color: white;
+  margin: 0 0 4px;
+}
+
+.bannerSubtitle {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.82);
+  margin: 0;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  padding: 30px 30px 28px;
+  gap: 14px;
+}
+
+.inputGroup {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.inputIcon {
+  position: absolute;
+  left: 14px;
+  color: #9ca3af;
+  font-size: 14px;
 }
 
 .input {
-  width: 96%;
-  padding: 0.75rem;
-  margin-bottom: 1rem;
-  border: 1px solid #d1d5db;
-  border-radius: 0.5rem;
-  font-size: 1rem;
-}
-
-.button,
-.loginButton {
   width: 100%;
-  color: white;
-  padding: 0.75rem;
-  font-size: 1rem;
-  font-weight: 500;
+  padding: 13px 14px 13px 38px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  background: #fafafa;
+  box-sizing: border-box;
+}
+
+.input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+  background: white;
+}
+
+.error {
+  color: #991b1b;
+  padding: 10px 12px;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background-color: #fee2e2;
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.resendBox {
+  background: #eff6ff;
+  border: 1px solid #93c5fd;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 12.5px;
+  color: #1e40af;
+  text-align: center;
+}
+
+.resendBtn {
+  background: none;
   border: none;
-  border-radius: 0.5rem;
+  color: #1e40af;
+  font-size: 12.5px;
+  font-weight: 700;
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  text-decoration: underline;
 }
 
-.button {
-  background-color: #16a34a;
+.resendBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
-.button:hover {
-  background-color: #15803d;
+.forgotLink {
+  align-self: flex-end;
+  margin-top: -6px;
+  font-size: 13px;
+  color: #2563eb;
+  text-decoration: none;
+  font-weight: 600;
 }
 
-.loginButton {
-  background-color: #2563eb; /* blue-600 */
+.forgotLink:hover {
+  text-decoration: underline;
 }
 
-.loginButton:hover {
-  background-color: #1d4ed8; /* blue-700 */
+.submitBtn {
+  margin-top: 4px;
+  background: linear-gradient(135deg, #1e40af, #2563eb);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 13px 16px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.submitBtn:hover {
+  opacity: 0.9;
+}
+
+.submitBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.loader {
+  width: 18px;
+  height: 18px;
+  border: 3px solid rgba(255, 255, 255, 0.4);
+  border-bottom-color: white;
+  border-radius: 50%;
+  display: inline-block;
+  box-sizing: border-box;
+  animation: rotation 1s linear infinite;
+}
+
+@keyframes rotation {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.switchText {
+  text-align: center;
+  font-size: 13.5px;
+  color: #6b7280;
+  margin: 6px 0 0;
+}
+
+.switchLink {
+  color: #2563eb;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.switchLink:hover {
+  text-decoration: underline;
 }

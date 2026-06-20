@@ -1,5 +1,8 @@
 /* 🔥 Main Navbar - Glassmorphism Style */
 .navbar {
+	position: sticky;
+	top: 0;
+	z-index: 100;
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
@@ -61,6 +64,62 @@
 .nav_links button:hover {
 	color: #00bcd4;
 	transform: translateY(-2px);
+}
+
+/* ⋮ More Options Menu */
+.more_menu_wrapper {
+	position: relative;
+	display: flex;
+	align-items: center;
+}
+
+.more_menu_btn {
+	background: rgba(255, 255, 255, 0.08);
+	border: none;
+	color: white;
+	font-size: 22px;
+	font-weight: bold;
+	line-height: 1;
+	cursor: pointer;
+	padding: 8px 14px;
+	border-radius: 8px;
+	transition: background 0.2s ease-in-out;
+}
+
+.more_menu_btn:hover {
+	background: rgba(255, 255, 255, 0.18);
+	color: #00bcd4;
+}
+
+.more_menu_dropdown {
+	position: absolute;
+	top: calc(100% + 8px);
+	right: 0;
+	background: #1e1e2f;
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 10px;
+	box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+	min-width: 180px;
+	overflow: hidden;
+	z-index: 1000;
+}
+
+.more_menu_dropdown button {
+	display: block;
+	width: 100%;
+	background: none;
+	border: none;
+	color: #e9edef;
+	font-size: 15px;
+	text-align: left;
+	padding: 12px 16px;
+	cursor: pointer;
+	transition: background 0.15s ease-in-out;
+}
+
+.more_menu_dropdown button:hover {
+	background: rgba(37, 99, 235, 0.18);
+	color: #60a5fa;
 }
 
 /* 🔒 Auth Buttons */

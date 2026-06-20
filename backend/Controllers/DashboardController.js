@@ -1,4 +1,5 @@
     const Task = require("../Models/Task.js");
+    const Team = require("../Models/Team.js");
     const User = require("../Models/Users.js");
     const TaskAssignment = require("../Models/TaskAssignment.js");
     const UserProjectSummary = require("../Models/UserProjectSummary.js");
@@ -13,7 +14,11 @@
         try {
             const totalTasks = await TaskAssignment.countDocuments({ user_id: userId });
             // console.log(`totaltasks>>${totalTasks}`)
-            const completedTasks = await TaskAssignment.countDocuments({ user_id: userId, status: "completed" });
+            // Count completed as either 'Completed' or 'Approved' to be resilient
+            const completedTasks = await TaskAssignment.countDocuments({
+                user_id: userId,
+                status: { $in: ["Completed", "Approved"] },
+            });
             const pendingTasks = await TaskAssignment.countDocuments({ user_id: userId, status: "Pending" });
 
             // console.log(`Total Tasks: ${totalTasks}, Completed Tasks: ${completedTasks}, Pending Tasks: ${pendingTasks}`);
@@ -27,26 +32,45 @@
 
 
 
-    // ✅ Get Task Progress Over Time
+    // ✅ Get Task Progress Over Time (filtered by userId)
     const getTaskProgress = async (req, res) => {
         try {
-            // Fetch tasks grouped by week
-            const weeklyProgress = await Task.aggregate([
+            const { userId } = req.query;
+            
+            // Build match stage: if userId provided, filter by user_id; otherwise all tasks
+            const matchStage = userId ? { $match: { user_id: userId } } : { $match: {} };
+            
+            // Aggregate assignment progress by week from TaskAssignment (status tracked here)
+            const weeklyProgress = await TaskAssignment.aggregate([
+                matchStage,
                 {
                     $group: {
-                        _id: { $week: "$createdAt" },
-                        completed: { $sum: { $cond: [{ $eq: ["$status", "Completed"] }, 1, 0] } },
-                        pending: { $sum: { $cond: [{ $eq: ["$status", "Pending"] }, 1, 0] } }
-                    }
+                        _id: { $week: "$assignedAt" },
+                        completed: {
+                            $sum: {
+                                $cond: [
+                                    { $in: ["$status", ["Completed", "Approved"]] },
+                                    1,
+                                    0,
+                                ],
+                            },
+                        },
+                        pending: {
+                            $sum: {
+                                $cond: [{ $eq: ["$status", "Pending"] }, 1, 0],
+                            },
+                        },
+                    },
                 },
-                { $sort: { _id: 1 } } // Sort by week
+                { $sort: { "_id": 1 } },
             ]);
 
-            const labels = weeklyProgress.map(data => `Week ${data._id}`);
-            const completedData = weeklyProgress.map(data => data.completed);
-            const pendingData = weeklyProgress.map(data => data.pending);
+            // Normalize into arrays for the frontend chart
+            const labels = weeklyProgress.map((data) => `Week ${data._id}`);
+            const completedData = weeklyProgress.map((data) => data.completed || 0);
+            const pendingData = weeklyProgress.map((data) => data.pending || 0);
 
-            res.json({ labels, completedData, pendingData });
+            return res.json({ labels, completedData, pendingData });
         } catch (error) {
             res.status(500).json({ message: "Error fetching task progress", error });
         }
@@ -65,7 +89,25 @@
     // ✅ Get Recent Tasks
     const getRecentTasks = async (req, res) => {
         try {
-            const recentTasks = await Task.find().sort({ createdAt: -1 }).limit(5);
+            const { userId } = req.query;
+            let recentTasks;
+
+            if (userId) {
+                const teams = await Team.find({ members: userId }, "members").lean();
+                const groupMemberIds = teams.reduce((ids, team) => {
+                    team.members.forEach((member) => ids.add(String(member)));
+                    return ids;
+                }, new Set());
+
+                const filterIds = groupMemberIds.size > 0 ? Array.from(groupMemberIds) : [userId];
+                recentTasks = await Task.find({ createdBy: { $in: filterIds } })
+                    .sort({ createdAt: -1 })
+                    .limit(5)
+                    .lean();
+            } else {
+                recentTasks = await Task.find().sort({ createdAt: -1 }).limit(5).lean();
+            }
+
             res.json(recentTasks);
         } catch (error) {
             res.status(500).json({ message: "Error fetching recent tasks", error });

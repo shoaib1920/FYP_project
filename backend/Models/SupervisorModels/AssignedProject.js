@@ -1,12 +1,61 @@
-// AssignedProject.js (Mongoose Model)
+// models/AssignedProject.js
+
 const mongoose = require('mongoose');
 
-const assignedProjectSchema = new mongoose.Schema({
-  projectId: { type: mongoose.Schema.Types.ObjectId, ref: 'Project', required: true },
-  groupId: { type: mongoose.Schema.Types.ObjectId, ref: 'Team', required: true },
-  supervisorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Supervisor', required: true },
-  assignedDate: { type: Date, default: Date.now },
-  status: { type: String, default: 'null' } // ✅ added status column
-});
+const assignedProjectSchema = new mongoose.Schema(
+  {
+    projectId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Project',
+      required: true,
+    },
 
-module.exports = mongoose.model('AssignedProject', assignedProjectSchema);
+    proposalId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Proposal',
+      required: true,
+    },
+
+    teamId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Team',
+      required: true,
+    },
+
+    teamLeaderId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'users',
+      required: true,
+    },
+
+    supervisorId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Supervisor',
+      required: true,
+    },
+
+    departmentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Department',
+    },
+
+    assignedAt: {
+      type: Date,
+      default: Date.now,
+    },
+
+    status: {
+      type: String,
+      enum: ['ACTIVE', 'COMPLETED', 'ON_HOLD'],
+      default: 'ACTIVE',
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+module.exports = mongoose.model(
+  'AssignedProject',
+  assignedProjectSchema
+);

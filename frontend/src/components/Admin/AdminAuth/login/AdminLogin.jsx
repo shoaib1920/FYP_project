@@ -1,14 +1,40 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
+import { FaUserShield, FaEnvelope, FaLock } from 'react-icons/fa';
 import styles from './styles.module.css';
 
 const AdminLogin = () => {
   const [admin, setAdmin] = useState({ email: '', password: '' });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [unverified, setUnverified] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [resendMsg, setResendMsg] = useState('');
   const navigate = useNavigate();
+
+  const handleResend = async () => {
+    setResending(true);
+    setResendMsg('');
+    try {
+      const res = await axios.post(`${process.env.REACT_APP_API_URL}/auth/resend-verification`, {
+        email: admin.email,
+        role: 'admin',
+      });
+      setResendMsg(res.data.message || 'Verification email sent.');
+    } catch (err) {
+      setResendMsg('Failed to resend. Please try again.');
+    } finally {
+      setResending(false);
+    }
+  };
 
   const handleLogin = async (e) => {
   e.preventDefault();
+  setError('');
+  setUnverified(false);
+  setResendMsg('');
+  setLoading(true);
   try {
     const res = await axios.post(`${process.env.REACT_APP_API_URL}/auth/admin_login`, admin);
 
@@ -17,39 +43,81 @@ const AdminLogin = () => {
     localStorage.setItem("adminToken", res.data.token);
     localStorage.setItem("adminData", JSON.stringify(res.data.admin)); // assuming backend returns admin object
 
-  
+
 navigate('/admin/dashboard');
 
   } catch (error) {
-    alert("Login Failed: " + (error.response?.data?.message || error.message));
+    if (error.response?.data?.unverified) setUnverified(true);
+    setError(error.response?.data?.message || error.message || "Login failed");
+  } finally {
+    setLoading(false);
   }
 };
 
 
   return (
-    <div className={styles.loginContainer}>
-      <div className={styles.formContainer}>
-        <h2 className={styles.heading}>Admin Login</h2>
-        <form onSubmit={handleLogin}>
-          <input
-            type="email"
-            placeholder="Email"
-            className={styles.input}
-            value={admin.email}
-            onChange={(e) => setAdmin({ ...admin, email: e.target.value })}
-            required
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            className={styles.input}
-            value={admin.password}
-            onChange={(e) => setAdmin({ ...admin, password: e.target.value })}
-            required
-          />
-          <button type="submit" className={styles.loginButton}>
-            Login
+    <div className={styles.page}>
+      <div className={styles.card}>
+        <div className={styles.banner}>
+          <div className={styles.bannerIcon}><FaUserShield /></div>
+          <span className={styles.bannerTag}>Admin Portal</span>
+          <h1 className={styles.bannerTitle}>Welcome Back</h1>
+          <p className={styles.bannerSubtitle}>Log in to manage the FYP portal.</p>
+        </div>
+
+        <form onSubmit={handleLogin} className={styles.form}>
+          <div className={styles.inputGroup}>
+            <FaEnvelope className={styles.inputIcon} />
+            <input
+              type="email"
+              placeholder="Email"
+              className={styles.input}
+              value={admin.email}
+              onChange={(e) => setAdmin({ ...admin, email: e.target.value })}
+              required
+            />
+          </div>
+
+          <div className={styles.inputGroup}>
+            <FaLock className={styles.inputIcon} />
+            <input
+              type="password"
+              placeholder="Password"
+              className={styles.input}
+              value={admin.password}
+              onChange={(e) => setAdmin({ ...admin, password: e.target.value })}
+              required
+            />
+          </div>
+
+          {error && <p className={styles.error}>{error}</p>}
+
+          {unverified && (
+            <div className={styles.resendBox}>
+              {resendMsg ? (
+                <span>{resendMsg}</span>
+              ) : (
+                <button type="button" onClick={handleResend} disabled={resending} className={styles.resendBtn}>
+                  {resending ? "Sending..." : "Resend verification email"}
+                </button>
+              )}
+            </div>
+          )}
+
+          <Link to="/admin/forgot-password" className={styles.forgotLink}>
+            Forgot password?
+          </Link>
+
+          <button type="submit" className={styles.submitBtn} disabled={loading}>
+            {loading ? <span className={styles.loader}></span> : "Login"}
           </button>
+
+          <p className={styles.switchText}>
+            New here?{" "}
+            <Link to="/admin/signup" className={styles.switchLink}>
+              Create an account
+            </Link>
+          </p>
         </form>
       </div>
     </div>

@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const User = require("../Models/Users"); // or Supervisor/Admin model
 const Project =  require("../Models/SupervisorModels/Project");
 const AssignedProject = require("../Models/SupervisorModels/AssignedProject");
+const { sendVerificationEmail } = require("./EmailVerificationController");
 const JWT_SECRET = 'your_secret_key_here';
 
 exports.admin_signup = async (req, res) => {
@@ -15,7 +16,8 @@ exports.admin_signup = async (req, res) => {
     const hashed = await bcrypt.hash(password, 10);
     const newAdmin = new Admin({ name, email, password: hashed });
     await newAdmin.save();
-    res.status(201).json({ message: "Admin created successfully" });
+    await sendVerificationEmail(newAdmin, "admin");
+    res.status(201).json({ message: "Admin created successfully. Please check your email to verify your account before logging in." });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -29,6 +31,13 @@ exports.admin_login = async (req, res) => {
 
     const match = await bcrypt.compare(password, admin.password);
     if (!match) return res.status(401).json({ message: "Invalid password" });
+
+    if (!admin.isEmailVerified) {
+      return res.status(403).json({
+        message: "Please verify your email before logging in. Check your inbox for the verification link.",
+        unverified: true,
+      });
+    }
 
     const token = jwt.sign(
   { _id: admin._id },

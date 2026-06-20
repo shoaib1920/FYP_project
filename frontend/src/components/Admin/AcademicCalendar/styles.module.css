@@ -1,0 +1,316 @@
+.container {
+  padding: 28px 26px;
+  font-family: 'Segoe UI', Arial, sans-serif;
+  background: #f8fafc;
+  min-height: 100vh;
+}
+
+/* ── Hero ── */
+.hero {
+  background: linear-gradient(135deg, #1e40af 0%, #2563eb 60%, #3b82f6 100%);
+  border-radius: 18px;
+  padding: 26px 28px;
+  margin-bottom: 22px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  box-shadow: 0 8px 32px rgba(37, 99, 235, 0.28);
+}
+
+.heroIcon {
+  flex-shrink: 0;
+  width: 56px;
+  height: 56px;
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  color: white;
+  backdrop-filter: blur(4px);
+}
+
+.heroText { min-width: 0; }
+
+.heading { font-size: 22px; font-weight: 800; color: white; margin: 0 0 4px; letter-spacing: -0.3px; }
+.subheading { font-size: 13px; color: rgba(255, 255, 255, 0.82); margin: 0; }
+
+.toast {
+  background: #d1fae5;
+  color: #065f46;
+  border: 1px solid #6ee7b7;
+  padding: 12px 18px;
+  border-radius: 10px;
+  margin-bottom: 16px;
+  font-weight: 600;
+  font-size: 13.5px;
+}
+
+/* ── Stats ── */
+.statsRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.statCard {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 16px 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.04);
+}
+
+.statIcon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.statCard h4 { margin: 0 0 4px; font-size: 12.5px; color: #64748b; font-weight: 600; }
+.statCard p { margin: 0; font-size: 22px; color: #111827; font-weight: 800; }
+.statTextSm { font-size: 14px !important; }
+
+/* ── Actions ── */
+.actionsRow {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+}
+
+.createBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #1e40af, #2563eb);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 11px 18px;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.createBtn:hover { opacity: 0.9; }
+
+.emptyMsg { color: #6b7280; font-size: 14px; text-align: center; }
+
+.noResultsBox {
+  text-align: center;
+  padding: 48px 24px;
+  background: #fff;
+  border: 2px dashed #e5e7eb;
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.emptyIconWrap {
+  width: 64px;
+  height: 64px;
+  background: #f3f4f6;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  color: #d1d5db;
+}
+
+.noResultsBox h4 { font-size: 15px; font-weight: 700; color: #374151; margin: 0; }
+.noResultsBox p { font-size: 13px; color: #9ca3af; margin: 0; max-width: 360px; }
+
+/* ── Term cards ── */
+.termGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 18px;
+}
+
+.termCard {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 18px 20px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
+}
+
+.termCardActive {
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12), 0 3px 10px rgba(0, 0, 0, 0.05);
+}
+
+.termCardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.termName { font-size: 16px; font-weight: 800; color: #1f2937; margin: 0; }
+
+.activeBadge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: #dcfce7;
+  color: #15803d;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.deadlineRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 13px;
+}
+
+.deadlineLabel { color: #64748b; font-weight: 600; }
+.deadlineValue { color: #1f2937; font-weight: 700; }
+.deadlinePassed { color: #b91c1c; font-weight: 700; }
+
+.termActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+
+.activateBtn {
+  background: #eff6ff;
+  border: 1px solid #93c5fd;
+  color: #1e40af;
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 7px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.activateBtn:hover { background: #dbeafe; }
+
+.editBtn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  color: #374151;
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 7px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.editBtn:hover { background: #f1f5f9; }
+
+.deleteBtn {
+  display: flex;
+  align-items: center;
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
+  color: #b91c1c;
+  font-size: 12.5px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.deleteBtn:hover { background: #fecaca; }
+
+/* ── Modal ── */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.modal {
+  background: #fff;
+  border-radius: 16px;
+  padding: 28px 30px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+}
+
+.modalTitle { font-size: 18px; font-weight: 800; color: #1f2937; margin: 0 0 16px; }
+
+.label { font-size: 12.5px; font-weight: 700; color: #374151; margin: 10px 0 6px; }
+
+.input {
+  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 9px;
+  font-size: 13.5px;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.modalActions {
+  display: flex;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.saveBtn {
+  flex: 1;
+  background: linear-gradient(135deg, #1e40af, #2563eb);
+  color: white;
+  border: none;
+  border-radius: 9px;
+  padding: 11px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.saveBtn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.cancelBtn {
+  background: #f3f4f6;
+  border: 1px solid #d1d5db;
+  color: #374151;
+  border-radius: 9px;
+  padding: 11px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cancelBtn:hover { background: #e5e7eb; }

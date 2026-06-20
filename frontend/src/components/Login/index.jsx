@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { FaUserGraduate, FaEnvelope, FaLock } from "react-icons/fa";
 import styles from "./styles.module.css";
 
 const Login = () => {
@@ -7,6 +8,27 @@ const Login = () => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorVisible, setErrorVisible] = useState(false); // Track animation state
+  const [unverified, setUnverified] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [resendMsg, setResendMsg] = useState("");
+
+  const handleResend = async () => {
+    setResending(true);
+    setResendMsg("");
+    try {
+      const res = await fetch(`${process.env.REACT_APP_API_URL}/auth/resend-verification`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: data.email, role: "student" }),
+      });
+      const result = await res.json();
+      setResendMsg(result.message || "Verification email sent.");
+    } catch (err) {
+      setResendMsg("Failed to resend. Please try again.");
+    } finally {
+      setResending(false);
+    }
+  };
 
   const handleChange = ({ currentTarget: input }) => {
     setData({ ...data, [input.name]: input.value });
@@ -16,6 +38,8 @@ const Login = () => {
     e.preventDefault();
     setError("");
     setErrorVisible(false); // Hide any previous error animations
+    setUnverified(false);
+    setResendMsg("");
     setLoading(true);
 
     const { email, password } = data;
@@ -47,7 +71,9 @@ const Login = () => {
       if (!response.ok) {
         const errorData = await response.json();
 		console.log("errorDAta",errorData);
-        throw new Error(errorData.message || "Something went wrong");
+        const err = new Error(errorData.message || "Something went wrong");
+        err.unverified = !!errorData.unverified;
+        throw err;
       }
 
       const responseData = await response.json();
@@ -58,25 +84,37 @@ const Login = () => {
 
       window.location.href = "/student/dashboard";
     } catch (error) {
+      const isUnverified = !!error.unverified;
       setError(error.message);
+      setUnverified(isUnverified);
       setErrorVisible(true); // Show error animation
 
-      // Hide error after 4 seconds with animation
+      // Hide error after a few seconds, unless it's an unverified-email error
+      // (keep that one visible so the "Resend" action stays usable).
       setTimeout(() => {
         setErrorVisible(false); // Trigger fade-out animation
-        setTimeout(() => setError(""), 500); // Remove error after animation ends
-      }, 2000);
+        setTimeout(() => {
+          if (!isUnverified) setError("");
+        }, 500);
+      }, isUnverified ? 8000 : 2000);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className={styles.login_container}>
-      <div className={styles.login_form_container}>
-        <div className={styles.left}>
-          <form className={styles.form_container} onSubmit={handleSubmit}>
-            <h1>Login to Your Account</h1>
+    <div className={styles.page}>
+      <div className={styles.card}>
+        <div className={styles.banner}>
+          <div className={styles.bannerIcon}><FaUserGraduate /></div>
+          <span className={styles.bannerTag}>Student Portal</span>
+          <h1 className={styles.bannerTitle}>Welcome Back</h1>
+          <p className={styles.bannerSubtitle}>Log in to continue working on your FYP.</p>
+        </div>
+
+        <form className={styles.form} onSubmit={handleSubmit}>
+          <div className={styles.inputGroup}>
+            <FaEnvelope className={styles.inputIcon} />
             <input
               type="email"
               placeholder="Email"
@@ -86,6 +124,10 @@ const Login = () => {
               required
               className={styles.input}
             />
+          </div>
+
+          <div className={styles.inputGroup}>
+            <FaLock className={styles.inputIcon} />
             <input
               type="password"
               placeholder="Password"
@@ -95,29 +137,45 @@ const Login = () => {
               required
               className={styles.input}
             />
-            {/* Show error message with animations */}
-            {error && (
-              <div
-                className={`${styles.error_msg} ${
-                  errorVisible ? styles.slide_in : styles.slide_out
-                }`}
-              >
-                {error}
-              </div>
-            )}
-            <button type="submit" className={styles.green_btn} disabled={loading}>
-              {loading ? <span className={styles.loader}></span> : "Login"}
-            </button>
-          </form>
-        </div>
-        <div className={styles.right}>
-          <h1>New Here?</h1>
-          <Link to="/student/signup">
-            <button type="button" className={styles.white_btn}>
-              Sign Up
-            </button>
+          </div>
+
+          {error && (
+            <div
+              className={`${styles.error_msg} ${
+                errorVisible ? styles.slide_in : styles.slide_out
+              }`}
+            >
+              {error}
+            </div>
+          )}
+
+          {unverified && (
+            <div className={styles.resendBox}>
+              {resendMsg ? (
+                <span>{resendMsg}</span>
+              ) : (
+                <button type="button" onClick={handleResend} disabled={resending} className={styles.resendBtn}>
+                  {resending ? "Sending..." : "Resend verification email"}
+                </button>
+              )}
+            </div>
+          )}
+
+          <Link to="/student/forgot-password" className={styles.forgot_link}>
+            Forgot password?
           </Link>
-        </div>
+
+          <button type="submit" className={styles.submitBtn} disabled={loading}>
+            {loading ? <span className={styles.loader}></span> : "Login"}
+          </button>
+
+          <p className={styles.switchText}>
+            New here?{" "}
+            <Link to="/student/signup" className={styles.switchLink}>
+              Create an account
+            </Link>
+          </p>
+        </form>
       </div>
     </div>
   );

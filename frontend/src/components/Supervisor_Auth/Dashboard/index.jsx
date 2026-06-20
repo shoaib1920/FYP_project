@@ -1,231 +1,434 @@
-import React, { useEffect, useState } from "react";
-import styles from "./styles.module.css";
-import { Line } from "react-chartjs-2";
+import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
+import styles from "./styles.module.css";
 import {
-  Chart as ChartJS,
-  LineElement,
-  PointElement,
-  LinearScale,
-  CategoryScale,
-  Tooltip,
-  Legend,
-} from "chart.js";
+  FaProjectDiagram,
+  FaUserGraduate,
+  FaCheckCircle,
+  FaHourglassHalf,
+  FaExclamationTriangle,
+  FaClipboardCheck,
+  FaArrowRight,
+  FaFileSignature,
+  FaBuilding,
+  FaComments,
+} from "react-icons/fa";
 
-ChartJS.register(
-  LineElement,
-  PointElement,
-  LinearScale,
-  CategoryScale,
-  Tooltip,
-  Legend
-);
+const STATUS_LABELS = {
+  ACTIVE: "Active",
+  IN_PROGRESS: "In Progress",
+  ON_HOLD: "On Hold",
+  UNDER_REVIEW: "Under Review",
+  COMPLETED: "Completed",
+  CANCELLED: "Cancelled",
+};
 
-const SupervisorDashboard = () => {
-  const [stats, setStats] = useState({
-    totalProjects: 0,
-    studentsAssigned: 0,
-    totalTasks: 0,
-    completedTasks: 0,
-  });
+const STATUS_BADGE = {
+  ACTIVE: { bg: "#f3f4f6", color: "#374151" },
+  IN_PROGRESS: { bg: "#e3f2fd", color: "#1565c0" },
+  ON_HOLD: { bg: "#fff3e0", color: "#e65100" },
+  UNDER_REVIEW: { bg: "#f3e5f5", color: "#6a1b9a" },
+  COMPLETED: { bg: "#e8f5e9", color: "#2e7d32" },
+  CANCELLED: { bg: "#fce4ec", color: "#c62828" },
+};
 
-  const [supervisor, setSupervisor] = useState({
-    name: "",
-    email: "",
-    department: "",
-    avatar: "",
-  });
-  const storedSupervisor = localStorage.getItem("supervisorData");
-  const parsedSupervisor = JSON.parse(storedSupervisor);
-  const supervisorId = parsedSupervisor._id;
+const buildMemberIds = (project) => {
+  const ids = new Set();
+  if (project.teamLeaderId?._id) ids.add(String(project.teamLeaderId._id));
+  if (Array.isArray(project.teamId?.members)) {
+    project.teamId.members.forEach((m) => ids.add(String(m._id || m)));
+  }
+  return ids;
+};
+
+const SupervisorDashboard = ({ setActiveModule }) => {
+  const [supervisor, setSupervisor] = useState({ name: "", email: "", department: "" });
+  const [projects, setProjects] = useState([]);
+  const [proposals, setProposals] = useState([]);
+  const [department, setDepartment] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const apiBase = process.env.REACT_APP_API_URL || "";
+  const token = localStorage.getItem("token");
 
   useEffect(() => {
     const storedSupervisor = localStorage.getItem("supervisorData");
     if (storedSupervisor) {
-      const parsedSupervisor = JSON.parse(storedSupervisor);
-      setSupervisor({
-        name: parsedSupervisor.name || "",
-        email: parsedSupervisor.email || "",
-        department: parsedSupervisor.department || "",
-        avatar: parsedSupervisor.avatar || "",
-      });
+      try {
+        const parsed = JSON.parse(storedSupervisor);
+        setSupervisor({
+          name: parsed.name || "",
+          email: parsed.email || "",
+          department: parsed.department || "",
+        });
+      } catch (err) {
+        console.error("Failed to parse supervisor data:", err);
+      }
     }
   }, []);
-
-  console.log("supervisor ID>>>", supervisorId);
 
   useEffect(() => {
+    const fetchDashboardData = async () => {
+      setLoading(true);
+      setError("");
+      const authHeader = { headers: { Authorization: `Bearer ${token}` } };
+      try {
+        const [projectsRes, proposalsRes, deptRes] = await Promise.all([
+          axios.get(`${apiBase}/auth/projects/supervisor`, authHeader),
+          axios.get(`${apiBase}/auth/proposals/supervisor`, authHeader),
+          axios.get(`${apiBase}/auth/supervisor/my-department`, authHeader),
+        ]);
+        setProjects(projectsRes.data.projects || []);
+        setProposals(proposalsRes.data.proposals || []);
+        setDepartment(deptRes.data || null);
+      } catch (err) {
+        console.error("Error fetching supervisor dashboard data:", err);
+        setError("Failed to load dashboard data. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDashboardData();
+  }, [apiBase, token]);
 
-    if (supervisorId) {
-      fetchStats(supervisorId);
-    }
-  }, []);
+  const stats = useMemo(() => {
+    const statusCounts = {
+      ACTIVE: 0,
+      IN_PROGRESS: 0,
+      ON_HOLD: 0,
+      UNDER_REVIEW: 0,
+      COMPLETED: 0,
+      CANCELLED: 0,
+    };
+    const studentIds = new Set();
+    let pendingGradeApproval = 0;
+    let flagged = 0;
+    let progressSum = 0;
+    let progressCount = 0;
 
-  const fetchStats = async (supervisorId) => {
-    try {
-      const [projectRes, teamsRes] = await Promise.all([
-        axios.get(
-         `${process.env.REACT_APP_API_URL}/auth/assigned-projects/stats/${supervisorId}`
-        ),
-        axios.get(`${process.env.REACT_APP_API_URL}/auth/teams`),
-      ]);
+    projects.forEach((p) => {
+      if (statusCounts[p.status] !== undefined) statusCounts[p.status] += 1;
+      buildMemberIds(p).forEach((id) => studentIds.add(id));
+      if (p.status === "COMPLETED" && p.gradesStatus === "PENDING_RELEASE") pendingGradeApproval += 1;
+      if (p.gradesStatus === "FLAGGED") flagged += 1;
+      if (!["COMPLETED", "CANCELLED"].includes(p.status)) {
+        progressSum += p.progress || 0;
+        progressCount += 1;
+      }
+    });
 
-      const assignedProjects = projectRes.data.projects;
-      const teams = teamsRes.data.teams;
+    const pendingProposals = proposals.filter((p) => p.status === "SUPERVISOR_ASSIGNED").length;
 
-      // 🧠 Sum of all students assigned (based on groupId -> team.members.length)
-      let totalStudentsAssigned = 0;
-      assignedProjects.forEach((project) => {
-        const group = teams.find((team) => team._id === project.groupId);
-        if (group && Array.isArray(group.members)) {
-          totalStudentsAssigned += group.members.length;
-        }
-      });
-      console.log("total project>>",projectRes.data.total);
-      console.log("total students>>",totalStudentsAssigned);
-      console.log("total task>>",projectRes.data.total);
-      console.log("total completed>>",projectRes.data.complete);
+    return {
+      total: projects.length,
+      statusCounts,
+      studentsAssigned: studentIds.size,
+      pendingGradeApproval,
+      flagged,
+      pendingProposals,
+      avgProgress: progressCount ? Math.round(progressSum / progressCount) : 0,
+    };
+  }, [projects, proposals]);
 
+  const needsAttention = useMemo(() => {
+    const items = [];
+    proposals
+      .filter((p) => p.status === "SUPERVISOR_ASSIGNED")
+      .forEach((p) =>
+        items.push({
+          key: `proposal-${p._id}`,
+          title: p.title,
+          reason: "New proposal assigned — needs your decision",
+          icon: <FaFileSignature />,
+          target: "proposal-approval",
+        })
+      );
+    projects
+      .filter((p) => p.status === "UNDER_REVIEW")
+      .forEach((p) =>
+        items.push({
+          key: `review-${p._id}`,
+          title: p.title,
+          reason: "Final report submitted — needs grading",
+          icon: <FaClipboardCheck />,
+          target: "fyp-projects",
+        })
+      );
+    projects
+      .filter((p) => p.status === "COMPLETED" && p.gradesStatus === "FLAGGED")
+      .forEach((p) =>
+        items.push({
+          key: `flagged-${p._id}`,
+          title: p.title,
+          reason: "Grades flagged by admin — needs re-grade",
+          icon: <FaExclamationTriangle />,
+          target: "fyp-projects",
+        })
+      );
+    return items;
+  }, [projects, proposals]);
 
-      setStats({
-        totalProjects: projectRes.data.total,
-        studentsAssigned: totalStudentsAssigned,
-        totalTasks: projectRes.data.total, // can be adjusted if you track real tasks
-        completedTasks: projectRes.data.complete,
-      });
-    } catch (error) {
-      console.error("❌ Error fetching full stats:", error);
-    }
-  };
+  const recentProjects = useMemo(
+    () =>
+      [...projects]
+        .sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt))
+        .slice(0, 5),
+    [projects]
+  );
 
-  const taskData = {
-    labels: [
-      "Start",
-      "10%",
-      "20%",
-      "30%",
-      "40%",
-      "50%",
-      "60%",
-      "70%",
-      "80%",
-      "90%",
-      "100%",
-    ],
-    datasets: [
-      {
-        label: "Tasks Progress",
-        data: Array.from({ length: 11 }, (_, i) =>
-          Number((stats.completedTasks * (i / 10)).toFixed(1))
-        ),
-        fill: false,
-        borderColor: "#10b981",
-        tension: 0.4,
-      },
-    ],
-  };
+  const maxStatusCount = Math.max(1, ...Object.values(stats.statusCounts));
+  const initials = supervisor.name
+    ? supervisor.name.split(" ").filter(Boolean).map((w) => w[0]).join("").toUpperCase().slice(0, 2)
+    : "S";
 
-  const projectData = {
-    labels: ["Total", "Pending", "Complete"],
-    datasets: [
-      {
-        label: "Project Stats",
-        data: [
-          stats.totalProjects,
-          stats.totalProjects - stats.completedTasks,
-          stats.completedTasks,
-        ],
-        backgroundColor: ["#3b82f6", "#facc15", "#22c55e"],
-        borderColor: ["#2563eb", "#eab308", "#15803d"],
-        borderWidth: 1,
-      },
-    ],
-  };
-
-  const usersData = {
-    labels: ["Total Students Assigned"],
-    datasets: [
-      {
-        label: "Students Assigned",
-        data: [stats.studentsAssigned],
-        backgroundColor: ["#f97316"],
-        borderColor: ["#ea580c"],
-        borderWidth: 1,
-      },
-    ],
-  };
+  const goTo = (module) => setActiveModule && setActiveModule(module);
+  const homeDept = department?.homeDepartment;
 
   return (
     <div className={styles.container}>
-      <h2 className={styles.heading}>Supervisor Dashboard</h2>
-
-      {/* Profile Card */}
-      {/* <div className={styles.profileCard}>
-        <img src={supervisor.avatar} alt="Avatar" className={styles.avatar} />
-        <div className={styles.info}>
-          <h3>{supervisor.name}</h3>
-          <p><strong>Department:</strong> {supervisor.department}</p>
-          <p><strong>Email:</strong> {supervisor.email}</p>
-        </div>
-      </div> */}
-      <div className={styles.profileCard}>
-        <div className={styles.simpleAvatar}>
-          {supervisor.name
-            .split(" ")
-            .map((word) => word[0])
-            .join("")
-            .toUpperCase()}
-        </div>
-        <div className={styles.info}>
-          <h3>{supervisor.name}</h3>
-          <p>
-            <strong>Department:</strong> {supervisor.department}
-          </p>
-          <p>
-            <strong>Email:</strong> {supervisor.email}
+      {/* Hero */}
+      <div className={styles.hero}>
+        <div className={styles.heroAvatar}>{initials}</div>
+        <div className={styles.heroText}>
+          <h2 className={styles.heading}>
+            Welcome back, {supervisor.name ? supervisor.name.split(" ")[0] : "Supervisor"}
+          </h2>
+          <p className={styles.subheading}>
+            {homeDept?.name ? `${homeDept.name} · ` : supervisor.department ? `${supervisor.department} · ` : ""}
+            {supervisor.email}
           </p>
         </div>
       </div>
 
-      {/* Stats Section */}
-      <div className={styles.statsGrid}>
-        <div className={styles.statBox}>
-          <h4>Total Projects</h4>
-          <p>{stats.totalProjects}</p>
-        </div>
-        <div className={styles.statBox}>
-          <h4>Students Assigned</h4>
-          <p>{stats.studentsAssigned}</p>
-        </div>
-        <div className={styles.statBox}>
-          <h4>Pending Projects</h4>
-          <p>{stats.totalTasks}</p>
-        </div>
-        <div className={styles.statBox}>
-          <h4>Completed Projects</h4>
-          <p>{stats.completedTasks}</p>
-        </div>
-      </div>
+      {error && <div className={styles.errorBanner}>{error}</div>}
 
-      {/* Graph Sections */}
-      {/* <div className={styles.graphSection}>
-        <h3>Tasks Progress Overview</h3>
-        <div className={styles.chartWrapper}>
-          <Line data={taskData} />
-        </div>
-      </div> */}
+      {loading ? (
+        <div className={styles.loadingState}>Loading dashboard...</div>
+      ) : (
+        <>
+          {/* Quick actions */}
+          <div className={styles.quickActions}>
+            <button className={styles.quickActionBtn} onClick={() => goTo("proposal-approval")}>
+              <FaFileSignature /> Review Proposals
+            </button>
+            <button className={styles.quickActionBtn} onClick={() => goTo("fyp-projects")}>
+              <FaProjectDiagram /> FYP Projects
+            </button>
+            <button className={styles.quickActionBtn} onClick={() => goTo("AllUserGroups")}>
+              <FaUserGraduate /> Students
+            </button>
+            <button className={styles.quickActionBtn} onClick={() => goTo("ChatBox")}>
+              <FaComments /> Messages
+            </button>
+          </div>
 
-      <div className={styles.rowGraphs}>
-        <div className={styles.chartSmallWrapper}>
-          <h3>Projects Overview</h3>
-          <Line data={projectData} />
-        </div>
+          {/* Stats */}
+          <div className={styles.statsGrid}>
+            <div className={styles.statCard}>
+              <div className={styles.statIcon} style={{ background: "#dbeafe", color: "#1e40af" }}>
+                <FaProjectDiagram />
+              </div>
+              <div>
+                <h4>Total Projects</h4>
+                <p>{stats.total}</p>
+              </div>
+            </div>
 
-        <div className={styles.chartSmallWrapper}>
-          <h3>Students Assigned Overview</h3>
-          <Line data={usersData} />
-        </div>
-      </div>
+            <div className={styles.statCard}>
+              <div className={styles.statIcon} style={{ background: "#fef3c7", color: "#92400e" }}>
+                <FaFileSignature />
+              </div>
+              <div>
+                <h4>Pending Proposals</h4>
+                <p>{stats.pendingProposals}</p>
+              </div>
+            </div>
+
+            <div className={styles.statCard}>
+              <div className={styles.statIcon} style={{ background: "#ede9fe", color: "#6d28d9" }}>
+                <FaHourglassHalf />
+              </div>
+              <div>
+                <h4>Awaiting Your Review</h4>
+                <p>{stats.statusCounts.UNDER_REVIEW}</p>
+              </div>
+            </div>
+
+            <div className={styles.statCard}>
+              <div className={styles.statIcon} style={{ background: "#dcfce7", color: "#15803d" }}>
+                <FaUserGraduate />
+              </div>
+              <div>
+                <h4>Students Assigned</h4>
+                <p>{stats.studentsAssigned}</p>
+              </div>
+            </div>
+
+            <div className={styles.statCard}>
+              <div className={styles.statIcon} style={{ background: "#e8f5e9", color: "#2e7d32" }}>
+                <FaCheckCircle />
+              </div>
+              <div>
+                <h4>Completed Projects</h4>
+                <p>{stats.statusCounts.COMPLETED}</p>
+              </div>
+            </div>
+
+            <div className={styles.statCard}>
+              <div className={styles.statIcon} style={{ background: "#fee2e2", color: "#b91c1c" }}>
+                <FaExclamationTriangle />
+              </div>
+              <div>
+                <h4>Flagged Grades</h4>
+                <p>{stats.flagged}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className={styles.mainGrid}>
+            {/* Status breakdown */}
+            <div className={styles.panel}>
+              <h3 className={styles.panelTitle}>Projects by Status</h3>
+              <div className={styles.statusBreakdown}>
+                {Object.entries(stats.statusCounts).map(([status, count]) => (
+                  <div key={status} className={styles.statusRow}>
+                    <span className={styles.statusLabel}>{STATUS_LABELS[status]}</span>
+                    <div className={styles.statusBarTrack}>
+                      <div
+                        className={styles.statusBarFill}
+                        style={{
+                          width: `${(count / maxStatusCount) * 100}%`,
+                          background: STATUS_BADGE[status].color,
+                        }}
+                      />
+                    </div>
+                    <span className={styles.statusCount}>{count}</span>
+                  </div>
+                ))}
+              </div>
+              <div className={styles.panelFooter}>
+                <span>
+                  Avg. progress (active projects): <strong>{stats.avgProgress}%</strong>
+                </span>
+              </div>
+            </div>
+
+            {/* Needs attention */}
+            <div className={styles.panel}>
+              <div className={styles.panelHeaderRow}>
+                <h3 className={styles.panelTitle}>Needs Your Attention</h3>
+                {needsAttention.length > 0 && (
+                  <span className={styles.attentionBadge}>{needsAttention.length}</span>
+                )}
+              </div>
+
+              {needsAttention.length === 0 ? (
+                <p className={styles.emptyNote}>You're all caught up — nothing pending review.</p>
+              ) : (
+                <ul className={styles.attentionList}>
+                  {needsAttention.map((item) => (
+                    <li key={item.key} className={styles.attentionItem}>
+                      <div>
+                        <span className={styles.attentionTitle}>{item.title}</span>
+                        <span className={styles.attentionReason}>
+                          {item.icon} {item.reason}
+                        </span>
+                      </div>
+                      <button className={styles.attentionGoBtn} onClick={() => goTo(item.target)}>
+                        <FaArrowRight />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+
+          <div className={styles.mainGrid} style={{ marginTop: "20px" }}>
+            {/* Recent projects */}
+            <div className={styles.panel}>
+              <h3 className={styles.panelTitle}>Recent Projects</h3>
+              {recentProjects.length === 0 ? (
+                <p className={styles.emptyNote}>No projects assigned to you yet.</p>
+              ) : (
+                <div className={styles.tableWrap}>
+                  <table className={styles.table}>
+                    <thead>
+                      <tr>
+                        <th>Title</th>
+                        <th>Team</th>
+                        <th>Progress</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {recentProjects.map((p) => {
+                        const badge = STATUS_BADGE[p.status] || STATUS_BADGE.ACTIVE;
+                        return (
+                          <tr key={p._id}>
+                            <td>{p.title}</td>
+                            <td>{p.teamId?.subject || "N/A"}</td>
+                            <td>
+                              <div className={styles.progressWrap}>
+                                <div className={styles.progressBar}>
+                                  <div className={styles.progressFill} style={{ width: `${p.progress || 0}%` }} />
+                                </div>
+                                <span>{p.progress || 0}%</span>
+                              </div>
+                            </td>
+                            <td>
+                              <span className={styles.badge} style={{ background: badge.bg, color: badge.color }}>
+                                {STATUS_LABELS[p.status] || p.status}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Department snapshot */}
+            <div className={styles.panel}>
+              <h3 className={styles.panelTitle}>
+                <FaBuilding style={{ marginRight: "8px" }} />
+                Department
+              </h3>
+              {homeDept ? (
+                <div className={styles.deptSnapshot}>
+                  <div className={styles.deptName}>{homeDept.name}</div>
+                  <div className={styles.deptCode}>
+                    {homeDept.code} {homeDept.academicSession ? `· ${homeDept.academicSession}` : ""}
+                  </div>
+                  <div className={styles.deptStatsRow}>
+                    <div>
+                      <span className={styles.deptStatNum}>{homeDept.totalStudents ?? "—"}</span>
+                      <span className={styles.deptStatLabel}>Students</span>
+                    </div>
+                    <div>
+                      <span className={styles.deptStatNum}>{homeDept.totalTeams ?? "—"}</span>
+                      <span className={styles.deptStatLabel}>Teams</span>
+                    </div>
+                    <div>
+                      <span className={styles.deptStatNum}>{homeDept.totalProjects ?? "—"}</span>
+                      <span className={styles.deptStatLabel}>Projects</span>
+                    </div>
+                    <div>
+                      <span className={styles.deptStatNum}>{homeDept.totalSupervisors ?? "—"}</span>
+                      <span className={styles.deptStatLabel}>Supervisors</span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <p className={styles.emptyNote}>No department information available.</p>
+              )}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };

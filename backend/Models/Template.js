@@ -1,56 +1,42 @@
-// models/Template.js
 const mongoose = require("mongoose");
 
 const templateSchema = new mongoose.Schema(
   {
-    /* ─── Project context ─── */
-    projectId:   { type: mongoose.Schema.Types.ObjectId, ref: "Project", required: true },
-    projectName: { type: String, required: true },   // denormalised for quick UI reads
+    title:       { type: String, required: true, trim: true },
+    description: { type: String, default: "" },
 
-    /* ─── Student‑group context ─── */
-    groupId:     { type: mongoose.Schema.Types.ObjectId, ref: "StudentGroup", required: true },
-    groupName:   { type: String, required: true },
+    // GLOBAL = visible to every student; PROJECT = visible to one team only
+    scope: {
+      type: String,
+      enum: ["GLOBAL", "PROJECT"],
+      required: true,
+    },
 
-    /* ─── File details ─── */
-    fileName:    { type: String, required: true },   // stored file name on disk / S3
-    originalName:{ type: String, required: true },   // what the admin uploaded
-    fileType:    { type: String, enum: ["pdf", "docx", "pptx", "zip"], required: true },
-    fileUrl:     { type: String, required: true },
+    category: {
+      type: String,
+      enum: ["Proposal", "Progress Report", "Final Report", "Defense", "General"],
+      required: true,
+    },
 
-    /* ─── Audit ─── */
-    assignedBy:  { type: mongoose.Schema.Types.ObjectId, ref: "Admin", required: true },
+    uploadedBy:     { type: mongoose.Schema.Types.ObjectId, required: true },
+    uploadedByRole: { type: String, enum: ["admin", "supervisor"], required: true },
+    uploadedByName: { type: String, default: "" },
+
+    // Only populated when scope === "PROJECT"
+    fypProjectId: { type: mongoose.Schema.Types.ObjectId, ref: "Project", default: null },
+    teamId:       { type: mongoose.Schema.Types.ObjectId, ref: "Team",    default: null },
+
+    fileName:     { type: String, required: true },
+    originalName: { type: String, required: true },
+    fileType:     { type: String, required: true },
+    fileUrl:      { type: String, required: true },
   },
-  { timestamps: true }          // gives createdAt & updatedAt
+  { timestamps: true }
 );
 
-/* Helper: hide internal fields when sending to client */
 templateSchema.methods.toPublic = function () {
-  const {
-    _id,
-    projectId,
-    projectName,
-    groupId,
-    groupName,
-    fileName,
-    originalName,
-    fileType,
-    fileUrl,
-    assignedBy,
-    createdAt,
-  } = this.toObject({ versionKey: false });
-  return {
-    _id,
-    projectId,
-    projectName,
-    groupId,
-    groupName,
-    fileName,
-    originalName,
-    fileType,
-    fileUrl,
-    assignedBy,
-    createdAt,
-  };
+  const obj = this.toObject({ versionKey: false });
+  return obj;
 };
 
 module.exports = mongoose.model("Template", templateSchema);

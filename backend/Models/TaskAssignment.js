@@ -3,16 +3,39 @@ const mongoose = require("mongoose");
 const TaskAssignmentSchema = new mongoose.Schema(
   {
     project: {
-      type: String, // ✅ Changed from ObjectId to String
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Task",
       required: true,
     },
-    
+    taskId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Task",
+    },
+    taskCode: {
+      type: String,
+    },
+    taskFile: {
+      type: String,
+    },
+    studentJoinCode: {
+      type: String,
+    },
+    assignerJoinCode: {
+      type: String,
+    },
+    department: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Department",
+    },
+    description: {
+      type: String,
+    },
     user: {
-      type: String, // ✅ Changed from ObjectId to String
+      type: String, // Student name or display label
       required: true,
     },
     user_id: {
-      type: String, // ✅ Changed from ObjectId to String
+      type: String, // Student user ID
       required: true,
     },
     role: {
@@ -21,15 +44,30 @@ const TaskAssignmentSchema = new mongoose.Schema(
       required: true,
     },
     assignedBy: {
-      type: String, // ✅ Changed from ObjectId to String
+      type: String, // User ID of assigner
       required: true,
     },
     status: {
       type: String,
-      enum: ["Pending", "In Progress", "Completed"],
+      enum: ["Pending", "In Progress", "Completed", "Approved", "Rejected"],
       default: "Pending",
     },
     assignedAt: { type: Date, default: Date.now },
+    submissionNote: {
+      type: String,
+    },
+    submissionFile: {
+      type: String,
+    },
+    submittedAt: {
+      type: Date,
+    },
+    reviewNote: {
+      type: String,
+    },
+    reviewedAt: {
+      type: Date,
+    },
   },
   { timestamps: true }
 );

@@ -5,8 +5,15 @@ import {
   FaCheckCircle,
   FaHourglassHalf,
   FaSearch,
-  FaClock,
   FaTimesCircle,
+  FaChartPie,
+  FaClipboardList,
+  FaUsers,
+  FaRedo,
+  FaEye,
+  FaCheck,
+  FaTimes,
+  FaPaperPlane,
 } from "react-icons/fa";
 import { Pie } from "react-chartjs-2";
 import {
@@ -28,6 +35,28 @@ ChartJS.register(
   BarElement
 );
 
+const STATUS_CLASS = {
+  Completed: styles.statusCompleted,
+  Approved: styles.statusApproved,
+  Rejected: styles.statusRejected,
+  Pending: styles.statusPending,
+};
+
+const STATUS_ICON = {
+  Completed: <FaCheckCircle />,
+  Approved: <FaCheckCircle />,
+  Rejected: <FaTimesCircle />,
+  Pending: <FaHourglassHalf />,
+};
+
+const ROLE_CLASS = {
+  Developer: styles.roleDeveloper,
+  Moderator: styles.roleModerator,
+  Admin: styles.roleAdmin,
+  Tester: styles.roleTester,
+  Designer: styles.roleDesigner,
+};
+
 const MyTasks = () => {
   const [tasks, setTasks] = useState([]);
   const [otherTasks, setOtherTasks] = useState([]);
@@ -37,162 +66,144 @@ const MyTasks = () => {
   const [selectedTask, setSelectedTask] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [submissionNote, setSubmissionNote] = useState("");
+  const [submissionFile, setSubmissionFile] = useState(null);
+  const [submitError, setSubmitError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [reviewMode, setReviewMode] = useState(false);
+  const [reviewNote, setReviewNote] = useState("");
+  const [reviewing, setReviewing] = useState(false);
 
   const handleSubmitProject = (task) => {
     setSelectedTask(task);
+    setSubmissionNote("");
+    setSubmissionFile(null);
+    setSubmitError("");
     setIsModalOpen(true);
   };
 
   const submitProject = async () => {
-    try {
-      const response = await axios.post(
-        `${process.env.REACT_APP_API_URL}/auth/submit-project`,
-        {
-          taskId: selectedTask._id,
-          userId: loggedInUser.id,
-          note: submissionNote,
-        }
-      );
+    if (!submissionNote.trim()) {
+      setSubmitError("Please describe the work you completed before submitting.");
+      return;
+    }
 
-      fetchTasks(); // refresh tasks
+    setSubmitting(true);
+    try {
+      const formData = new FormData();
+      formData.append("taskId", selectedTask._id);
+      formData.append("userId", loggedInUser.id);
+      formData.append("note", submissionNote.trim());
+      if (submissionFile) {
+        formData.append("submissionFile", submissionFile);
+      }
+
+      await axios.post(`${process.env.REACT_APP_API_URL}/auth/submit-project`, formData);
+
+      fetchTasks();
       setIsModalOpen(false);
       setSubmissionNote("");
+      setSubmissionFile(null);
+      setSubmitError("");
     } catch (error) {
       console.error("Submission failed:", error);
-      alert("Submission failed. Please try again.");
+      setSubmitError(error.response?.data?.message || "Submission failed. Please try again.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
   useEffect(() => {
     fetchTasks();
   }, []);
-  //   console.log("loggedInUser",loggedInUser);
+
   if (!loggedInUser || !loggedInUser.id) {
-    // ✅ Ensure _id is used
     alert("User not found. Please log in again!");
-    return;
+    return null;
   }
 
-  const userId = loggedInUser.id; // ✅ Get user ID
+  const userId = loggedInUser.id;
 
   const fetchTasks = async () => {
     try {
-      // ✅ Corrected API URL (removed extra slash)
       const response = await axios.get(
         `${process.env.REACT_APP_API_URL}/auth/Myassigned-tasks?userId=${userId}`
       );
-      const otherTasks = await axios.get(
-       `${process.env.REACT_APP_API_URL}/auth/Otherassigned-tasks?userId=${userId}`
+      const otherTasksRes = await axios.get(
+        `${process.env.REACT_APP_API_URL}/auth/Otherassigned-tasks?userId=${userId}`
       );
-      console.log("otherTasks", otherTasks.data);
-      setOtherTasks(otherTasks.data);
-      // console.log("userTasks", response.data);
-
-      setTasks(response.data); // ✅ Set tasks state
+      setOtherTasks(otherTasksRes.data);
+      setTasks(response.data);
     } catch (error) {
       console.error("Error fetching tasks:", error);
     }
   };
 
-  const handleRejectProject = async (task) => {
+  const handleRejectProject = async (task, note = "") => {
+    setReviewing(true);
     try {
       const response = await fetch(
         `${process.env.REACT_APP_API_URL}/auth/reject-task/${task._id}`,
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            userId: task.user_id,
-          }),
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: task.user_id, note }),
         }
       );
 
       const data = await response.json();
       if (data.success) {
-        alert("❌ Task rejected!");
-        // Refresh task list here
+        fetchTasks();
+        setShowModal(false);
       } else {
-        alert("❌ Rejection failed");
+        alert(data.message || "❌ Rejection failed");
       }
     } catch (error) {
       console.error("Error rejecting task:", error);
+    } finally {
+      setReviewing(false);
     }
   };
 
-  const handleApprovProject = async (task) => {
+  const handleApprovProject = async (task, note = "") => {
+    setReviewing(true);
     try {
       const response = await fetch(
-       `${process.env.REACT_APP_API_URL}/auth/approve-task/${task._id}`,
+        `${process.env.REACT_APP_API_URL}/auth/approve-task/${task._id}`,
         {
           method: "post",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            userId: task.user_id, // 👈 sending user_id in request body
-          }),
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: task.user_id, note }),
         }
       );
 
       const data = await response.json();
       if (data.success) {
-        alert("✅ Task approved!");
-        // Refresh or re-fetch logic here
+        fetchTasks();
+        setShowModal(false);
       } else {
-        alert("❌ Approval failed");
+        alert(data.message || "❌ Approval failed");
       }
     } catch (error) {
       console.error("Error approving task:", error);
+    } finally {
+      setReviewing(false);
     }
   };
 
-  const handleinspect = (task) => {
-    setSelectedTask(task); // Store clicked task
-    setShowModal(true); // Show the modal
+  const handleinspect = (task, review = false) => {
+    setSelectedTask(task);
+    setReviewMode(review);
+    setReviewNote("");
+    setShowModal(true);
   };
-
-  const markTaskCompleted = (taskId) => {
-    // Example API call or state update to mark the task as completed
-    toggleTaskStatus(taskId, "Pending"); // Assuming toggleTaskStatus handles the update
-    setShowModal(false); // Close the modal after the update
-  };
-
-  const closeModal = () => {
-    setShowModal(false);
-    setSelectedTask(null);
-  };
-
-  const toggleTaskStatus = async (taskId, currentStatus) => {
-    try {
-      const updatedStatus =
-        currentStatus === "Pending" ? "Completed" : "Pending";
-      await axios.put(`${process.env.REACT_APP_API_URL}/auth/update-task/${taskId}`, {
-        status: updatedStatus,
-      });
-      fetchTasks();
-    } catch (error) {
-      console.error("Error updating task status:", error);
-    }
-  };
-
-  // const filteredTasks = tasks
-  // .filter((task) => (filter === "All" ? true : task.status === filter))
-  // ;
-
-  // const filteredOtherTasks = otherTasks.filter(
-  //   (task) => (filter === "All" ? true : task.status === filter) && task.assignedBy ===  userId
-  // );
 
   const filteredTasks = tasks
     .filter((task) => (filter === "All" ? true : task.status === filter))
-    .filter(
-      (task) =>
-        task.project.toLowerCase().includes(search.toLowerCase()) ||
-        task.user.toLowerCase().includes(search.toLowerCase()) ||
-        task.role.toLowerCase().includes(search.toLowerCase())
+    .filter((task) =>
+      `${task.projectTitle || task.project} ${task.user} ${task.role}`
+        .toLowerCase()
+        .includes(search.toLowerCase())
     );
 
   const filteredOtherTasks = otherTasks
@@ -201,271 +212,350 @@ const MyTasks = () => {
         (filter === "All" ? true : task.status === filter) &&
         task.assignedBy === userId
     )
-    .filter(
-      (task) =>
-        task.project.toLowerCase().includes(search.toLowerCase()) ||
-        task.user.toLowerCase().includes(search.toLowerCase()) ||
-        task.role.toLowerCase().includes(search.toLowerCase())
+    .filter((task) =>
+      `${task.projectTitle || task.project} ${task.user} ${task.role}`
+        .toLowerCase()
+        .includes(search.toLowerCase())
     );
 
-  // Get unique statuses dynamically
-  const Mystatuses = [...new Set(filteredTasks.map((task) => task.status))]; // ✅ Unique statuses
-  const Otherstatuses = [
-    ...new Set(filteredOtherTasks.map((task) => task.status)),
-  ];
+  const Mystatuses = [...new Set(filteredTasks.map((task) => task.status))];
+  const Otherstatuses = [...new Set(filteredOtherTasks.map((task) => task.status))];
 
-  // console.log("Mystatuses",Mystatuses);
-  // console.log("Otherstatuses",Otherstatuses);
-
-  // Graph Data
   const MystatusCounts = Mystatuses.map(
     (status) => filteredTasks.filter((task) => task.status === status).length
   );
   const OtherstatusCounts = Otherstatuses.map(
-    (status) =>
-      filteredOtherTasks.filter((task) => task.status === status).length
+    (status) => filteredOtherTasks.filter((task) => task.status === status).length
   );
+
   const MypieData = {
-    labels: Mystatuses, // ✅ Unique Status Labels
-    datasets: [
-      {
-        data: MystatusCounts, // ✅ Correct Count Mapping
-        backgroundColor: ["#4caf50", "#e67e22", "#2196F3", "#f39c12"],
-      },
-    ],
+    labels: Mystatuses,
+    datasets: [{ data: MystatusCounts, backgroundColor: ["#2563eb", "#f59e0b", "#16a34a", "#dc2626"] }],
   };
 
   const OtherpieData = {
-    labels: Otherstatuses, // ✅ Unique Status Labels
-    datasets: [
-      {
-        data: OtherstatusCounts, // ✅ Correct Count Mapping
-        backgroundColor: ["#4caf50", "#e67e22", "#2196F3", "#f39c12"],
-      },
-    ],
+    labels: Otherstatuses,
+    datasets: [{ data: OtherstatusCounts, backgroundColor: ["#2563eb", "#f59e0b", "#16a34a", "#dc2626"] }],
   };
 
-  const pieOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-  };
+  const pieOptions = { responsive: true, maintainAspectRatio: false };
+
+  const totalCount = tasks.length;
+  const pendingCount = tasks.filter((t) => t.status === "Pending").length;
+  const doneCount = tasks.filter((t) => t.status === "Completed" || t.status === "Approved").length;
+  const rejectedCount = tasks.filter((t) => t.status === "Rejected").length;
 
   return (
-   <div className={styles.container}>
-  {showModal && selectedTask && (
-    <div className={styles.modalOverlay}>
-      <div className={styles.modalContainer}>
-        <h2 className={styles.modalTitle}>🔍 Inspect Task</h2>
-        <div className={styles.modalBody}>
-          <p><strong>📁 Project:</strong> {selectedTask.project || "Unknown Project"}</p>
-          <p><strong>👤 User:</strong> {selectedTask.user}</p>
-          <p><strong>🧩 Role:</strong> {selectedTask.role}</p>
-          <p><strong>📌 Status:</strong> {selectedTask.status}</p>
+    <div className={styles.container}>
+      {showModal && selectedTask && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modalContainer}>
+            <h2 className={styles.modalTitle}>{reviewMode ? "📋 Review Submission" : "🔍 Inspect Task"}</h2>
+            <div className={styles.modalBody}>
+              <p><strong>📁 Project:</strong> {selectedTask.projectTitle || selectedTask.project || "Unknown Project"}</p>
+              <p><strong>🧩 Task Code:</strong> {selectedTask.taskCode || "N/A"}</p>
+              <p><strong>👤 User:</strong> {selectedTask.user}</p>
+              <p><strong>📌 Status:</strong> {selectedTask.status}</p>
+              <p><strong>🔖 Role:</strong> {selectedTask.role}</p>
+              <p><strong>📄 Description:</strong> {selectedTask.description || "No description available."}</p>
+              <p><strong>🎯 Priority:</strong> {selectedTask.priority || "N/A"}</p>
+              <p><strong>🗓 Start Date:</strong> {selectedTask.startDate ? new Date(selectedTask.startDate).toLocaleDateString() : "N/A"}</p>
+              <p><strong>⏰ Due Date:</strong> {selectedTask.dueDate ? new Date(selectedTask.dueDate).toLocaleDateString() : "N/A"}</p>
+              {selectedTask.taskFile ? (
+                <p>
+                  <strong>📎 Task File:</strong>{" "}
+                  <a
+                    href={`${process.env.REACT_APP_API_URL}/uploads/${selectedTask.taskFile}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    View File
+                  </a>
+                </p>
+              ) : (
+                <p><strong>📎 Task File:</strong> Not available</p>
+              )}
+
+              {(selectedTask.submissionNote || selectedTask.submissionFile) && (
+                <>
+                  <hr className={styles.modalDivider} />
+                  <p><strong>📝 Submission Note:</strong> {selectedTask.submissionNote || "No note provided."}</p>
+                  <p>
+                    <strong>📦 Submitted File:</strong>{" "}
+                    {selectedTask.submissionFile ? (
+                      <a
+                        href={`${process.env.REACT_APP_API_URL}/uploads/${selectedTask.submissionFile}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        View Submission File
+                      </a>
+                    ) : (
+                      "No file attached."
+                    )}
+                  </p>
+                  {selectedTask.submittedAt && (
+                    <p><strong>🗓 Submitted At:</strong> {new Date(selectedTask.submittedAt).toLocaleString()}</p>
+                  )}
+                </>
+              )}
+
+              {selectedTask.status === "Rejected" && selectedTask.reviewNote && (
+                <p><strong>❌ Rejection Reason:</strong> {selectedTask.reviewNote}</p>
+              )}
+
+              {reviewMode && (
+                <>
+                  <hr className={styles.modalDivider} />
+                  <label className={styles.reviewNoteLabel}>Feedback to the student (optional)</label>
+                  <textarea
+                    placeholder="Add a comment, e.g. reason for rejection or feedback..."
+                    value={reviewNote}
+                    onChange={(e) => setReviewNote(e.target.value)}
+                    className={styles.submitNoteInput}
+                  />
+                </>
+              )}
+            </div>
+            <div className={styles.modalActions}>
+              {reviewMode ? (
+                <>
+                  <button
+                    className={styles.approveBtn}
+                    disabled={reviewing}
+                    onClick={() => handleApprovProject(selectedTask, reviewNote.trim())}
+                  >
+                    <FaCheck /> Approve
+                  </button>
+                  <button
+                    className={styles.rejectBtn}
+                    disabled={reviewing}
+                    onClick={() => handleRejectProject(selectedTask, reviewNote.trim())}
+                  >
+                    <FaTimes /> Reject
+                  </button>
+                  <button className={styles.closeBtn} onClick={() => setShowModal(false)}>
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <button className={styles.closeBtn} onClick={() => setShowModal(false)}>
+                  Close
+                </button>
+              )}
+            </div>
+          </div>
         </div>
-        <div className={styles.modalActions}>
-          <button
-            className={styles.completeBtn}
-            onClick={() => markTaskCompleted(selectedTask._id)}
-          >
-            ✅ Mark as Completed
-          </button>
-          <button
-            className={styles.closeBtn}
-            onClick={() => setShowModal(false)}
-          >
-            ❌ Close
-          </button>
+      )}
+
+      {isModalOpen && (
+        <div className={styles.submitModalOverlay}>
+          <div className={styles.submitModal}>
+            <h3 className={styles.submitModalTitle}>
+              🚀 Submit: {selectedTask?.projectTitle || selectedTask?.project}
+            </h3>
+
+            <label className={styles.reviewNoteLabel}>Submission note (required)</label>
+            <textarea
+              placeholder="Describe the work you completed..."
+              value={submissionNote}
+              onChange={(e) => {
+                setSubmissionNote(e.target.value);
+                if (submitError) setSubmitError("");
+              }}
+              className={styles.submitNoteInput}
+            />
+
+            <label className={styles.reviewNoteLabel}>Attach deliverable file (optional)</label>
+            <input
+              type="file"
+              onChange={(e) => setSubmissionFile(e.target.files[0] || null)}
+              className={styles.fileInput}
+            />
+
+            {submitError && <p className={styles.submitErrorMsg}>{submitError}</p>}
+
+            <div className={styles.submitModalActions}>
+              <button onClick={submitProject} className={styles.submitConfirmBtn} disabled={submitting}>
+                {submitting ? "Submitting..." : "✅ Submit"}
+              </button>
+              <button onClick={() => setIsModalOpen(false)} className={styles.submitCancelBtn} disabled={submitting}>
+                ❌ Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Hero ── */}
+      <div className={styles.hero}>
+        <div className={styles.heroIcon}><FaChartPie /></div>
+        <div className={styles.heroText}>
+          <h1 className={styles.heading}>My Progress</h1>
+          <p className={styles.subheading}>
+            Track your assigned work, submit completed tasks, and review what you've handed out.
+          </p>
+        </div>
+        <div className={styles.heroStats}>
+          <div className={styles.statChip}><strong>{totalCount}</strong><span>Total</span></div>
+          <div className={styles.statChip}><strong>{pendingCount}</strong><span>Pending</span></div>
+          <div className={styles.statChip}><strong>{doneCount}</strong><span>Done</span></div>
+          <div className={styles.statChip}><strong>{rejectedCount}</strong><span>Rejected</span></div>
         </div>
       </div>
-    </div>
-  )}
 
-  {isModalOpen && (
-    <div className={styles.submitModalOverlay}>
-      <div className={styles.submitModal}>
-        <h3 className={styles.submitModalTitle}>
-          🚀 Submit Project: {selectedTask?.project}
-        </h3>
+      {/* ── Toolbar ── */}
+      <div className={styles.toolbar}>
+        <div className={styles.searchBox}>
+          <FaSearch className={styles.searchIcon} />
+          <input
+            type="text"
+            placeholder="Search tasks..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className={styles.searchInput}
+          />
+        </div>
 
-        <textarea
-          placeholder="Add optional note or comments..."
-          value={submissionNote}
-          onChange={(e) => setSubmissionNote(e.target.value)}
-          className={styles.submitNoteInput}
-        />
+        <select
+          className={styles.taskFilter}
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+        >
+          <option value="All">All Statuses</option>
+          <option value="Pending">Pending</option>
+          <option value="Completed">Completed</option>
+          <option value="Approved">Approved</option>
+          <option value="Rejected">Rejected</option>
+        </select>
+      </div>
 
-        <div className={styles.submitModalActions}>
-          <button onClick={submitProject} className={styles.submitConfirmBtn}>
-            ✅ Submit
-          </button>
-          <button
-            onClick={() => setIsModalOpen(false)}
-            className={styles.submitCancelBtn}
-          >
-            ❌ Cancel
-          </button>
+      {/* ── Charts ── */}
+      <div className={styles.chartsRow}>
+        <div className={styles.chartCard}>
+          <h4 className={styles.chartTitle}>My Task Distribution</h4>
+          <div className={styles.chartBody}>
+            <Pie data={MypieData} options={{ ...pieOptions, cutout: "55%" }} />
+          </div>
+        </div>
+        <div className={styles.chartCard}>
+          <h4 className={styles.chartTitle}>Others Task Distribution</h4>
+          <div className={styles.chartBody}>
+            <Pie data={OtherpieData} options={{ ...pieOptions, cutout: "55%" }} />
+          </div>
         </div>
       </div>
-    </div>
-  )}
 
-  <div className={styles.taskActions}>
-    <div className={styles.searchBox}>
-      <FaSearch className={styles.searchIcon} />
-      <input
-        type="text"
-        placeholder="Search tasks..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        className={styles.searchInput}
-      />
-    </div>
-
-    <select
-      className={styles.taskFilter}
-      value={filter}
-      onChange={(e) => setFilter(e.target.value)}
-    >
-      <option value="All">All</option>
-      <option value="Pending">Pending</option>
-      <option value="Completed">Completed</option>
-    </select>
-  </div>
-
-  <div className={styles.graphs}>
-    <div className={styles.chartContainer} style={{ width: "900px", height: "400px" }}>
-      <h3>My Task Distribution</h3>
-      <Pie data={MypieData} options={{ ...pieOptions, cutout: "50%" }} />
-    </div>
-
-    <div className={styles.chartContainer} style={{ width: "900px", height: "400px" }}>
-      <h3>Others Task Distribution</h3>
-      <Pie data={OtherpieData} options={{ ...pieOptions, cutout: "50%" }} />
-    </div>
-  </div>
-
-  {/* ✅ My Task Distribution Section */}
-  <h2>My Task Distribution</h2>
-  {filteredTasks.length === 0 ? (
-    <p className={styles.noTasksMsg}>🚫 No tasks found.</p>
-  ) : (
-    <ul className={styles.taskList}>
-      {filteredTasks.map((task) => (
-        <li key={task._id} className={styles.taskItem}>
-          <div className={styles.taskInfo}>
-            <h3 className={styles.taskTitle}>{task.project || "Unknown Project"}</h3>
-            <p className={styles.taskDetails}>User: {task.user}</p>
-            <p className={styles.taskDetails}>Role: {task.role}</p>
+      {/* ── My Tasks ── */}
+      <div className={styles.sectionHeader}>
+        <div className={styles.sectionLeft}>
+          <div className={styles.sectionIconWrap}><FaClipboardList /></div>
+          <div>
+            <div className={styles.sectionTitle}>My Assigned Tasks</div>
+            <div className={styles.sectionSubtitle}>Work assigned to you — submit when finished</div>
           </div>
+        </div>
+        <span className={styles.countBadge}>{filteredTasks.length}</span>
+      </div>
 
-          <div className={styles.statusActions}>
-            <span
-              className={`${styles.status} ${
-                task.status === "Completed"
-                  ? styles.completed
-                  : task.status === "Rejected"
-                  ? styles.rejected
-                  : styles.pending
-              }`}
-              onClick={() => toggleTaskStatus(task._id, task.status)}
-            >
-              {task.status === "Completed" ? (
-                <FaCheckCircle />
-              ) : task.status === "Rejected" ? (
-                <FaTimesCircle />
-              ) : (
-                <FaHourglassHalf />
-              )}
-              {task.status}
-            </span>
-
-            {task.status === "Approved" ? (
-              <button className={styles.submitButton} disabled>
-                🎉 Approved
-              </button>
-            ) : task.status === "Completed" ? (
-              <button className={styles.submitButton} disabled>
-                Waiting for Admin Approval
-              </button>
-            ) : task.status === "Rejected" ? null : (
-              <button
-                className={styles.submitButton}
-                onClick={() => handleSubmitProject(task)}
-              >
-                Submit Project
-              </button>
-            )}
-          </div>
-        </li>
-      ))}
-    </ul>
-  )}
-
-  {/* ✅ Others Task Distribution Section */}
-  <h2>Others Task Distribution</h2>
-  {filteredOtherTasks.length === 0 ? (
-    <p className={styles.noTasksMsg}>🚫 No tasks available for others.</p>
-  ) : (
-    <ul className={styles.taskList}>
-      {filteredOtherTasks.map((task) => (
-        <li key={task._id} className={styles.taskItem}>
-          <div className={styles.taskInfo}>
-            <h3 className={styles.taskTitle}>{task.project || "Unknown Project"}</h3>
-            <p className={styles.taskDetails}>User: {task.user}</p>
-            <p className={styles.taskDetails}>Role: {task.role}</p>
-          </div>
-
-          <div className={styles.statusActions}>
-            <span
-              className={`${styles.status} ${
-                task.status === "Completed"
-                  ? styles.completed
-                  : task.status === "Rejected"
-                  ? styles.rejected
-                  : styles.pending
-              }`}
-              onClick={() => toggleTaskStatus(task._id, task.status)}
-            >
-              {task.status === "Completed" ? (
-                <FaCheckCircle />
-              ) : task.status === "Rejected" ? (
-                <FaTimesCircle />
-              ) : (
-                <FaHourglassHalf />
-              )}
-              {task.status}
-            </span>
-
-            {task.status === "Rejected" ? null : task.status === "Approved" ? null : task.status === "Pending" ? (
-              <button
-                className={styles.submitButton}
-                onClick={() => handleinspect(task)}
-              >
-                🔎 Inspect
-              </button>
-            ) : (
-              <div className={styles.buttonRow}>
-                <button
-                  className={styles.submitButton}
-                  onClick={() => handleApprovProject(task)}
-                >
-                  ✅ Approve
-                </button>
-                <button
-                  className={styles.rejectButton}
-                  onClick={() => handleRejectProject(task)}
-                >
-                  ❌ Reject
-                </button>
+      {filteredTasks.length === 0 ? (
+        <div className={styles.emptyBox}>
+          <div className={styles.emptyIconWrap}><FaClipboardList /></div>
+          <h4>No tasks found</h4>
+          <p>Tasks assigned to you by your team leader will show up here.</p>
+        </div>
+      ) : (
+        <div className={styles.taskList}>
+          {filteredTasks.map((task) => (
+            <div key={task._id} className={styles.taskCard}>
+              <div className={styles.taskMain}>
+                <h3 className={styles.taskTitle}>{task.projectTitle || "Unknown Project"}</h3>
+                <div className={styles.taskMetaRow}>
+                  <span className={`${styles.roleBadge} ${ROLE_CLASS[task.role] || ""}`}>{task.role}</span>
+                  <span className={`${styles.statusBadge} ${STATUS_CLASS[task.status] || ""}`}>
+                    {STATUS_ICON[task.status]} {task.status}
+                  </span>
+                </div>
               </div>
-            )}
-          </div>
-        </li>
-      ))}
-    </ul>
-  )}
-</div>
 
+              <div className={styles.taskActionsRow}>
+                <button className={styles.inspectBtn} onClick={() => handleinspect(task)}>
+                  <FaEye /> Inspect
+                </button>
+
+                {task.status === "Approved" && (
+                  <span className={styles.donePill}><FaCheckCircle /> Approved</span>
+                )}
+                {task.status === "Completed" && (
+                  <span className={styles.waitingPill}><FaHourglassHalf /> Awaiting Approval</span>
+                )}
+                {task.status === "Rejected" && (
+                  <button className={styles.primaryBtn} onClick={() => handleSubmitProject(task)}>
+                    <FaRedo /> Resubmit
+                  </button>
+                )}
+                {task.status === "Pending" && (
+                  <button className={styles.primaryBtn} onClick={() => handleSubmitProject(task)}>
+                    <FaPaperPlane /> Submit
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── Tasks I've Assigned ── */}
+      <div className={styles.sectionHeader}>
+        <div className={styles.sectionLeft}>
+          <div className={styles.sectionIconWrap}><FaUsers /></div>
+          <div>
+            <div className={styles.sectionTitle}>Tasks I've Assigned</div>
+            <div className={styles.sectionSubtitle}>Review submissions from your team members</div>
+          </div>
+        </div>
+        <span className={styles.countBadge}>{filteredOtherTasks.length}</span>
+      </div>
+
+      {filteredOtherTasks.length === 0 ? (
+        <div className={styles.emptyBox}>
+          <div className={styles.emptyIconWrap}><FaUsers /></div>
+          <h4>No tasks found</h4>
+          <p>Tasks you assign to your team members will show up here for review.</p>
+        </div>
+      ) : (
+        <div className={styles.taskList}>
+          {filteredOtherTasks.map((task) => (
+            <div key={task._id} className={styles.taskCard}>
+              <div className={styles.taskMain}>
+                <h3 className={styles.taskTitle}>{task.projectTitle || "Unknown Project"}</h3>
+                <div className={styles.taskMetaRow}>
+                  <span className={styles.assigneeName}>👤 {task.user}</span>
+                  <span className={`${styles.roleBadge} ${ROLE_CLASS[task.role] || ""}`}>{task.role}</span>
+                  <span className={`${styles.statusBadge} ${STATUS_CLASS[task.status] || ""}`}>
+                    {STATUS_ICON[task.status]} {task.status}
+                  </span>
+                </div>
+              </div>
+
+              <div className={styles.taskActionsRow}>
+                {task.status === "Pending" ? (
+                  <span className={styles.waitingPill}><FaHourglassHalf /> Not Submitted Yet</span>
+                ) : task.status === "Completed" ? (
+                  <button className={styles.primaryBtn} onClick={() => handleinspect(task, true)}>
+                    <FaEye /> Review Submission
+                  </button>
+                ) : (
+                  <button className={styles.inspectBtn} onClick={() => handleinspect(task)}>
+                    <FaEye /> View Details
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 };
 

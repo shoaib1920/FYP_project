@@ -1,230 +1,316 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { FaTrash, FaUpload, FaFileAlt } from "react-icons/fa";
+import { FaTrash, FaUpload, FaFileAlt, FaFilePdf, FaFileWord, FaFilePowerpoint, FaFileArchive, FaFolderOpen, FaSearch, FaTimes } from "react-icons/fa";
 import styles from "./styles.module.css";
 
-const ProjectTemplates = () => {
-  /* ─── state ─── */
-  const [templates, setTemplates] = useState([]);
-  const [file, setFile]           = useState(null);
-  const [title, setTitle]         = useState("");
-  const [description, setDesc]    = useState("");
-  const [uploading, setUploading] = useState(false);
-  
- const loggedInUser = JSON.parse(localStorage.getItem("adminData"));
-  const userId = loggedInUser._id;
-  /* new state */
-  const [projects, setProjects] = useState([]);
-  const [groups, setGroups]     = useState([]);
-  const [projectId, setProject] = useState("");
-  const [groupId,   setGroup]   = useState("");
+const CATEGORIES = ["Proposal", "Progress Report", "Final Report", "Defense", "General"];
 
-  const token = localStorage.getItem("token");
-  
+const CATEGORY_COLORS = {
+  "Proposal":        { bg: "#eff6ff", color: "#1d4ed8" },
+  "Progress Report": { bg: "#f0fdf4", color: "#166534" },
+  "Final Report":    { bg: "#fdf4ff", color: "#7e22ce" },
+  "Defense":         { bg: "#fff7ed", color: "#c2410c" },
+  "General":         { bg: "#f9fafb", color: "#374151" },
+};
 
-  /* ───────────────────────── 1.  load lists ───────────────────────── */
-  useEffect(() => {
-  const authHdr = { headers: { Authorization: `Bearer ${token}` } };
+const FileIcon = ({ type }) => {
+  if (type === "pdf")  return <FaFilePdf  style={{ color: "#dc2626" }} />;
+  if (type === "docx") return <FaFileWord style={{ color: "#1d4ed8" }} />;
+  if (type === "pptx") return <FaFilePowerpoint style={{ color: "#ea580c" }} />;
+  if (type === "zip")  return <FaFileArchive style={{ color: "#92400e" }} />;
+  return <FaFileAlt style={{ color: "#6b7280" }} />;
+};
 
-  (async () => {
+const AdminTemplateManager = () => {
+  const [templates, setTemplates]   = useState([]);
+  const [title, setTitle]           = useState("");
+  const [description, setDesc]      = useState("");
+  const [category, setCategory]     = useState("");
+  const [file, setFile]             = useState(null);
+  const [uploading, setUploading]   = useState(false);
+  const [message, setMessage]       = useState("");
+  const [activeFilter, setFilter]   = useState("All");
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const adminToken = localStorage.getItem("adminToken");
+  const adminData  = JSON.parse(localStorage.getItem("adminData") || "{}");
+  const apiBase    = process.env.REACT_APP_API_URL || "";
+  const authHdr    = { headers: { Authorization: `Bearer ${adminToken}` } };
+
+  const showMsg = (msg, isErr = false) => {
+    setMessage({ text: msg, error: isErr });
+    setTimeout(() => setMessage(""), 4000);
+  };
+
+  const fetchTemplates = async () => {
     try {
-      // Fetch templates
-      const tplRes = await axios.get(`${process.env.REACT_APP_API_URL}/auth/templates`, authHdr);
-      const allTemplates = tplRes.data.templates || tplRes.data;
-
-     
-
-      // Filter templates where assignedBy matches loggedInUserId
-      const filteredTemplates = allTemplates.filter(tpl => tpl.assignedBy === userId);
-      setTemplates(filteredTemplates);
-
-      // Fetch projects
-      const projRes = await axios.get(`${process.env.REACT_APP_API_URL}/auth/projects`, authHdr);
-      setProjects(projRes.data.projects || projRes.data);
-
-      // Fetch student groups / teams
-      const grpRes  = await axios.get(`${process.env.REACT_APP_API_URL}/auth/teams`, authHdr);
-   
-      setGroups(grpRes.data.teams || grpRes.data);
-
+      const res = await axios.get(`${apiBase}/auth/templates/admin`, authHdr);
+      setTemplates(res.data.templates || []);
     } catch (err) {
-      console.error("Init fetch failed", err);
-      alert("Could not load data – see console.");
+      console.error("Fetch templates failed", err);
     }
-  })();
-}, [token]);  // Include user.id in deps if it's coming from state
+  };
 
+  useEffect(() => { fetchTemplates(); }, []);
 
-  /* ───────────────────────── 2.  upload ───────────────────────── */
   const handleUpload = async (e) => {
     e.preventDefault();
-
-if (!file || !title.trim() || !description.trim() || !projectId || !groupId) {
-  return alert("Please choose file, fill all fields & pick project + group.");
-}
-
+    if (!title.trim() || !category || !file) {
+      showMsg("Please fill title, category, and choose a file.", true);
+      return;
+    }
     const formData = new FormData();
-    formData.append("template", file);       // field name must match multer
-    formData.append("title", title);
-    formData.append("description", description);
-    formData.append("projectId", projectId);
-    formData.append("groupId",   groupId);
-    formData.append("assignBy",   userId);
-
+    formData.append("template",       file);
+    formData.append("title",          title.trim());
+    formData.append("description",    description.trim());
+    formData.append("category",       category);
+    formData.append("uploadedByName", adminData.name || "Admin");
 
     try {
-      console.log("form Data>>>",[...formData.entries()]);
-
       setUploading(true);
-      await axios.post(
-        `${process.env.REACT_APP_API_URL}/auth/templates/upload`,
-        formData,
-        { headers: {
-  "Content-Type": "multipart/form-data",  // works, but not necessary
-  Authorization: `Bearer ${token}`
-} }
-      );
-
-      /* refresh list */
-      const { data } = await axios.get(`${process.env.REACT_APP_API_URL}/auth/templates`, {
-  headers: { Authorization: `Bearer ${token}` }, // Fixed template literal
-});
-
-// If the templates are wrapped in a `templates` key, unwrap them
-const templates = data.templates || data;
-
-// Filter templates where assignedBy matches loggedInUserId
-const filteredTemplates = templates.filter(tpl => tpl.assignedBy === userId);
-
-setTemplates(filteredTemplates);
-
-      /* reset */
-      setFile(null);
-      setTitle(""); setDesc("");
-      setProject(""); setGroup("");
+      await axios.post(`${apiBase}/auth/templates/global`, formData, {
+        headers: { ...authHdr.headers, "Content-Type": "multipart/form-data" },
+      });
+      showMsg("Template uploaded successfully.");
+      setTitle(""); setDesc(""); setCategory(""); setFile(null);
+      fetchTemplates();
     } catch (err) {
-      console.error("Upload failed", err);
-      alert("Upload failed – see console.");
+      showMsg(err.response?.data?.error || "Upload failed.", true);
     } finally {
       setUploading(false);
     }
   };
 
-  /* ───────────────────────── 3.  delete ───────────────────────── */
   const handleDelete = async (id) => {
-    if (!window.confirm("Delete this template?")) return;
+    if (!window.confirm("Delete this template? Students will no longer see it.")) return;
     try {
-      await axios.delete(`${process.env.REACT_APP_API_URL}/auth/templates/del/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await axios.delete(`${apiBase}/auth/templates/${id}`, authHdr);
       setTemplates((prev) => prev.filter((t) => t._id !== id));
     } catch (err) {
-      console.error("Delete failed", err);
-      alert("Delete failed – see console.");
+      showMsg("Delete failed.", true);
     }
   };
 
+  const filtered = templates.filter((t) => {
+    if (activeFilter !== "All" && t.category !== activeFilter) return false;
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return true;
+    return (
+      t.title?.toLowerCase().includes(term) ||
+      t.description?.toLowerCase().includes(term) ||
+      t.originalName?.toLowerCase().includes(term)
+    );
+  });
 
-  /* ───────────────────────── 4.  UI ───────────────────────── */
+  const hasActiveFilters = activeFilter !== "All" || searchTerm.trim() !== "";
+  const clearFilters = () => { setFilter("All"); setSearchTerm(""); };
+
   return (
-    <div className={styles.wrapper}>
-      <h1 className={styles.heading}>Project Templates</h1>
+    <div className={styles.container}>
+      <div className={styles.hero}>
+        <div className={styles.heroIcon}><FaFolderOpen /></div>
+        <div className={styles.heroText}>
+          <h2 className={styles.heading}>Template Manager</h2>
+          <p className={styles.subheading}>
+            Upload global templates visible to all students across all departments.
+          </p>
+        </div>
+      </div>
 
-      <form onSubmit={handleUpload} className={styles.uploadForm}>
+      {message && (
+        <div className={message.error ? styles.errorMsg : styles.successMsg}>
+          {message.text}
+        </div>
+      )}
 
-        
-
-        {/* project dropdown */}
-        <label>Project
-          <select
-            className={styles.select}
-            value={projectId}
-            onChange={(e) => setProject(e.target.value)}
-          >
-            <option value="">— select project —</option>
-            {projects.map((p) => (
-              <option key={p._id} value={p._id}>{p.title}</option>
-            ))}
-          </select>
-        </label>
-
-        {/* group dropdown */}
-        <label>Group
-          <select
-            className={styles.select}
-            value={groupId}
-            onChange={(e) => setGroup(e.target.value)}
-          >
-            <option value="">— select group —</option>
-            {groups.map((g) => (
-              <option key={g._id} value={g._id}>{g.subject}</option>
-            ))}
-          </select>
-        </label>
-<label>
-  Title
-  <input
-    type="text"
-    value={title}
-    onChange={(e) => setTitle(e.target.value)}
-    className={styles.titleInput}
-    
-    placeholder="Enter document title"
-  />
-</label>
-
-<label>
-  Description
-  <textarea
-    value={description}
-    onChange={(e) => setDesc(e.target.value)}
-    className={styles.select}
-    placeholder="Enter document description"
-  />
-</label>
-
-        <label className={styles.fileInput}>
-          <FaUpload /> Choose file
-          <input
-            type="file"
-            accept=".pdf,.doc,.docx,.ppt,.pptx,.zip"
-            onChange={(e) => setFile(e.target.files[0])}
-          />
-        </label>
-
-        <button type="submit" disabled={uploading} >
-          {uploading ? "Uploading…" : "Upload"}
-        </button>
-        {file && <span className={styles.selectedName}>{file.name}</span>}
-      </form>
-
-      {/* list */}
-      <div className={styles.list}>
-        {templates.length === 0 ? (
-          <p className={styles.empty}>No templates uploaded yet.</p>
-        ) : (
-          templates.map((tpl) => (
-            <div key={tpl._id} className={styles.card}>
-              <FaFileAlt className={styles.icon} />
-              <a href={tpl.fileUrl} target="_blank" rel="noopener noreferrer">
-                {tpl.title}
-              </a>
-              <small>
-                ({tpl.projectName} • {tpl.groupName})
-              </small>
-              <button
-                className={styles.deleteBtn}
-                title="Delete"
-                onClick={() => handleDelete(tpl._id)}
-              >
-                <FaTrash />
-              </button>
+      {/* Upload Form */}
+      <div className={styles.uploadCard}>
+        <h3 className={styles.sectionTitle}>Upload New Template</h3>
+        <form onSubmit={handleUpload} className={styles.form}>
+          <div className={styles.formRow}>
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Title *</label>
+              <input
+                className={styles.input}
+                type="text"
+                placeholder="e.g. Final Report Template 2024"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+              />
             </div>
-          ))
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Category *</label>
+              <select
+                className={styles.select}
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+              >
+                <option value="">— Select category —</option>
+                {CATEGORIES.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className={styles.formGroup}>
+            <label className={styles.label}>Description (optional)</label>
+            <textarea
+              className={styles.textarea}
+              placeholder="Briefly describe this template..."
+              value={description}
+              onChange={(e) => setDesc(e.target.value)}
+              rows={2}
+            />
+          </div>
+
+          <div className={styles.fileRow}>
+            <label className={styles.fileBtn}>
+              <FaUpload /> Choose File
+              <input
+                type="file"
+                accept=".pdf,.doc,.docx,.ppt,.pptx,.zip"
+                onChange={(e) => setFile(e.target.files[0])}
+                style={{ display: "none" }}
+              />
+            </label>
+            {file && <span className={styles.fileName}>{file.name}</span>}
+            <button type="submit" className={styles.uploadBtn} disabled={uploading}>
+              {uploading ? "Uploading..." : "Upload"}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* Search + Filter Tabs */}
+      <div className={styles.filterBar}>
+        <div className={styles.searchBox}>
+          <FaSearch className={styles.searchIcon} />
+          <input
+            type="text"
+            placeholder="Search by title, description, or file name..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className={styles.searchInput}
+          />
+          {searchTerm && (
+            <button
+              type="button"
+              className={styles.searchClearBtn}
+              onClick={() => setSearchTerm("")}
+              aria-label="Clear search"
+            >
+              <FaTimes />
+            </button>
+          )}
+        </div>
+
+        {hasActiveFilters && (
+          <button type="button" className={styles.clearFiltersBtn} onClick={clearFilters}>
+            Clear
+          </button>
         )}
       </div>
+
+      <div className={styles.filterRow}>
+        {["All", ...CATEGORIES].map((f) => (
+          <button
+            key={f}
+            className={`${styles.filterBtn} ${activeFilter === f ? styles.filterActive : ""}`}
+            onClick={() => setFilter(f)}
+          >
+            {f}
+            {f !== "All" && (
+              <span className={styles.filterCount}>
+                {templates.filter((t) => t.category === f).length}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {templates.length > 0 && (
+        <p className={styles.resultsCount}>
+          Showing {filtered.length} of {templates.length} template{templates.length !== 1 ? "s" : ""}
+        </p>
+      )}
+
+      {/* Template List */}
+      {filtered.length === 0 ? (
+        <div className={styles.emptyBox}>
+          <FaFileAlt className={styles.emptyIcon} />
+          <p>
+            {templates.length === 0
+              ? "No templates uploaded yet."
+              : "No templates match your search/filter."}
+          </p>
+          {hasActiveFilters && templates.length > 0 && (
+            <button type="button" className={styles.clearFiltersBtn} onClick={clearFilters}>
+              Clear filters
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className={styles.tableWrap}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Category</th>
+                <th>File</th>
+                <th>Uploaded</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((tpl) => {
+                const cc = CATEGORY_COLORS[tpl.category] || CATEGORY_COLORS.General;
+                return (
+                  <tr key={tpl._id}>
+                    <td>
+                      <div className={styles.templateTitle}>{tpl.title}</div>
+                      {tpl.description && (
+                        <div className={styles.templateDesc}>{tpl.description}</div>
+                      )}
+                    </td>
+                    <td>
+                      <span className={styles.catBadge} style={{ background: cc.bg, color: cc.color }}>
+                        {tpl.category}
+                      </span>
+                    </td>
+                    <td>
+                      <div className={styles.fileCell}>
+                        <FileIcon type={tpl.fileType} />
+                        <a
+                          href={`${apiBase}${tpl.fileUrl}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={styles.fileLink}
+                        >
+                          {tpl.originalName}
+                        </a>
+                      </div>
+                    </td>
+                    <td className={styles.dateCell}>
+                      {new Date(tpl.createdAt).toLocaleDateString()}
+                    </td>
+                    <td>
+                      <button
+                        className={styles.deleteBtn}
+                        onClick={() => handleDelete(tpl._id)}
+                      >
+                        <FaTrash /> Delete
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 };
 
-export default ProjectTemplates;
+export default AdminTemplateManager;

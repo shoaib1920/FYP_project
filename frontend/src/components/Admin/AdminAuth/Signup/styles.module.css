@@ -1,51 +1,174 @@
-.container {
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    
-    background: linear-gradient(to top right, #a7f3d0, #93c5fd); /* green to blue */
-  }
-  
-  .formContainer {
-    background-color: white;
-    padding: 2rem;
-    border-radius: 1rem;
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
-    width: 100%;
-    max-width: 600px;
-  }
-  
-  .heading {
-    font-size: 1.75rem;
-    font-weight: 700;
-    text-align: center;
-    margin-bottom: 1.5rem;
-  }
-  
-  .input {
-    width: 96%;
-    padding: 0.75rem;
-    margin-bottom: 1rem;
-    border: 1px solid #d1d5db;
-    border-radius: 0.5rem;
-    font-size: 1rem;
-  }
-  
-  .button {
-    width: 100%;
-    background-color: #16a34a; /* green-600 */
-    color: white;
-    padding: 0.75rem;
-    font-size: 1rem;
-    font-weight: 500;
-    border: none;
-    border-radius: 0.5rem;
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-  }
-  
-  .button:hover {
-    background-color: #15803d; /* green-700 */
-  }
-  
+.page {
+  width: 100%;
+  min-height: 100vh;
+  background: #f8fafc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.card {
+  background: #fff;
+  width: 100%;
+  max-width: 420px;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+}
+
+.banner {
+  background: linear-gradient(135deg, #1e40af 0%, #2563eb 60%, #3b82f6 100%);
+  padding: 32px 30px 26px;
+  text-align: center;
+}
+
+.bannerIcon {
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 12px;
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  color: white;
+  backdrop-filter: blur(4px);
+}
+
+.bannerTag {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.78);
+  margin-bottom: 6px;
+}
+
+.bannerTitle {
+  font-size: 24px;
+  font-weight: 800;
+  color: white;
+  margin: 0 0 4px;
+}
+
+.bannerSubtitle {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.82);
+  margin: 0;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  padding: 30px 30px 28px;
+  gap: 14px;
+}
+
+.inputGroup {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.inputIcon {
+  position: absolute;
+  left: 14px;
+  color: #9ca3af;
+  font-size: 14px;
+}
+
+.input {
+  width: 100%;
+  padding: 13px 14px 13px 38px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  background: #fafafa;
+  box-sizing: border-box;
+}
+
+.input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+  background: white;
+}
+
+.error {
+  color: #991b1b;
+  padding: 10px 12px;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background-color: #fee2e2;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.success {
+  color: #065f46;
+  padding: 10px 12px;
+  border: 1px solid #6ee7b7;
+  border-radius: 8px;
+  background-color: #d1fae5;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.submitBtn {
+  margin-top: 4px;
+  background: linear-gradient(135deg, #1e40af, #2563eb);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 13px 16px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.submitBtn:hover {
+  opacity: 0.9;
+}
+
+.submitBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.loader {
+  width: 18px;
+  height: 18px;
+  border: 3px solid rgba(255, 255, 255, 0.4);
+  border-bottom-color: white;
+  border-radius: 50%;
+  display: inline-block;
+  box-sizing: border-box;
+  animation: rotation 1s linear infinite;
+}
+
+@keyframes rotation {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.switchText {
+  text-align: center;
+  font-size: 13.5px;
+  color: #6b7280;
+  margin: 6px 0 0;
+}
+
+.switchLink {
+  color: #2563eb;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.switchLink:hover {
+  text-decoration: underline;
+}

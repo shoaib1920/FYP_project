@@ -4,15 +4,19 @@ import { useNavigate } from "react-router-dom";
 import AdminDashboard from "../AdminDashboard";
 
 import AllUserGroups from "../Students";
+import Supervisors from "../Supervisors";
 import TemplateManager from "../TemplateManager";
 import ChatBox from "../ChatBox";
 import AssignProjectForm from "../AssignProject";
 import Feedback from "../Feedbacks";
-import ProjectApprovals from "../ProjectApproval";
+import ProposalApprovals from "../ProjectProposals";
+import DepartmentManagement from "../DepartmentManagement";
+import GradeApproval from "../GradeApproval";
+import AcademicCalendar from "../AcademicCalendar";
 
 
 // Icons
-import { FaHome, FaTasks, FaUserGraduate, FaProjectDiagram, FaComments, FaSignOutAlt, FaFileUpload ,FaFileSignature } from "react-icons/fa";
+import { FaHome, FaTasks, FaUserGraduate, FaUserTie, FaProjectDiagram, FaComments, FaSignOutAlt, FaFileUpload, FaFileSignature, FaBuilding, FaStar, FaShieldAlt, FaCalendarAlt } from "react-icons/fa";
 
 const Main = ({ defaultModule = "Dashboard" }) => {
   const navigate = useNavigate();
@@ -53,6 +57,7 @@ const Main = ({ defaultModule = "Dashboard" }) => {
 <div className={styles.main_wrapper}>
   <aside className={styles.sidebar}>
     <div className={styles.sidebar_header}>
+      <div className={styles.brand_icon}><FaShieldAlt /></div>
       <h2>Admin Panel</h2>
     </div>
 
@@ -64,39 +69,66 @@ const Main = ({ defaultModule = "Dashboard" }) => {
         <FaHome /> Dashboard
       </button>
 
+      <div className={styles.nav_section_label}>Workflow</div>
       <button
-        onClick={() => ShowModule("AllUserGroups")}
-        className={activeModule === "AllUserGroups" ? styles.active : ""}
+        onClick={() => ShowModule("proposal-approval")}
+        className={activeModule === "proposal-approval" ? styles.active : ""}
       >
-        <FaUserGraduate /> Students
+        <FaFileSignature /> Proposals
       </button>
-
-      <button
-        onClick={() => ShowModule("ProjectTemplates")}
-        className={activeModule === "ProjectTemplates" ? styles.active : ""}
-      >
-        <FaFileUpload /> Project&nbsp;Templates
-      </button>
-
       <button
         onClick={() => ShowModule("Projects")}
         className={activeModule === "Projects" ? styles.active : ""}
       >
         <FaProjectDiagram /> Projects
       </button>
-  <button onClick={() => ShowModule("project-approval")} className={activeModule === "project-approval" ? styles.active : ""}>
-  <FaFileSignature /> Project Approval
-</button>
+      <button
+        onClick={() => ShowModule("grade-approval")}
+        className={activeModule === "grade-approval" ? styles.active : ""}
+      >
+        <FaStar /> Grade Approval
+      </button>
+      <button
+        onClick={() => ShowModule("AcademicCalendar")}
+        className={activeModule === "AcademicCalendar" ? styles.active : ""}
+      >
+        <FaCalendarAlt /> Academic Calendar
+      </button>
+
+      <div className={styles.nav_section_label}>Resources</div>
+      <button
+        onClick={() => ShowModule("DepartmentManagement")}
+        className={activeModule === "DepartmentManagement" ? styles.active : ""}
+      >
+        <FaBuilding /> Departments
+      </button>
+      <button
+        onClick={() => ShowModule("Supervisors")}
+        className={activeModule === "Supervisors" ? styles.active : ""}
+      >
+        <FaUserTie /> Supervisors
+      </button>
+      <button
+        onClick={() => ShowModule("AllUserGroups")}
+        className={activeModule === "AllUserGroups" ? styles.active : ""}
+      >
+        <FaUserGraduate /> Students
+      </button>
+      <button
+        onClick={() => ShowModule("ProjectTemplates")}
+        className={activeModule === "ProjectTemplates" ? styles.active : ""}
+      >
+        <FaFileUpload /> Project&nbsp;Templates
+      </button>
       <button
         onClick={() => ShowModule("ChatBox")}
         className={activeModule === "ChatBox" ? styles.active : ""}
       >
-        
         <FaComments /> Chat
       </button>
-        <button onClick={() => ShowModule("Feedback")} className={activeModule === "Feedback" ? styles.active : ""}>
-                  <FaTasks /> Feedback
-                </button> 
+      <button onClick={() => ShowModule("Feedback")} className={activeModule === "Feedback" ? styles.active : ""}>
+        <FaTasks /> Feedback
+      </button>
 
       <button onClick={handleLogout} className={styles.logout_btn}>
         <FaSignOutAlt /> Logout
@@ -106,10 +138,14 @@ const Main = ({ defaultModule = "Dashboard" }) => {
 
   <main className={styles.content_area}>
     {activeModule === "Dashboard"        && <AdminDashboard setActiveModule={setActiveModule} />}
+    {activeModule === "DepartmentManagement" && <DepartmentManagement />}
+    {activeModule === "Supervisors"      && <Supervisors />}
     {activeModule === "AllUserGroups"    && <AllUserGroups />}
     {activeModule === "ProjectTemplates" && <TemplateManager />}   {/* new */}
-    {activeModule === "Projects"   && <AssignProjectForm />}     
-    {activeModule === "project-approval"   && <ProjectApprovals />}     
+    {activeModule === "Projects"   && <AssignProjectForm />}
+    {activeModule === "proposal-approval" && <ProposalApprovals />}
+    {activeModule === "grade-approval"    && <GradeApproval />}
+    {activeModule === "AcademicCalendar"  && <AcademicCalendar />}
     {activeModule === "ChatBox"          && <ChatBox />}
     {activeModule === "Feedback" && <Feedback />} 
   </main>

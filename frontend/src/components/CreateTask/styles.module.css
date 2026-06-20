@@ -4,7 +4,22 @@
     padding: 20px;
     font-family: Arial, sans-serif;
 }
+.task_table td {
+  padding: 15px;
+  text-align: center;
+  border-bottom: 1px solid #e5e7eb;
+  color: #374151;
+  font-size: 14px;
+}
 
+.task_table tbody tr {
+  transition: all 0.25s ease;
+}
+
+.task_table tbody tr:hover {
+  background: #f8fafc;
+  transform: scale(1.003);
+}
 
 .assignButton {
     background-color:  #3498db; /* Yellow */
@@ -20,9 +35,9 @@
   }
   .buttonRow {
     display: flex;
-    gap: 8px; /* Space between buttons */
     justify-content: center;
     align-items: center;
+    gap: 8px;
   }
   .assignButton:hover {
     background-color: #1c411e;
@@ -37,18 +52,20 @@
 }
 
 .card {
-    background: white;
-    padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    margin-bottom: 20px;
-    font-size: large;
-    
+  background: #ffffff;
+  padding: 25px;
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  margin-bottom: 30px;
+  overflow-x: auto;
+  border: 1px solid #e5e7eb;
 }
-.card_heading{
-    margin: 0;
-    font-size: 24px;
-    margin-left: 37%;
+.table_heading {
+  /* text-align: center; */
+  font-size: 26px;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 20px;
 }
 
 .task_form input,
@@ -110,6 +127,9 @@
   transform: translateY(-2px);
   box-shadow: 0 8px 20px rgba(76, 175, 80, 0.3);
 }
+.assignPlaceholder {
+    visibility: hidden;
+}
 
 /* Waiting Button */
 .waitingButton {
@@ -139,7 +159,15 @@
 }
 
 
+.assignButton {
+  background: #10b981;
+  color: white;
+}
 
+.assignButton:hover {
+  background: #059669;
+  transform: translateY(-2px);
+}
 
 
 .button {
@@ -159,75 +187,59 @@
     background-color: #2980b9;
 }
 
-.editButton {
-    background-color: #2f25ed; /* Yellow */
-    color: #f7f5f5;
-    padding: 6px 12px;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 14px;
-    width: 30%;
-    transition: 0.3s ease-in-out;
-    margin-bottom: 8px;
-  }
-  
-  .editButton:hover {
-    background-color: #28a5e3;
-  }
-  
-  .deleteButton {
-    background-color: #dc3545; /* Red */
-    color: #ffffff;
-    width: 30%;
-    padding: 6px 12px;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 14px;
-    transition: 0.3s ease-in-out;
-    margin-bottom: 8px;
-  }
-  
-  .deleteButton:hover {
-    background-color: #c82333;
-  }
+.editButton,
+.deleteButton,
+.assignButton {
+  min-width: 95px;
+  height: 38px;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
 .task_table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 10px;
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+  border-radius: 12px;
 }
 
-.task_table th,
-.task_table td {
-    border: 1px solid #ddd;
-    padding: 10px;
-    text-align: left;
+.task_table thead tr {
+  background: linear-gradient(135deg, #2563eb, #1e40af);
 }
 
 .task_table th {
-    background-color: #f8f9fa;
+  color: white;
+  font-weight: 600;
+  font-size: 15px;
+  padding: 16px;
+  text-align: center;
+  border: none;
 }
 
 .priority {
-    padding: 5px 10px;
-    border-radius: 5px;
-    font-weight: bold;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .low {
-    background-color: #d4edda;
-    color: #155724;
+  background: #dcfce7;
+  color: #166534;
 }
 
 .medium {
-    background-color: #fff3cd;
-    color: #856404;
+  background: #fef3c7;
+  color: #92400e;
 }
 
 .high {
-    background-color: #f8d7da;
-    color: #721c24;
+  background: #fee2e2;
+  color: #991b1b;
 }
 
 .message {

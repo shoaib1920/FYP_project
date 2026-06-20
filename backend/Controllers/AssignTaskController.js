@@ -1,23 +1,41 @@
 const TaskAssignment = require("../Models/TaskAssignment");
-const mongoose = require("mongoose"); // ✅ Ensure this is present
+const mongoose = require("mongoose");
 const Task = require("../Models/Task");
 const UserProjectSummary = require("../Models/UserProjectSummary");
 const Teams = require("../Models/Team");
 const AssignProject = require("../Models/SupervisorModels/AssignedProject");
 const Project = require("../Models/SupervisorModels/Project");
+const FYPProject = require("../Models/Project");
 
 // ✅ Assign a Task
 exports.assignTask = async (req, res) => {
   try {
-    const { project, user, user_id, role, assignedBy } = req.body;
+    const { project, user, user_id, role, assignedBy, assignerJoinCode } = req.body;
 
     if (!project || !user || !user_id || !role || !assignedBy) {
       return res.status(400).json({ message: "All fields are required!" });
     }
 
-    // ✅ Create and save new Task
+    const taskDetails = await Task.findById(project).lean();
+
+    if (!taskDetails) {
+      return res.status(404).json({ message: "Task not found for assignment" });
+    }
+
+    const projectDetails = taskDetails.projectId
+      ? await Project.findById(taskDetails.projectId).lean()
+      : null;
+
+    // ✅ Create and save new TaskAssignment with task metadata
     const newTaskAssignment = new TaskAssignment({
       project,
+      taskId: project,
+      taskCode: taskDetails.taskCode,
+      taskFile: taskDetails.taskFile,
+      studentJoinCode: taskDetails.studentJoinCode,
+      assignerJoinCode,
+      department: projectDetails?.departmentId || null,
+      description: taskDetails.description,
       user,
       user_id,
       role,
@@ -25,6 +43,9 @@ exports.assignTask = async (req, res) => {
     });
 
     await newTaskAssignment.save();
+
+    // ✅ Mark the task as assigned in Task table
+    await Task.findByIdAndUpdate(project, { isAssigned: true });
 
     // ✅ Check if user summary already exists
     let userSummary = await UserProjectSummary.findOne({ userId: user_id });
@@ -59,39 +80,25 @@ exports.getProjectsByStudent = async (req, res) => {
   try {
     const userId = req.params.userId;
 
-    // Step 1: Find all group IDs where this user is a member
-    const groups = await Teams.find({ members: userId }, "_id");
-    if (!groups.length) {
-      return res
-        .status(404)
-        .json({ message: "No groups found for this student" });
-    }
-    const groupIds = groups.map((group) => group._id);
-   
-    // Step 2: Find assigned projects for these group IDs
-    // Step 2: Find assigned projects using groupIds
-    const assignedProjects = await AssignProject.find(
-      { groupId: { $in: groupIds } },
-      "projectId"
+    // Find all teams where this user is a member OR the creator
+    const userTeams = await Teams.find(
+      { $or: [{ members: userId }, { createdBy: userId }] },
+      "_id"
     );
-    if (!assignedProjects.length) {
-      return res
-        .status(404)
-        .json({
-          message: "No assigned projects found for the student's groups"
-        });
-    }
-    const projectIds = assignedProjects.map((ap) => ap.projectId);
-    console.log("projectIds>>>", projectIds);
-    // Step 3: Fetch project details
-    const projects = await Project.find({ _id: { $in: projectIds } });
+    const teamIds = userTeams.map((t) => t._id);
+
+    // Return projects where user is team leader OR belongs to the team
+    const projects = await FYPProject.find({
+      $or: [{ teamLeaderId: userId }, { teamId: { $in: teamIds } }],
+    })
+      .populate({ path: "supervisorId", select: "name email", model: "Supervisor" })
+      .populate({ path: "teamId", select: "subject members", model: "Team" })
+      .lean();
 
     res.status(200).json(projects);
   } catch (err) {
     console.error("Error in getProjectsByStudent:", err);
-    res
-      .status(500)
-      .json({ message: "Server error while fetching student projects" });
+    res.status(500).json({ message: "Server error while fetching student projects" });
   }
 };
 
@@ -105,7 +112,7 @@ exports.getMyAssignments = async (req, res) => {
 
     // ✅ Find only assignments where `user_id` matches
     const assignments = await TaskAssignment.find({ user_id: userId }).populate(
-      "user assignedBy"
+      "user assignedBy department"
     );
 
     // ✅ Fetch project details
@@ -118,7 +125,17 @@ exports.getMyAssignments = async (req, res) => {
 
       return {
         ...task._doc,
-        project: projectDetails ? projectDetails.title : "Unknown Project",
+        projectTitle: projectDetails ? projectDetails.title : "Unknown Project",
+        taskId: task.taskId || task.project,
+        taskCode: task.taskCode || projectDetails?.taskCode,
+        taskFile: task.taskFile || projectDetails?.taskFile,
+        studentJoinCode: task.studentJoinCode || projectDetails?.studentJoinCode,
+        assignerJoinCode: task.assignerJoinCode || null,
+        department: task.department || null,
+        description: task.description || projectDetails?.description,
+        startDate: projectDetails?.startDate,
+        dueDate: projectDetails?.dueDate,
+        priority: projectDetails?.priority,
       };
     });
 
@@ -132,15 +149,31 @@ exports.getMyAssignments = async (req, res) => {
 exports.updateAssignment = async (req, res) => {
   try {
     const { id } = req.params;
-    const { project, user, user_id, role, assignedBy } = req.body;
+    const { project, user, user_id, role, assignedBy, assignerJoinCode, department } = req.body;
 
     if (!project || !user || !user_id || !role || !assignedBy) {
       return res.status(400).json({ message: "All fields are required!" });
     }
 
+    const updateData = {
+      project,
+      user,
+      user_id,
+      role,
+      assignedBy,
+    };
+
+    if (assignerJoinCode !== undefined) {
+      updateData.assignerJoinCode = assignerJoinCode;
+    }
+
+    if (department !== undefined) {
+      updateData.department = department;
+    }
+
     const updatedTask = await TaskAssignment.findByIdAndUpdate(
       id,
-      { project, user, user_id, role, assignedBy },
+      updateData,
       { new: true }
     );
 
@@ -175,8 +208,9 @@ exports.getOtherAssignments = async (req, res) => {
 
     // ✅ Find only assignments where `user_id` matches
     const assignments = await TaskAssignment.find({}).populate(
-      "user assignedBy"
+      "user assignedBy department"
     );
+    // console.log("otherAssignment>>>",assignments);
 
     // ✅ Fetch project details
     const allProjects = await Task.find();
@@ -188,9 +222,24 @@ exports.getOtherAssignments = async (req, res) => {
 
       return {
         ...task._doc,
-        project: projectDetails ? projectDetails.title : "Unknown Project",
+        projectTitle: projectDetails ? projectDetails.title : "Unknown Project",
+        taskId: task.taskId || task.project,
+        taskCode: task.taskCode || projectDetails?.taskCode,
+        taskFile: task.taskFile || projectDetails?.taskFile,
+        studentJoinCode: task.studentJoinCode || projectDetails?.studentJoinCode,
+        assignerJoinCode: task.assignerJoinCode || null,
+        department: task.department || null,
+        description: task.description || projectDetails?.description,
+        startDate: projectDetails?.startDate,
+        dueDate: projectDetails?.dueDate,
+        priority: projectDetails?.priority,
       };
     });
+
+
+
+    
+    console.log("here is total assignment>>>>>>",updatedAssignments);
 
     res.status(200).json(updatedAssignments);
   } catch (error) {
@@ -211,7 +260,7 @@ exports.getAssignments = async (req, res) => {
     // ✅ Fetch assigned tasks by user
     const assignments = await TaskAssignment.find({
       assignedBy: userId,
-    }).populate("user assignedBy");
+    }).populate("user assignedBy department");
 
     // ✅ Fetch all projects (since we need project details)
     const allProjects = await Task.find(); // Fetch all projects from Task table
@@ -224,7 +273,9 @@ exports.getAssignments = async (req, res) => {
 
       return {
         ...task._doc, // Spread task details
-        project: projectDetails ? projectDetails.title : "Unknown Project", // Corrected key
+        projectTitle: projectDetails ? projectDetails.title : "Unknown Project", // For display
+        assignerJoinCode: task.assignerJoinCode || null,
+        department: task.department || null,
       };
     });
 
@@ -254,7 +305,12 @@ exports.getAssignmentsByProject = async (req, res) => {
 exports.deleteAssignment = async (req, res) => {
   try {
     const { id } = req.params;
-    await TaskAssignment.findByIdAndDelete(id);
+    const deletedAssignment = await TaskAssignment.findByIdAndDelete(id);
+
+    if (deletedAssignment?.project) {
+      await Task.findByIdAndUpdate(deletedAssignment.project, { isAssigned: false });
+    }
+
     res.status(200).json({ message: "Task assignment deleted successfully" });
   } catch (error) {
     res.status(500).json({ message: "Error deleting assignment", error });

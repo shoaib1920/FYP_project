@@ -12,14 +12,14 @@ exports.createTeam = async (req, res) => {
       subject,
       memberIds,
       memberNames,
+      creatorJoinCode,
+      department,
       createdBy,
       creatorName,
-      supervisorId,
-      supervisorName,
     } = req.body;
 
-    if (!subject || !memberIds || memberIds.length === 0 || !supervisorId || !supervisorName) {
-      return res.status(400).json({ message: "Subject, supervisor and at least one team member are required" });
+    if (!subject || !memberIds || memberIds.length === 0) {
+      return res.status(400).json({ message: "Subject and at least one team member are required" });
     }
 
     const users = await Users.find({ '_id': { $in: memberIds } });
@@ -31,13 +31,19 @@ exports.createTeam = async (req, res) => {
       subject,
       members: memberIds,
       memberNames,
+      department,
+      creatorJoinCode,
       createdBy,
       creatorName,
-      supervisorId,
-      supervisorName,
     });
 
     await newTeam.save();
+
+    if (createdBy) {
+      await Users.findByIdAndUpdate(createdBy, {
+        designation: "TeamLeader",
+      });
+    }
 
     res.status(201).json({
       success: true,
@@ -56,11 +62,7 @@ exports.getAllTeams = async (req, res) => {
   try {
     const teams = await Team.find().populate("members", "name email");
 
-    if (!teams || teams.length === 0) {
-      return res.status(404).json({ message: "No teams found" });
-    }
-
-    res.status(200).json({ teams });
+    res.status(200).json({ teams: teams || [] });
   } catch (error) {
     console.error("Error fetching teams:", error);
     res.status(500).json({ message: "Server Error" });

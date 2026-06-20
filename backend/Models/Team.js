@@ -6,11 +6,9 @@ const teamSchema = new mongoose.Schema(
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "users", required: true },
     creatorName: { type: String, required: true },
     members: [{ type: mongoose.Schema.Types.ObjectId, ref: "users" }],
+    creatorJoinCode: { type: String, required: true },
     memberNames: [{ type: String }],
-    
-    // ✅ New fields for supervisor
-    supervisorId: { type: mongoose.Schema.Types.ObjectId, ref: "users", required: true },
-    supervisorName: { type: String, required: true },
+     department:{ type: String, required: true },
   },
   { timestamps: true }
 );

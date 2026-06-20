@@ -1,0 +1,12 @@
+# dependencies
+/node_modules
+
+# environment variables (secrets)
+.env
+.env.*
+
+# uploads (user-submitted files, not source code)
+/uploads
+
+# logs
+npm-debug.log*
