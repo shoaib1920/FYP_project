@@ -1,7 +1,8 @@
 const express = require("express");
 const router = express.Router();
 const multer = require("multer");
-const path = require("path");
+const { CloudinaryStorage } = require("multer-storage-cloudinary");
+const cloudinary = require("../utils/cloudinary");
 const Task = require("../Models/Task");
 const TaskAssignment = require("../Models/TaskAssignment");
 const UserProjectSummary = require("../Models/UserProjectSummary");
@@ -105,14 +106,10 @@ const TaskList = async (req, res) =>{
 
 // Create a New Task and Assign it to a User
 
-// Multer Storage Configuration
-const storage = multer.diskStorage({
-	destination: (req, file, cb) => {
-		cb(null, "uploads/"); // Folder jahan file save hogi
-	},
-	filename: (req, file, cb) => {
-		cb(null, Date.now() + path.extname(file.originalname)); // Unique filename
-	},
+// Multer Storage Configuration — uploads go to Cloudinary, not local disk
+const storage = new CloudinaryStorage({
+	cloudinary,
+	params: { folder: "fyp/tasks", resource_type: "auto" },
 });
 
 // Multer Middleware
@@ -178,7 +175,7 @@ const createTask = async (req, res) => {
         studentJoinCode,
       } = req.body;
 
-      const taskFile = req.file ? req.file.filename : null;
+      const taskFile = req.file ? req.file.path : null;
 
       const newTask = new Task({
         title,
@@ -245,7 +242,7 @@ const submitProject = async (req, res) => {
       };
 
       if (req.file) {
-        update.submissionFile = req.file.filename;
+        update.submissionFile = req.file.path;
       }
 
       const assignmentUpdateResult = await TaskAssignment.updateOne(

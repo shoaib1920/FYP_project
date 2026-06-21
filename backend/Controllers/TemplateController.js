@@ -24,7 +24,7 @@ exports.uploadGlobalTemplate = async (req, res) => {
     }
 
     const fileType = path.extname(req.file.originalname).slice(1).toLowerCase();
-    const fileUrl  = `/uploads/templates/${req.file.filename}`;
+    const fileUrl  = req.file.path;
 
     const template = await Template.create({
       title,
@@ -70,7 +70,7 @@ exports.uploadProjectTemplate = async (req, res) => {
     }
 
     const fileType = path.extname(req.file.originalname).slice(1).toLowerCase();
-    const fileUrl  = `/uploads/templates/${req.file.filename}`;
+    const fileUrl  = req.file.path;
 
     const template = await Template.create({
       title,

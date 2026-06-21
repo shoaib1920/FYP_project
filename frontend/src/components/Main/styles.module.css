@@ -1,286 +1,191 @@
-/* 🔥 Main Navbar - Glassmorphism Style */
+/* ── Top bar (student module equivalent of the admin/supervisor sidebar) ── */
+.main_container {
+	min-height: 100vh;
+	background-color: #f4f7fa;
+}
+
 .navbar {
 	position: sticky;
 	top: 0;
 	z-index: 100;
 	display: flex;
-	justify-content: space-between;
 	align-items: center;
-	background: rgba(30, 30, 47, 0.8); /* Semi-transparent */
-	backdrop-filter: blur(10px); /* Glass effect */
-	padding: 15px 30px;
-	color: white;
-	box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+	gap: 24px;
+	background: linear-gradient(135deg, #0f1b3d 0%, #111827 100%);
+	padding: 0 28px;
+	height: 64px;
+	box-shadow: 0 2px 16px rgba(0, 0, 0, 0.18);
+}
+
+/* ── Brand ── */
+.brand {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex-shrink: 0;
+}
+
+.brand_icon {
+	width: 36px;
+	height: 36px;
+	background: linear-gradient(135deg, #2563eb, #1e40af);
 	border-radius: 10px;
-	margin: 10px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 16px;
+	color: white;
+	flex-shrink: 0;
 }
 
-/* 🏆 Left Side - Logo */
-.navbar h1 {
+.brand h2 {
+	font-size: 17px;
+	font-weight: 700;
+	color: #f1f5f9;
 	margin: 0;
-	font-size: 40px;
-	color: #fff;
-	font-weight: bold;
-	letter-spacing: 1px;
-	text-transform: uppercase;
+	letter-spacing: -0.2px;
+	white-space: nowrap;
 }
 
-/* 🔗 Navigation Links */
+/* ── Nav links ── */
 .nav_links {
 	display: flex;
-	gap: 10px;
+	align-items: center;
+	gap: 4px;
+	flex: 1;
+	overflow-x: auto;
 }
 
 .nav_links button {
 	background: none;
 	border: none;
-	color: white;
-	font-size: 22px;
+	border-bottom: 2px solid transparent;
+	color: #cbd5e1;
+	font-size: 14px;
+	font-weight: 500;
+	padding: 10px 14px;
+	border-radius: 9px 9px 0 0;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	white-space: nowrap;
+	transition: background 0.18s, color 0.18s, border-color 0.18s;
 	cursor: pointer;
-	padding: 10px 15px;
-	transition: all 0.3s ease-in-out;
-	position: relative;
-	/* overflow: hidden; */
 }
 
-/* 🌟 Neon Glow Hover Effect */
-.nav_links button::before {
-	content: "";
-	position: absolute;
-	width: 100%;
-	height: 2px;
-	bottom: 0;
-	left: 0;
-	background: linear-gradient(to right, #00bcd4, #ff4081);
-	transform: scaleX(0);
-	transform-origin: left;
-	transition: transform 0.3s ease-in-out;
-}
-
-.nav_links button:hover::before {
-	transform: scaleX(1);
+.nav_links button svg {
+	font-size: 14px;
+	flex-shrink: 0;
 }
 
 .nav_links button:hover {
-	color: #00bcd4;
-	transform: translateY(-2px);
+	background-color: rgba(255, 255, 255, 0.06);
+	color: #ffffff;
 }
 
-/* ⋮ More Options Menu */
-.more_menu_wrapper {
-	position: relative;
-	display: flex;
-	align-items: center;
+.active {
+	background-color: rgba(37, 99, 235, 0.18) !important;
+	border-bottom-color: #3b82f6 !important;
+	color: #ffffff !important;
+	font-weight: 700 !important;
 }
 
-.more_menu_btn {
-	background: rgba(255, 255, 255, 0.08);
-	border: none;
-	color: white;
-	font-size: 22px;
-	font-weight: bold;
-	line-height: 1;
-	cursor: pointer;
-	padding: 8px 14px;
-	border-radius: 8px;
-	transition: background 0.2s ease-in-out;
-}
-
-.more_menu_btn:hover {
-	background: rgba(255, 255, 255, 0.18);
-	color: #00bcd4;
-}
-
-.more_menu_dropdown {
-	position: absolute;
-	top: calc(100% + 8px);
-	right: 0;
-	background: #1e1e2f;
-	border: 1px solid rgba(255, 255, 255, 0.1);
-	border-radius: 10px;
-	box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
-	min-width: 180px;
-	overflow: hidden;
-	z-index: 1000;
-}
-
-.more_menu_dropdown button {
-	display: block;
-	width: 100%;
-	background: none;
-	border: none;
-	color: #e9edef;
-	font-size: 15px;
-	text-align: left;
-	padding: 12px 16px;
-	cursor: pointer;
-	transition: background 0.15s ease-in-out;
-}
-
-.more_menu_dropdown button:hover {
-	background: rgba(37, 99, 235, 0.18);
+.active svg {
 	color: #60a5fa;
 }
 
-/* 🔒 Auth Buttons */
-.auth_buttons {
+/* ── Right side: notifications, profile, logout ── */
+.navbar_right {
 	display: flex;
-	gap: 15px;
+	align-items: center;
+	gap: 14px;
+	flex-shrink: 0;
 }
 
-/* 🚀 Button Base Style */
-.auth_buttons button {
-	border: none;
-	padding: 12px 25px;
-	border-radius: 25px;
-	font-size: 16px;
-	cursor: pointer;
-	font-weight: bold;
-	transition: all 0.3s ease-in-out;
+.profile_chip {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	background: rgba(255, 255, 255, 0.06);
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	border-radius: 999px;
+	padding: 5px 14px 5px 5px;
 }
 
-/* 🎨 Login Button - Futuristic Blue */
-.auth_buttons .login {
-	background: linear-gradient(135deg, #007bff, #0056b3);
+.profile_avatar {
+	width: 30px;
+	height: 30px;
+	border-radius: 50%;
+	background: linear-gradient(135deg, #3b82f6, #1e40af);
 	color: white;
-	box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
-	padding: 12px 28px;
-	border: none;
-	border-radius: 8px;
-	font-size: 16px;
-	font-weight: bold;
+	font-size: 12px;
+	font-weight: 700;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+}
+
+.profile_name {
+	font-size: 13.5px;
+	font-weight: 600;
+	color: #f1f5f9;
+	white-space: nowrap;
+}
+
+.logout_btn {
+	background: rgba(239, 68, 68, 0.12);
+	color: #fca5a5;
+	font-weight: 600;
+	padding: 9px 16px;
+	border-radius: 9px;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	border: 1px solid rgba(239, 68, 68, 0.25);
 	cursor: pointer;
-	transition: all 0.3s ease-in-out;
-	position: relative;
-	/* 
-	overflow: hidden; */
-	width: 100%;
+	transition: background 0.18s ease, color 0.18s ease;
+	font-size: 14px;
+	white-space: nowrap;
 }
 
-/* Glow Effect */
-.auth_buttons .login::before {
-	content: "";
-	position: absolute;
-	top: 0;
-	left: 50%;
-	width: 200%;
-	height: 200%;
-	background: radial-gradient(circle, rgba(0, 123, 255, 0.4) 10%, transparent 50%);
-	transform: translate(-50%, -70%);
-	transition: opacity 0.3s ease-in-out;
-	opacity: 0;
-}
-
-/* Hover Effect */
-.auth_buttons .login:hover {
-	background: linear-gradient(135deg, #0056b3, #003d82);
-	box-shadow: 0 6px 20px rgba(0, 123, 255, 0.5);
-	transform: scale(1.08);
-}
-
-.auth_buttons .login:active {
-	transform: scale(1);
-}
-
-/* 💖 Signup Button - Premium Purple */
-.auth_buttons .signup {
-	background: linear-gradient(135deg, #8e44ad, #6a1b9a);
+.logout_btn:hover {
+	background-color: #ef4444;
 	color: white;
-	box-shadow: 0 4px 15px rgba(142, 68, 173, 0.3);
-	padding: 12px 28px;
-	border: none;
-	border-radius: 8px;
-	font-size: 16px;
-	font-weight: bold;
-	cursor: pointer;
-	transition: all 0.3s ease-in-out;
-	position: relative;
-	overflow: hidden;
 }
 
-/* Glow Effect */
-.auth_buttons .signup::before {
-	content: "";
-	position: absolute;
-	top: 0;
-	left: 50%;
-	width: 200%;
-	height: 200%;
-	background: radial-gradient(circle, rgba(142, 68, 173, 0.4) 10%, transparent 50%);
-	transform: translate(-50%, -70%);
-	transition: opacity 0.3s ease-in-out;
-	opacity: 0;
+/* ── Module content area ── */
+.module_container {
+	min-height: calc(100vh - 64px);
 }
 
-/* Hover Effect */
-.auth_buttons .signup:hover {
-	background: linear-gradient(135deg, #6a1b9a, #4a148c);
-	box-shadow: 0 6px 20px rgba(142, 68, 173, 0.5);
-	transform: scale(1.08);
-}
-
-.auth_buttons .signup:active {
-	transform: scale(1);
-}
-
-/* 🔴 Logout Button - Elegant Red */
-.auth_buttons .logout {
-	background: linear-gradient(135deg, #e74c3c, #c0392b);
-	color: white;
-	box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3);
-	padding: 12px 28px;
-	border: none;
-	border-radius: 8px;
-	font-size: 16px;
-	font-weight: bold;
-	cursor: pointer;
-	transition: all 0.3s ease-in-out;
-	position: relative;
-	/* overflow: hidden; */
-	width: 100%;
-}
-
-/* Glow Effect */
-.auth_buttons .logout::before {
-	content: "";
-	position: absolute;
-	top: 0;
-	left: 50%;
-	width: 200%;
-	height: 200%;
-	background: radial-gradient(circle, rgba(231, 76, 60, 0.4) 10%, transparent 50%);
-	transform: translate(-50%, -70%);
-	transition: opacity 0.3s ease-in-out;
-	opacity: 0;
-}
-
-/* Hover Effect */
-.auth_buttons .logout:hover {
-	background: linear-gradient(135deg, #c0392b, #a93226);
-	box-shadow: 0 6px 20px rgba(231, 76, 60, 0.5);
-	transform: scale(1.08);
-}
-
-.auth_buttons .logout:active {
-	transform: scale(1);
-}
-
-
-/* 📱 Responsive Design */
-@media screen and (max-width: 768px) {
+/* 📱 Responsive */
+@media screen and (max-width: 900px) {
 	.navbar {
-		flex-direction: column;
-		text-align: center;
-		padding: 15px;
+		flex-wrap: wrap;
+		height: auto;
+		padding: 12px 16px;
+		gap: 12px;
 	}
 
 	.nav_links {
-		flex-direction: column;
-		gap: 10px;
-		margin-top: 10px;
+		order: 3;
+		width: 100%;
+		flex: 1 1 100%;
+		justify-content: flex-start;
 	}
 
-	.auth_buttons {
-		margin-top: 10px;
+	.navbar_right {
+		margin-left: auto;
+	}
+
+	.profile_name {
+		display: none;
+	}
+}
+
+@media screen and (max-width: 480px) {
+	.nav_links button span {
+		display: none;
 	}
 }

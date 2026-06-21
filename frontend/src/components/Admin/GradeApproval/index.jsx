@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import styles from "./styles.module.css";
+import { resolveFileUrl } from "../../../utils/resolveFileUrl";
 import {
   FaStar,
   FaHourglassHalf,
@@ -449,7 +450,7 @@ const ProjectCard = ({ project, activeTab, actionLoading, onRelease, onFlag, api
           )}
           {project.finalReportUrl && (
             <a
-              href={`${apiBase}/${project.finalReportUrl}`}
+              href={resolveFileUrl(project.finalReportUrl)}
               target="_blank"
               rel="noopener noreferrer"
               className={styles.reportLink}

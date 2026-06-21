@@ -1,9 +1,23 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import axios from "axios";
 import styles from "./styles.module.css";
 import { useNavigate } from "react-router-dom";
 import DeadlineBanner from "../DeadlineBanner";
 import LivePreview from "../LivePreview";
+import { resolveFileUrl } from "../../utils/resolveFileUrl";
+import {
+  FaProjectDiagram,
+  FaClipboardList,
+  FaCheckCircle,
+  FaHourglassHalf,
+  FaPlus,
+  FaUserCheck,
+  FaCalendarWeek,
+  FaMarker,
+  FaGithub,
+  FaPlayCircle,
+  FaEdit,
+} from "react-icons/fa";
 
 const CreateTask = () => {
   const navigate = useNavigate();
@@ -37,6 +51,17 @@ const CreateTask = () => {
   const [linksForm, setLinksForm] = useState({ githubRepository: "", deploymentLink: "" });
   const [linksSaving, setLinksSaving] = useState(false);
   const [previewUrl, setPreviewUrl] = useState(null);
+
+  const [progressModalProject, setProgressModalProject] = useState(null);
+  const [progressLogs, setProgressLogs] = useState([]);
+  const [progressLogsLoading, setProgressLogsLoading] = useState(false);
+  const [newLog, setNewLog] = useState({ workDone: "", plannedNext: "", challenges: "" });
+  const [submittingLog, setSubmittingLog] = useState(false);
+
+  const [reviewNotesModalProject, setReviewNotesModalProject] = useState(null);
+  const [reviewNotes, setReviewNotes] = useState([]);
+  const [reviewNotesLoading, setReviewNotesLoading] = useState(false);
+  const [resolvingNoteId, setResolvingNoteId] = useState(null);
 
   const token = localStorage.getItem("token");
   const loggedInUser = JSON.parse(localStorage.getItem("user"));
@@ -398,6 +423,104 @@ const CreateTask = () => {
     }
   };
 
+  const fetchProgressLogs = async (projectId) => {
+    setProgressLogsLoading(true);
+    try {
+      const res = await axios.get(
+        `${process.env.REACT_APP_API_URL}/auth/progress-logs/${projectId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setProgressLogs(res.data.logs || []);
+    } catch (err) {
+      console.error("Error fetching progress logs:", err);
+      setProgressLogs([]);
+    } finally {
+      setProgressLogsLoading(false);
+    }
+  };
+
+  const handleOpenProgressModal = (project) => {
+    setProgressModalProject(project);
+    setNewLog({ workDone: "", plannedNext: "", challenges: "" });
+    fetchProgressLogs(project._id);
+  };
+
+  const nextWeekNumber = progressLogs.length
+    ? Math.max(...progressLogs.map((l) => l.weekNumber)) + 1
+    : 1;
+
+  const handleSubmitProgressLog = async () => {
+    if (!isTeamLeader) {
+      setMessage("Only the team leader can submit progress logs.");
+      return;
+    }
+    if (!newLog.workDone.trim()) {
+      alert("Please describe the work done this week.");
+      return;
+    }
+    setSubmittingLog(true);
+    try {
+      await axios.post(
+        `${process.env.REACT_APP_API_URL}/auth/progress-logs`,
+        {
+          projectId: progressModalProject._id,
+          weekNumber: nextWeekNumber,
+          workDone: newLog.workDone.trim(),
+          plannedNext: newLog.plannedNext.trim(),
+          challenges: newLog.challenges.trim(),
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setNewLog({ workDone: "", plannedNext: "", challenges: "" });
+      fetchProgressLogs(progressModalProject._id);
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to submit progress log.");
+    } finally {
+      setSubmittingLog(false);
+    }
+  };
+
+  const fetchReviewNotes = async (projectId) => {
+    setReviewNotesLoading(true);
+    try {
+      const res = await axios.get(
+        `${process.env.REACT_APP_API_URL}/auth/review-notes/${projectId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setReviewNotes(res.data.reviewNotes || []);
+    } catch (err) {
+      console.error("Error fetching review notes:", err);
+      setReviewNotes([]);
+    } finally {
+      setReviewNotesLoading(false);
+    }
+  };
+
+  const handleOpenReviewNotesModal = (project) => {
+    setReviewNotesModalProject(project);
+    fetchReviewNotes(project._id);
+  };
+
+  const handleResolveNote = async (noteId) => {
+    if (!isTeamLeader) {
+      setMessage("Only the team leader can mark a review note as resolved.");
+      return;
+    }
+    setResolvingNoteId(noteId);
+    try {
+      await axios.put(
+        `${process.env.REACT_APP_API_URL}/auth/review-notes/${noteId}/resolve`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      fetchReviewNotes(reviewNotesModalProject._id);
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to mark review note as resolved.");
+    } finally {
+      setResolvingNoteId(null);
+    }
+  };
+
   const handleOpenReportModal = (projectId) => {
     if (!isTeamLeader) {
       setMessage("Only the team leader can submit the final report.");
@@ -515,9 +638,64 @@ const CreateTask = () => {
     }
   };
 
+  const taskStats = useMemo(
+    () => ({
+      totalProjects: groupProjects.length,
+      totalTasks: tasks.length,
+      assigned: tasks.filter((t) => t.isAssigned).length,
+      unassigned: tasks.filter((t) => !t.isAssigned).length,
+    }),
+    [groupProjects, tasks]
+  );
+
   return (
     <div className={styles.container}>
-      <h1 className={styles.heading}>📌 Project Manager</h1>
+      <div className={styles.hero}>
+        <div className={styles.heroIcon}><FaProjectDiagram /></div>
+        <div className={styles.heroText}>
+          <h2 className={styles.heading}>Project &amp; Task Manager</h2>
+          <p className={styles.subheading}>Track your project's progress, manage tasks, and submit your final report.</p>
+        </div>
+      </div>
+
+      <div className={styles.statsRow}>
+        <div className={styles.statCard}>
+          <div className={styles.statIcon} style={{ background: "#dbeafe", color: "#1e40af" }}>
+            <FaProjectDiagram />
+          </div>
+          <div>
+            <h4>Projects</h4>
+            <p>{taskStats.totalProjects}</p>
+          </div>
+        </div>
+        <div className={styles.statCard}>
+          <div className={styles.statIcon} style={{ background: "#fef3c7", color: "#92400e" }}>
+            <FaClipboardList />
+          </div>
+          <div>
+            <h4>Total Tasks</h4>
+            <p>{taskStats.totalTasks}</p>
+          </div>
+        </div>
+        <div className={styles.statCard}>
+          <div className={styles.statIcon} style={{ background: "#dcfce7", color: "#15803d" }}>
+            <FaCheckCircle />
+          </div>
+          <div>
+            <h4>Assigned</h4>
+            <p>{taskStats.assigned}</p>
+          </div>
+        </div>
+        <div className={styles.statCard}>
+          <div className={styles.statIcon} style={{ background: "#fee2e2", color: "#b91c1c" }}>
+            <FaHourglassHalf />
+          </div>
+          <div>
+            <h4>Unassigned</h4>
+            <p>{taskStats.unassigned}</p>
+          </div>
+        </div>
+      </div>
 
       <DeadlineBanner type="final" tokenKey="token" />
 
@@ -531,25 +709,23 @@ const CreateTask = () => {
         </p>
       )}
 
-      {/* Add Task Button */}
-      <button
-        onClick={handleOpenModal}
-        className={styles.addTaskBtn}
-      >
-        ➕ Add Task
-      </button>
-
-      {isTeamLeader && (
-        <button
-          onClick={() => navigate("/student/Assign-task")}
-          className={styles.addTaskBtn}
-          style={{ marginLeft: 10, background: "#7c3aed" }}
-        >
-          📌 Assign Task
+      {/* Action Buttons */}
+      <div className={styles.actionRow}>
+        <button onClick={handleOpenModal} className={styles.addTaskBtn}>
+          <FaPlus /> Add Task
         </button>
-      )}
+
+        {isTeamLeader && (
+          <button
+            onClick={() => navigate("/student/Assign-task")}
+            className={styles.assignTaskBtn}
+          >
+            <FaUserCheck /> Assign Task
+          </button>
+        )}
+      </div>
       {!isTeamLeader && (
-        <p style={{ marginTop: 8, color: "#c00" }}>
+        <p className={styles.leaderNotice}>
           Only team leaders can create tasks, assign group members, and submit projects.
         </p>
       )}
@@ -654,6 +830,197 @@ const CreateTask = () => {
             >
               {reportSubmitting ? "Submitting..." : "Submit Final Report"}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Weekly Progress Log Modal */}
+      {progressModalProject && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modalContent} style={{ maxWidth: "640px" }}>
+            <span className={styles.closeButton} onClick={() => setProgressModalProject(null)}>❌</span>
+            <h2 className={styles.card_heading}>Weekly Progress Updates</h2>
+            <p style={{ color: "#555", marginTop: "8px" }}>{progressModalProject.title}</p>
+
+            <div style={{ marginTop: "18px", maxHeight: "260px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "12px" }}>
+              {progressLogsLoading ? (
+                <p style={{ color: "#9ca3af", fontSize: "13px" }}>Loading logs...</p>
+              ) : progressLogs.length === 0 ? (
+                <p style={{ color: "#9ca3af", fontSize: "13px" }}>No weekly updates submitted yet.</p>
+              ) : (
+                progressLogs.map((log) => (
+                  <div key={log._id} style={{ background: "#f8fafc", borderRadius: "10px", padding: "12px 14px", border: "1px solid #e5e7eb" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                      <strong style={{ fontSize: "13.5px", color: "#111827" }}>Week {log.weekNumber}</strong>
+                      <span style={{
+                        fontSize: "11px", fontWeight: "700", padding: "2px 8px", borderRadius: "999px",
+                        background: log.status === "REVIEWED" ? "#dcfce7" : "#fef3c7",
+                        color: log.status === "REVIEWED" ? "#15803d" : "#92400e",
+                      }}>
+                        {log.status === "REVIEWED" ? "Reviewed" : "Pending Review"}
+                      </span>
+                    </div>
+                    <p style={{ fontSize: "13px", color: "#374151", margin: "4px 0" }}><strong>Work done:</strong> {log.workDone}</p>
+                    {log.plannedNext && (
+                      <p style={{ fontSize: "13px", color: "#374151", margin: "4px 0" }}><strong>Planned next:</strong> {log.plannedNext}</p>
+                    )}
+                    {log.challenges && (
+                      <p style={{ fontSize: "13px", color: "#374151", margin: "4px 0" }}><strong>Challenges:</strong> {log.challenges}</p>
+                    )}
+                    {log.supervisorFeedback && (
+                      <div style={{ marginTop: "8px", background: "#eff6ff", borderLeft: "3px solid #2563eb", borderRadius: "6px", padding: "8px 10px" }}>
+                        <strong style={{ fontSize: "12px", color: "#1e40af" }}>Supervisor feedback:</strong>
+                        <p style={{ fontSize: "12.5px", color: "#1e3a8a", margin: "2px 0 0" }}>{log.supervisorFeedback}</p>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+
+            {isTeamLeader ? (
+              <div style={{ marginTop: "18px", borderTop: "1px solid #e5e7eb", paddingTop: "16px" }}>
+                <h3 style={{ fontSize: "14px", fontWeight: "700", color: "#1f2937", margin: "0 0 10px" }}>
+                  Submit Week {nextWeekNumber} Update
+                </h3>
+                <label style={{ fontWeight: "600", fontSize: "12.5px", display: "block", marginBottom: "4px" }}>Work done this week *</label>
+                <textarea
+                  value={newLog.workDone}
+                  onChange={(e) => setNewLog((f) => ({ ...f, workDone: e.target.value }))}
+                  style={{ width: "100%", minHeight: "60px", padding: "8px 10px", border: "1px solid #d1d5db", borderRadius: "8px", boxSizing: "border-box", fontSize: "13px", fontFamily: "inherit" }}
+                />
+                <label style={{ fontWeight: "600", fontSize: "12.5px", display: "block", marginTop: "10px", marginBottom: "4px" }}>Planned for next week</label>
+                <textarea
+                  value={newLog.plannedNext}
+                  onChange={(e) => setNewLog((f) => ({ ...f, plannedNext: e.target.value }))}
+                  style={{ width: "100%", minHeight: "50px", padding: "8px 10px", border: "1px solid #d1d5db", borderRadius: "8px", boxSizing: "border-box", fontSize: "13px", fontFamily: "inherit" }}
+                />
+                <label style={{ fontWeight: "600", fontSize: "12.5px", display: "block", marginTop: "10px", marginBottom: "4px" }}>Challenges (optional)</label>
+                <textarea
+                  value={newLog.challenges}
+                  onChange={(e) => setNewLog((f) => ({ ...f, challenges: e.target.value }))}
+                  style={{ width: "100%", minHeight: "50px", padding: "8px 10px", border: "1px solid #d1d5db", borderRadius: "8px", boxSizing: "border-box", fontSize: "13px", fontFamily: "inherit" }}
+                />
+                <button
+                  className={styles.button}
+                  onClick={handleSubmitProgressLog}
+                  disabled={submittingLog}
+                  style={{ marginTop: "14px" }}
+                >
+                  {submittingLog ? "Submitting..." : `Submit Week ${nextWeekNumber} Update`}
+                </button>
+              </div>
+            ) : (
+              <p style={{ marginTop: "16px", color: "#9ca3af", fontSize: "12.5px", borderTop: "1px solid #e5e7eb", paddingTop: "14px" }}>
+                Only the team leader can submit weekly updates.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Live Review Notes Modal */}
+      {reviewNotesModalProject && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modalContent} style={{ maxWidth: "680px" }}>
+            <span className={styles.closeButton} onClick={() => setReviewNotesModalProject(null)}>❌</span>
+            <h2 className={styles.card_heading}>Live Review Notes</h2>
+            <p style={{ color: "#555", marginTop: "8px" }}>{reviewNotesModalProject.title}</p>
+
+            <div style={{ marginTop: "16px", maxHeight: "480px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "16px" }}>
+              {reviewNotesLoading ? (
+                <p style={{ color: "#9ca3af", fontSize: "13px" }}>Loading review notes...</p>
+              ) : reviewNotes.length === 0 ? (
+                <p style={{ color: "#9ca3af", fontSize: "13px" }}>
+                  Your supervisor hasn't marked any issues on the live preview yet.
+                </p>
+              ) : (
+                reviewNotes.map((rn) => (
+                  <div key={rn._id} style={{ background: "#f8fafc", borderRadius: "10px", padding: "14px", border: "1px solid #e5e7eb" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+                      <strong style={{ fontSize: "13px", color: "#111827" }}>
+                        {new Date(rn.createdAt).toLocaleDateString()} — {rn.supervisorId?.name || "Supervisor"}
+                        {" "}({(rn.items || []).length} screenshot{(rn.items || []).length !== 1 ? "s" : ""})
+                      </strong>
+                      <span style={{
+                        fontSize: "11px", fontWeight: "700", padding: "2px 8px", borderRadius: "999px",
+                        background: rn.status === "RESOLVED" ? "#dcfce7" : "#fee2e2",
+                        color: rn.status === "RESOLVED" ? "#15803d" : "#b91c1c",
+                      }}>
+                        {rn.status === "RESOLVED" ? "Resolved" : "Open"}
+                      </span>
+                    </div>
+
+                    {rn.remarks && (
+                      <div style={{ marginBottom: "12px", background: "#eff6ff", borderLeft: "3px solid #2563eb", borderRadius: "6px", padding: "8px 10px" }}>
+                        <strong style={{ fontSize: "12px", color: "#1e40af" }}>Supervisor's remarks:</strong>
+                        <p style={{ fontSize: "12.5px", color: "#1e3a8a", margin: "2px 0 0" }}>{rn.remarks}</p>
+                      </div>
+                    )}
+
+                    <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                      {(rn.items || []).map((item, itemIdx) => (
+                        <div key={itemIdx}>
+                          <div style={{ position: "relative", width: "100%", borderRadius: "8px", overflow: "hidden", background: "#0b141a" }}>
+                            <img
+                              src={resolveFileUrl(item.screenshotUrl)}
+                              alt={`Supervisor review screenshot ${itemIdx + 1}`}
+                              style={{ width: "100%", display: "block" }}
+                            />
+                            {(item.annotations || []).map((pin, i) => (
+                              <div
+                                key={i}
+                                style={{
+                                  position: "absolute", left: `${pin.x}%`, top: `${pin.y}%`,
+                                  transform: "translate(-50%, -50%)", width: "22px", height: "22px",
+                                  borderRadius: "50%", background: "#ef4444", color: "white",
+                                  fontSize: "11px", fontWeight: "800", display: "flex",
+                                  alignItems: "center", justifyContent: "center",
+                                  boxShadow: "0 0 0 3px rgba(255,255,255,0.85)",
+                                }}
+                              >
+                                {i + 1}
+                              </div>
+                            ))}
+                          </div>
+
+                          {(item.annotations || []).length > 0 && (
+                            <div style={{ marginTop: "8px", display: "flex", flexDirection: "column", gap: "6px" }}>
+                              {item.annotations.map((pin, i) => (
+                                <div key={i} style={{ display: "flex", gap: "8px", alignItems: "flex-start" }}>
+                                  <span style={{
+                                    flexShrink: 0, width: "20px", height: "20px", borderRadius: "50%",
+                                    background: "#ef4444", color: "white", fontSize: "10.5px", fontWeight: "800",
+                                    display: "flex", alignItems: "center", justifyContent: "center", marginTop: "1px",
+                                  }}>
+                                    {i + 1}
+                                  </span>
+                                  <p style={{ fontSize: "13px", color: "#374151", margin: 0 }}>{pin.text}</p>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    {rn.status === "OPEN" && isTeamLeader && (
+                      <button
+                        onClick={() => handleResolveNote(rn._id)}
+                        disabled={resolvingNoteId === rn._id}
+                        style={{
+                          marginTop: "12px", display: "flex", alignItems: "center", gap: "6px",
+                          background: "#16a34a", color: "white", border: "none", borderRadius: "8px",
+                          padding: "8px 14px", fontSize: "12.5px", fontWeight: "700", cursor: "pointer",
+                        }}
+                      >
+                        ✅ {resolvingNoteId === rn._id ? "Marking..." : "Mark as Resolved"}
+                      </button>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -784,6 +1151,8 @@ const CreateTask = () => {
               <th>Start Date</th>
               <th>Status</th>
               <th>Links</th>
+              <th>Weekly Updates</th>
+              <th>Live Review</th>
               <th>Your Grade</th>
               <th>Actions</th>
             </tr>
@@ -791,7 +1160,7 @@ const CreateTask = () => {
           <tbody>
             {groupProjects.length === 0 ? (
               <tr>
-                <td colSpan="10" style={{ textAlign: "center", color: "#888" }}>
+                <td colSpan="12" style={{ textAlign: "center", color: "#888" }}>
                   No projects found.
                 </td>
               </tr>
@@ -823,29 +1192,95 @@ const CreateTask = () => {
                       </span>
                     </td>
                     <td>
-                      <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                        <span style={{ fontSize: "11.5px", fontWeight: "600", color: project.githubRepository ? "#2e7d32" : "#c62828" }}>
-                          {project.githubRepository ? "✅ GitHub linked" : "⚠️ GitHub missing"}
-                        </span>
-                        {project.deploymentLink ? (
-                          <button
-                            onClick={() => setPreviewUrl(project.deploymentLink)}
-                            style={{ background: "none", border: "none", color: "#2563eb", fontSize: "11.5px", fontWeight: "600", cursor: "pointer", padding: 0, textAlign: "left" }}
-                          >
-                            🔗 View Live
-                          </button>
-                        ) : (
-                          <span style={{ fontSize: "11.5px", color: "#9ca3af" }}>Live link not shared</span>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                        {!project.deploymentLink && (
+                          <span style={{ fontSize: "11px", color: "#9ca3af" }}>Live link not shared</span>
                         )}
-                        {isTeamLeader && !["COMPLETED", "CANCELLED"].includes(project.status) && (
-                          <button
-                            onClick={() => handleOpenLinksModal(project)}
-                            style={{ background: "none", border: "none", color: "#7c3aed", fontSize: "11.5px", fontWeight: "600", cursor: "pointer", padding: 0, textAlign: "left" }}
-                          >
-                            ✏️ Edit Links
-                          </button>
-                        )}
+                        <div style={{ display: "flex", gap: "5px" }}>
+                          {project.githubRepository ? (
+                            <a
+                              href={project.githubRepository}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title="View GitHub Repo"
+                              style={{
+                                display: "flex", alignItems: "center", justifyContent: "center",
+                                width: "28px", height: "28px", background: "#f3f4f6", border: "1px solid #e5e7eb",
+                                color: "#1f2937", borderRadius: "7px", fontSize: "13px", textDecoration: "none",
+                              }}
+                            >
+                              <FaGithub />
+                            </a>
+                          ) : (
+                            <span
+                              title="No GitHub repo linked yet"
+                              style={{
+                                display: "flex", alignItems: "center", justifyContent: "center",
+                                width: "28px", height: "28px", background: "#f3f4f6", border: "1px solid #e5e7eb",
+                                color: "#d1d5db", borderRadius: "7px", fontSize: "13px",
+                              }}
+                            >
+                              <FaGithub />
+                            </span>
+                          )}
+                          {project.deploymentLink && (
+                            <button
+                              type="button"
+                              onClick={() => setPreviewUrl(project.deploymentLink)}
+                              title="View Live"
+                              style={{
+                                display: "flex", alignItems: "center", justifyContent: "center",
+                                width: "28px", height: "28px", background: "#dbeafe", border: "1px solid #93c5fd",
+                                color: "#1e40af", borderRadius: "7px", fontSize: "13px", cursor: "pointer",
+                              }}
+                            >
+                              <FaPlayCircle />
+                            </button>
+                          )}
+                          {isTeamLeader && !["COMPLETED", "CANCELLED"].includes(project.status) && (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenLinksModal(project)}
+                              title="Edit Links"
+                              style={{
+                                display: "flex", alignItems: "center", justifyContent: "center",
+                                width: "28px", height: "28px", background: "#ede9fe", border: "1px solid #ddd6fe",
+                                color: "#6d28d9", borderRadius: "7px", fontSize: "13px", cursor: "pointer",
+                              }}
+                            >
+                              <FaEdit />
+                            </button>
+                          )}
+                        </div>
                       </div>
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenProgressModal(project)}
+                        style={{
+                          display: "flex", alignItems: "center", gap: "6px",
+                          background: "#eff6ff", color: "#1e40af", border: "1px solid #bfdbfe",
+                          borderRadius: "8px", padding: "6px 12px", fontSize: "12.5px", fontWeight: "600",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <FaCalendarWeek /> Weekly Updates
+                      </button>
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenReviewNotesModal(project)}
+                        style={{
+                          display: "flex", alignItems: "center", gap: "6px",
+                          background: "#fef3c7", color: "#92400e", border: "1px solid #fde68a",
+                          borderRadius: "8px", padding: "6px 12px", fontSize: "12.5px", fontWeight: "600",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <FaMarker /> Review Notes
+                      </button>
                     </td>
                     <td>
                       {(() => {
@@ -898,7 +1333,7 @@ const CreateTask = () => {
         </table>
       </div>
 
-      <h1 className={styles.heading}>📌 Task Manager</h1>
+      <h3 className={styles.sectionDivider}>Task Manager</h3>
 
       {/* Task List Table */}
       <div className={styles.card}>

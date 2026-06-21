@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import styles from "./styles.module.css";
+import { resolveFileUrl } from "../../../utils/resolveFileUrl";
 import {
   FaProjectDiagram,
   FaHourglassHalf,
@@ -418,7 +419,7 @@ const AdminProjects = () => {
               <div className={styles.sectionBlock}>
                 <h3>Final Report</h3>
                 <a
-                  href={`${apiBase}/${selectedProject.finalReportUrl}`}
+                  href={resolveFileUrl(selectedProject.finalReportUrl)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className={styles.linkRow}

@@ -1,0 +1,440 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.panel {
+  background: #ffffff;
+  width: 95vw;
+  max-width: 1100px;
+  height: 88vh;
+  border-radius: 16px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  background: linear-gradient(135deg, #1e40af 0%, #2563eb 60%, #3b82f6 100%);
+  flex-shrink: 0;
+}
+
+.headerTitle {
+  color: white;
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.iconBtn {
+  background: rgba(255, 255, 255, 0.15);
+  border: none;
+  color: white;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease;
+}
+
+.iconBtn:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.frameWrap {
+  flex: 1;
+  min-height: 0;
+  background: #f1f5f9;
+}
+
+.frame {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+.footer {
+  flex-shrink: 0;
+  padding: 14px 20px;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: #fff;
+}
+
+.helpText {
+  font-size: 12.5px;
+  color: #64748b;
+  margin: 0;
+}
+
+.footerActions {
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.primaryBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #2563eb, #1e40af);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 11px 18px;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.primaryBtn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.3);
+}
+
+.primaryBtn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.secondaryBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fff;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  padding: 11px 16px;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.secondaryBtn:hover {
+  background: #eff6ff;
+}
+
+.centerState {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  color: #475569;
+  font-size: 14px;
+}
+
+.errorText {
+  color: #b91c1c;
+  max-width: 360px;
+  text-align: center;
+}
+
+/* ── Annotate stage ── */
+.annotateLayout {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+}
+
+.imageCol {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  gap: 8px;
+  overflow: auto;
+  background: #f1f5f9;
+}
+
+.imageWrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-color: #0b141a;
+  border-radius: 10px;
+  cursor: crosshair;
+  flex-shrink: 0;
+}
+
+.pin {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #ef4444;
+  color: white;
+  font-size: 12px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.85);
+  cursor: default;
+}
+
+.sidebar {
+  width: 320px;
+  flex-shrink: 0;
+  border-left: 1px solid #e5e7eb;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  background: #fff;
+}
+
+.retakeBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+  border-radius: 9px;
+  padding: 9px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.retakeBtn:hover {
+  background: #f1f5f9;
+}
+
+.pinsList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.pinRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.pinNumber {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #ef4444;
+  color: white;
+  font-size: 11px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 4px;
+}
+
+.pinInput {
+  flex: 1;
+  min-height: 44px;
+  resize: vertical;
+  padding: 7px 9px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-family: inherit;
+}
+
+.pinInput:focus {
+  outline: none;
+  border-color: #2563eb;
+}
+
+.pinRemoveBtn {
+  flex-shrink: 0;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  border-radius: 7px;
+  width: 28px;
+  height: 28px;
+  margin-top: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pinRemoveBtn:hover {
+  background: #fee2e2;
+}
+
+.noteLabel {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #374151;
+}
+
+.noteInput {
+  min-height: 70px;
+  resize: vertical;
+  padding: 9px 11px;
+  border: 1px solid #d1d5db;
+  border-radius: 9px;
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.noteInput:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+@media (max-width: 760px) {
+  .annotateLayout {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid #e5e7eb;
+  }
+}
+
+/* ── Finish button ── */
+.finishBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #16a34a, #15803d);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 11px 18px;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.finishBtn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(21, 128, 61, 0.3);
+}
+
+/* ── Snipping stage ── */
+.snipStage {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: #f1f5f9;
+  overflow: auto;
+}
+
+.snipContainer {
+  position: relative;
+  width: 100%;
+  max-height: 100%;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-color: #0b141a;
+  border-radius: 10px;
+  cursor: crosshair;
+  user-select: none;
+}
+
+.selRect {
+  position: absolute;
+  border: 2px dashed #2563eb;
+  background: rgba(37, 99, 235, 0.18);
+  pointer-events: none;
+}
+
+/* ── Review stage ── */
+.reviewStage {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  gap: 14px;
+  overflow-y: auto;
+}
+
+.reviewList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.reviewItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.reviewThumb {
+  width: 120px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 8px;
+  flex-shrink: 0;
+  background: #0b141a;
+}
+
+.reviewItemBody {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  color: #1f2937;
+}
+
+.reviewItemList {
+  margin: 6px 0 0;
+  padding-left: 0;
+  list-style: none;
+  color: #4b5563;
+  font-size: 12.5px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import styles from "./styles.module.css";
 import { useNavigate } from "react-router-dom";
 import Dashboard from "../Dashboard";
@@ -11,6 +11,17 @@ import Feedback from "../Feedbacks";
 import StudentProposal from "../StudentProposal";
 import Notifications from "../Notifications";
 import AIAssistant from "../AIAssistant";
+import {
+	FaGraduationCap,
+	FaHome,
+	FaFileSignature,
+	FaChartLine,
+	FaProjectDiagram,
+	FaFileUpload,
+	FaComments,
+	FaCommentDots,
+	FaSignOutAlt,
+} from "react-icons/fa";
 // import ManageTeams from "../Teams";
 
 
@@ -19,8 +30,6 @@ const Main = ({ defaultModule = "Dashboard" }) => {
 	const navigate = useNavigate();
 	const [activeModule, setActiveModule] = useState(defaultModule);
 	const [studentName, setStudentName] = useState("");
-	const [moreMenuOpen, setMoreMenuOpen] = useState(false);
-	const moreMenuRef = useRef(null);
 
 	useEffect(() => {
 		const userData = localStorage.getItem("user");
@@ -35,17 +44,10 @@ const Main = ({ defaultModule = "Dashboard" }) => {
 		}
 	}, []);
 
-	useEffect(() => {
-		const handleClickOutside = (e) => {
-			if (moreMenuRef.current && !moreMenuRef.current.contains(e.target)) {
-				setMoreMenuOpen(false);
-			}
-		};
-		document.addEventListener("mousedown", handleClickOutside);
-		return () => document.removeEventListener("mousedown", handleClickOutside);
-	}, []);
-
 	const firstName = studentName ? studentName.split(" ")[0] : "Student";
+	const initials = studentName
+		? studentName.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase()
+		: "ST";
 
 	// 👇 New useEffect to handle prop updates
 	useEffect(() => {
@@ -71,48 +73,67 @@ const Main = ({ defaultModule = "Dashboard" }) => {
 	return (
 		<div className={styles.main_container}>
 			<nav className={styles.navbar}>
-				<div style={{ fontSize: "36px", fontWeight: "1000", color: "white" }}>
-					👋 Hello, <span style={{ fontWeight: "bold" }}>{firstName}</span>
+				<div className={styles.brand}>
+					<div className={styles.brand_icon}><FaGraduationCap /></div>
+					<h2>Student Portal</h2>
 				</div>
 
 				<div className={styles.nav_links}>
-					<button onClick={() => ShowModule("Dashboard")}>Dashboard</button>
-					<button onClick={() => ShowModule("StudentProposal")}>Proposals</button>
-					<button onClick={() => ShowModule("my-tasks")}>Progress</button>
-					<button onClick={() => ShowModule("create-tasks")}>project</button>
-					<button onClick={() => ShowModule("Template-manager")}>Templates</button>
-					<button onClick={() => ShowModule("Chats")}>Chats </button>
+					<button
+						onClick={() => ShowModule("Dashboard")}
+						className={activeModule === "Dashboard" ? styles.active : ""}
+					>
+						<FaHome /> <span>Dashboard</span>
+					</button>
+					<button
+						onClick={() => ShowModule("StudentProposal")}
+						className={activeModule === "StudentProposal" ? styles.active : ""}
+					>
+						<FaFileSignature /> <span>Proposals</span>
+					</button>
+					<button
+						onClick={() => ShowModule("my-tasks")}
+						className={activeModule === "MyTasks" ? styles.active : ""}
+					>
+						<FaChartLine /> <span>Progress</span>
+					</button>
+					<button
+						onClick={() => ShowModule("create-tasks")}
+						className={activeModule === "CreateTask" ? styles.active : ""}
+					>
+						<FaProjectDiagram /> <span>Project</span>
+					</button>
+					<button
+						onClick={() => ShowModule("Template-manager")}
+						className={activeModule === "Template-manager" ? styles.active : ""}
+					>
+						<FaFileUpload /> <span>Templates</span>
+					</button>
+					<button
+						onClick={() => ShowModule("Chats")}
+						className={activeModule === "ChatBox" ? styles.active : ""}
+					>
+						<FaComments /> <span>Chats</span>
+					</button>
+					<button
+						onClick={() => ShowModule("Feedback")}
+						className={activeModule === "Feedback" ? styles.active : ""}
+					>
+						<FaCommentDots /> <span>Feedback</span>
+					</button>
 					{/* <button onClick={() => ShowModule("ManageTeams")}>Manage Teams</button> */}
-
-					<div className={styles.more_menu_wrapper} ref={moreMenuRef}>
-						<button
-							className={styles.more_menu_btn}
-							onClick={() => setMoreMenuOpen((prev) => !prev)}
-							title="More options"
-						>
-							⋮
-						</button>
-						{moreMenuOpen && (
-							<div className={styles.more_menu_dropdown}>
-								<button
-									onClick={() => {
-										ShowModule("Feedback");
-										setMoreMenuOpen(false);
-									}}
-								>
-									Feedback & Review
-								</button>
-							</div>
-						)}
-					</div>
 				</div>
 
+				<div className={styles.navbar_right}>
+					<Notifications onOpenRelated={() => ShowModule("create-tasks")} />
 
-				<Notifications onOpenRelated={() => ShowModule("create-tasks")} />
+					<div className={styles.profile_chip}>
+						<div className={styles.profile_avatar}>{initials}</div>
+						<span className={styles.profile_name}>{firstName}</span>
+					</div>
 
-				<div className={styles.auth_buttons}>
-					<button className={styles.logout} onClick={handleLogout}>
-						Logout
+					<button className={styles.logout_btn} onClick={handleLogout}>
+						<FaSignOutAlt /> Logout
 					</button>
 				</div>
 			</nav>

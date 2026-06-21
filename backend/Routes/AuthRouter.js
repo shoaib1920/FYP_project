@@ -1,6 +1,7 @@
 const route = require("express").Router();
 const multer = require("multer");
-const path = require("path");
+const { CloudinaryStorage } = require("multer-storage-cloudinary");
+const cloudinary = require("../utils/cloudinary");
 const { signup, login, studentSignup } = require("../Controllers/AuthController");
 const {
   signupValidation,
@@ -101,26 +102,16 @@ const { admin_signup, admin_login,getAllAdmins,updateProjectStatus  } = require(
 const { forgotPassword, resetPassword } = require('../Controllers/PasswordResetController');
 const { verifyEmail, resendVerification } = require('../Controllers/EmailVerificationController');
 
-// setup multer
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, "uploads/templates/"); // or any path you want
-  },
-  filename: function (req, file, cb) {
-    const uniqueName = Date.now() + "-" + file.originalname;
-    cb(null, uniqueName);
-  },
+// setup multer — all uploads go straight to Cloudinary, no local disk storage
+const storage = new CloudinaryStorage({
+  cloudinary,
+  params: { folder: "fyp/templates", resource_type: "auto" },
 });
 const upload = multer({ storage });
 
-const proposalStorage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, "uploads/proposals/");
-  },
-  filename: function (req, file, cb) {
-    const uniqueName = Date.now() + "-" + file.originalname;
-    cb(null, uniqueName);
-  },
+const proposalStorage = new CloudinaryStorage({
+  cloudinary,
+  params: { folder: "fyp/proposals", resource_type: "auto" },
 });
 const proposalUpload = multer({
   storage: proposalStorage,
@@ -135,13 +126,9 @@ const proposalUpload = multer({
   },
 });
 
-const chatStorage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, "uploads/chat/");
-  },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + path.extname(file.originalname));
-  },
+const chatStorage = new CloudinaryStorage({
+  cloudinary,
+  params: { folder: "fyp/chat", resource_type: "auto" },
 });
 const chatUpload = multer({
   storage: chatStorage,
@@ -184,17 +171,18 @@ route.put('/proposals/:proposalId/decision', authenticate, supervisorDecision);
 // Get all notifications for the authenticated user
 route.get('/notifications', authenticate, getNotifications);
 
+// Mark all notifications as read (must come before the :notificationId route below,
+// otherwise "all" gets captured as a notificationId and the wrong handler runs)
+route.put('/notifications/all/read', authenticate, markAllAsRead);
+
+// Clear all notifications (delete all)
+route.delete('/notifications/all/clear', authenticate, clearAllNotifications);
+
 // Mark a specific notification as read
 route.put('/notifications/:notificationId/read', authenticate, notificationmarkAsRead);
 
 // Delete a specific notification
 route.delete('/notifications/:notificationId', authenticate, deleteNotification);
-
-// Mark all notifications as read
-route.put('/notifications/all/read', authenticate, markAllAsRead);
-
-// Clear all notifications (delete all)
-route.delete('/notifications/all/clear', authenticate, clearAllNotifications);
 
 // Route to submit a project (change status to "approval")
 route.put('/submit/:id', submitFinalProject);
@@ -343,13 +331,9 @@ const {
   flagGrades,
 } = require("../Controllers/ProjectController");
 
-const finalReportStorage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, "uploads/final-reports/");
-  },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + "-" + file.originalname);
-  },
+const finalReportStorage = new CloudinaryStorage({
+  cloudinary,
+  params: { folder: "fyp/final-reports", resource_type: "auto" },
 });
 const finalReportUpload = multer({
   storage: finalReportStorage,
@@ -389,6 +373,34 @@ const {
 route.post("/progress-logs", authenticate, submitProgressLog);
 route.get("/progress-logs/:projectId", authenticate, getProjectProgressLogs);
 route.put("/progress-logs/:logId/review", authenticate, reviewProgressLog);
+
+// ─────────────────────────────────────────────
+// 🖍️ LIVE PROJECT REVIEW NOTES (supervisor marks issues on the live preview)
+// ─────────────────────────────────────────────
+const {
+  createReviewNote,
+  getProjectReviewNotes,
+  resolveReviewNote,
+} = require("../Controllers/ProjectReviewNoteController");
+
+const reviewNoteStorage = new CloudinaryStorage({
+  cloudinary,
+  params: { folder: "fyp/review-notes", resource_type: "image" },
+});
+const reviewNoteUpload = multer({
+  storage: reviewNoteStorage,
+  fileFilter: (req, file, cb) => {
+    if (!file.mimetype.startsWith("image/")) {
+      return cb(new Error("Only image screenshots are allowed for review notes."));
+    }
+    cb(null, true);
+  },
+  limits: { fileSize: 8 * 1024 * 1024 }, // 8MB per screenshot
+});
+
+route.post("/review-notes", authenticate, reviewNoteUpload.array("screenshots", 20), createReviewNote);
+route.get("/review-notes/:projectId", authenticate, getProjectReviewNotes);
+route.put("/review-notes/:noteId/resolve", authenticate, resolveReviewNote);
 
 // ─────────────────────────────────────────────
 // 🗓️ MEETING LOG ROUTES

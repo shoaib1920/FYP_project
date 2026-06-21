@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import axios from "axios";
 import { io } from "socket.io-client";
+import { FaComments } from "react-icons/fa";
+import { resolveFileUrl } from "../../utils/resolveFileUrl";
 import "./Message.css";
 
 const API = process.env.REACT_APP_API_URL || "http://localhost:8000";
@@ -477,7 +479,7 @@ const ChatBox = () => {
 
   const handleDownload = async (fileUrl, fileName) => {
     try {
-      const res = await axios.get(`${API}${fileUrl}`, { responseType: "blob" });
+      const res = await axios.get(resolveFileUrl(fileUrl), { responseType: "blob" });
       const blobUrl = window.URL.createObjectURL(new Blob([res.data]));
       const a = document.createElement("a");
       a.href = blobUrl;
@@ -485,15 +487,16 @@ const ChatBox = () => {
       a.click();
       window.URL.revokeObjectURL(blobUrl);
     } catch {
-      window.open(`${API}${fileUrl}`, "_blank");
+      window.open(resolveFileUrl(fileUrl), "_blank");
     }
   };
 
   const isOnline = selectedUser && onlineUsers.has(String(selectedUser._id));
   const isTyping = selectedUser && typingUsers.has(String(selectedUser._id));
+  const onlineCount = contacts.filter((c) => onlineUsers.has(String(c._id))).length;
 
   const renderMediaInMessage = (msg) => {
-    const url = `${API}${msg.fileUrl}`;
+    const url = resolveFileUrl(msg.fileUrl);
     if (msg.fileType === "image") {
       return (
         <div className="msg-media">
@@ -529,6 +532,17 @@ const ChatBox = () => {
   };
 
   return (
+    <div className="wa-page">
+      <div className="wa-page-hero">
+        <div className="wa-page-hero-icon"><FaComments /></div>
+        <div className="wa-page-hero-text">
+          <h2 className="wa-page-heading">Messages</h2>
+          <p className="wa-page-subheading">
+            {contacts.length} contact{contacts.length !== 1 ? "s" : ""} · {onlineCount} online
+          </p>
+        </div>
+      </div>
+
     <div className="wa-wrapper">
       {/* Sidebar */}
       <div className="wa-sidebar">
@@ -781,6 +795,7 @@ const ChatBox = () => {
           </div>
         )}
       </div>
+    </div>
     </div>
   );
 };

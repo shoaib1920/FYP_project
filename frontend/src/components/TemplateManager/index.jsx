@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import styles from "./TemplateManager.module.css";
+import { resolveFileUrl } from "../../utils/resolveFileUrl";
 import {
   FaDownload, FaFilePdf, FaFileWord, FaFilePowerpoint,
   FaFileArchive, FaFileAlt, FaEye, FaUniversity, FaChalkboardTeacher,
@@ -50,7 +51,7 @@ const TemplateCard = ({ tpl, apiBase }) => {
         <div className={styles.cardFooter}>
           {tpl.fileType === "pdf" && (
             <a
-              href={`${apiBase}${tpl.fileUrl}`}
+              href={resolveFileUrl(tpl.fileUrl)}
               target="_blank"
               rel="noopener noreferrer"
               className={styles.previewBtn}
@@ -60,7 +61,7 @@ const TemplateCard = ({ tpl, apiBase }) => {
             </a>
           )}
           <a
-            href={`${apiBase}${tpl.fileUrl}`}
+            href={resolveFileUrl(tpl.fileUrl)}
             download={tpl.originalName}
             target="_blank"
             rel="noopener noreferrer"

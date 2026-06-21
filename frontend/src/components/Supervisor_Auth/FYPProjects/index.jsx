@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import styles from "./styles.module.css";
+import { resolveFileUrl } from "../../../utils/resolveFileUrl";
 import {
   FaFolderOpen,
   FaProjectDiagram,
@@ -11,8 +12,12 @@ import {
   FaTimes,
   FaGithub,
   FaPlayCircle,
+  FaCalendarWeek,
+  FaMarker,
+  FaHistory,
 } from "react-icons/fa";
 import LivePreview from "../../LivePreview";
+import LiveReviewModal from "../../LiveReviewModal";
 
 const STATUS_COLORS = {
   ACTIVE:       { bg: "#f3f4f6", color: "#374151" },
@@ -67,6 +72,18 @@ const FYPProjects = () => {
   const [gradesFilter, setGradesFilter] = useState("ALL");
   const [previewUrl, setPreviewUrl] = useState(null);
 
+  const [progressModalProject, setProgressModalProject] = useState(null);
+  const [progressLogs, setProgressLogs] = useState([]);
+  const [progressLogsLoading, setProgressLogsLoading] = useState(false);
+  const [feedbackDrafts, setFeedbackDrafts] = useState({});
+  const [savingFeedbackId, setSavingFeedbackId] = useState(null);
+
+  const [reviewProject, setReviewProject] = useState(null); // project being live-reviewed (annotation tool)
+
+  const [historyProject, setHistoryProject] = useState(null); // project whose review history is open
+  const [reviewHistory, setReviewHistory] = useState([]);
+  const [reviewHistoryLoading, setReviewHistoryLoading] = useState(false);
+
   const token = localStorage.getItem("token");
   const apiBase = process.env.REACT_APP_API_URL || "";
 
@@ -86,6 +103,70 @@ const FYPProjects = () => {
   };
 
   useEffect(() => { fetchProjects(); }, []);
+
+  const fetchProgressLogs = async (projectId) => {
+    setProgressLogsLoading(true);
+    try {
+      const res = await axios.get(
+        `${apiBase}/auth/progress-logs/${projectId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setProgressLogs(res.data.logs || []);
+    } catch (err) {
+      console.error("Error fetching progress logs:", err);
+      setProgressLogs([]);
+    } finally {
+      setProgressLogsLoading(false);
+    }
+  };
+
+  const handleOpenProgressModal = (project) => {
+    setProgressModalProject(project);
+    setFeedbackDrafts({});
+    fetchProgressLogs(project._id);
+  };
+
+  const fetchReviewHistory = async (projectId) => {
+    setReviewHistoryLoading(true);
+    try {
+      const res = await axios.get(
+        `${apiBase}/auth/review-notes/${projectId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setReviewHistory(res.data.reviewNotes || []);
+    } catch (err) {
+      console.error("Error fetching review history:", err);
+      setReviewHistory([]);
+    } finally {
+      setReviewHistoryLoading(false);
+    }
+  };
+
+  const handleOpenHistoryModal = (project) => {
+    setHistoryProject(project);
+    fetchReviewHistory(project._id);
+  };
+
+  const handleSendFeedback = async (logId) => {
+    const text = (feedbackDrafts[logId] || "").trim();
+    if (!text) {
+      alert("Please write feedback before sending.");
+      return;
+    }
+    setSavingFeedbackId(logId);
+    try {
+      await axios.put(
+        `${apiBase}/auth/progress-logs/${logId}/review`,
+        { supervisorFeedback: text },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      fetchProgressLogs(progressModalProject._id);
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to send feedback.");
+    } finally {
+      setSavingFeedbackId(null);
+    }
+  };
 
   const stats = useMemo(() => {
     const counts = { total: projects.length, active: 0, underReview: 0, completed: 0, flagged: 0 };
@@ -402,6 +483,7 @@ const FYPProjects = () => {
                 <th>Team</th>
                 <th>Team Leader</th>
                 <th>Links</th>
+                <th>Weekly Updates</th>
                 <th>Progress</th>
                 <th>Status</th>
                 <th>Grades Status</th>
@@ -435,18 +517,56 @@ const FYPProjects = () => {
                         ) : (
                           <span className={styles.linkMissing}>No repo</span>
                         )}
-                        {project.deploymentLink ? (
-                          <button
-                            type="button"
-                            className={styles.viewLiveBtn}
-                            onClick={() => setPreviewUrl(project.deploymentLink)}
-                          >
-                            <FaPlayCircle /> View Live
-                          </button>
-                        ) : (
+
+                        {!project.deploymentLink && (
                           <span className={styles.linkMissing}>Live link not shared</span>
                         )}
+
+                        <div className={styles.iconToolbar}>
+                          {project.deploymentLink && (
+                            <>
+                              <button
+                                type="button"
+                                className={styles.iconToolbarBtn}
+                                onClick={() => setPreviewUrl(project.deploymentLink)}
+                                title="View Live"
+                              >
+                                <FaPlayCircle />
+                              </button>
+                              <button
+                                type="button"
+                                className={`${styles.iconToolbarBtn} ${styles.iconToolbarAmber}`}
+                                onClick={() => setReviewProject(project)}
+                                title="Mark Issues"
+                              >
+                                <FaMarker />
+                              </button>
+                            </>
+                          )}
+                          <button
+                            type="button"
+                            className={`${styles.iconToolbarBtn} ${styles.iconToolbarGray}`}
+                            onClick={() => handleOpenHistoryModal(project)}
+                            title="Review History"
+                          >
+                            <FaHistory />
+                          </button>
+                        </div>
                       </div>
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenProgressModal(project)}
+                        style={{
+                          display: "flex", alignItems: "center", gap: "6px",
+                          background: "#eff6ff", color: "#1e40af", border: "1px solid #bfdbfe",
+                          borderRadius: "8px", padding: "6px 12px", fontSize: "12.5px", fontWeight: "600",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <FaCalendarWeek /> View Updates
+                      </button>
                     </td>
                     <td>
                       <div className={styles.progressWrap}>
@@ -472,7 +592,7 @@ const FYPProjects = () => {
                     </td>
                     <td>
                       {project.finalReportUrl ? (
-                        <a href={`${apiBase}/${project.finalReportUrl}`} target="_blank" rel="noopener noreferrer" className={styles.viewLink}>
+                        <a href={resolveFileUrl(project.finalReportUrl)} target="_blank" rel="noopener noreferrer" className={styles.viewLink}>
                           View PDF
                         </a>
                       ) : (
@@ -521,6 +641,150 @@ const FYPProjects = () => {
 
       {previewUrl && (
         <LivePreview url={previewUrl} title="Live Project Preview" onClose={() => setPreviewUrl(null)} />
+      )}
+
+      {reviewProject && (
+        <LiveReviewModal
+          url={reviewProject.deploymentLink}
+          projectId={reviewProject._id}
+          title={`Review: ${reviewProject.title}`}
+          onClose={() => setReviewProject(null)}
+          onSent={() => showToast(`Marked issues sent to the team for "${reviewProject.title}".`)}
+        />
+      )}
+
+      {/* Weekly Progress Logs Modal */}
+      {progressModalProject && (
+        <div className={styles.overlay}>
+          <div className={styles.modal} style={{ maxWidth: "640px" }}>
+            <h3 className={styles.modalTitle}>Weekly Progress Updates</h3>
+            <p className={styles.modalSubtitle}>{progressModalProject.title}</p>
+
+            <div style={{ marginTop: "16px", maxHeight: "460px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "12px" }}>
+              {progressLogsLoading ? (
+                <p style={{ color: "#9ca3af", fontSize: "13px" }}>Loading logs...</p>
+              ) : progressLogs.length === 0 ? (
+                <p style={{ color: "#9ca3af", fontSize: "13px" }}>No weekly updates submitted yet.</p>
+              ) : (
+                progressLogs.map((log) => (
+                  <div key={log._id} style={{ background: "#f8fafc", borderRadius: "10px", padding: "12px 14px", border: "1px solid #e5e7eb" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                      <strong style={{ fontSize: "13.5px", color: "#111827" }}>
+                        Week {log.weekNumber} — {log.submittedBy?.name || "Team Leader"}
+                      </strong>
+                      <span style={{
+                        fontSize: "11px", fontWeight: "700", padding: "2px 8px", borderRadius: "999px",
+                        background: log.status === "REVIEWED" ? "#dcfce7" : "#fef3c7",
+                        color: log.status === "REVIEWED" ? "#15803d" : "#92400e",
+                      }}>
+                        {log.status === "REVIEWED" ? "Reviewed" : "Pending Review"}
+                      </span>
+                    </div>
+                    <p style={{ fontSize: "13px", color: "#374151", margin: "4px 0" }}><strong>Work done:</strong> {log.workDone}</p>
+                    {log.plannedNext && (
+                      <p style={{ fontSize: "13px", color: "#374151", margin: "4px 0" }}><strong>Planned next:</strong> {log.plannedNext}</p>
+                    )}
+                    {log.challenges && (
+                      <p style={{ fontSize: "13px", color: "#374151", margin: "4px 0" }}><strong>Challenges:</strong> {log.challenges}</p>
+                    )}
+
+                    {log.status === "REVIEWED" ? (
+                      <div style={{ marginTop: "8px", background: "#eff6ff", borderLeft: "3px solid #2563eb", borderRadius: "6px", padding: "8px 10px" }}>
+                        <strong style={{ fontSize: "12px", color: "#1e40af" }}>Your feedback:</strong>
+                        <p style={{ fontSize: "12.5px", color: "#1e3a8a", margin: "2px 0 0" }}>{log.supervisorFeedback}</p>
+                      </div>
+                    ) : (
+                      <div style={{ marginTop: "10px", display: "flex", gap: "8px", alignItems: "flex-start" }}>
+                        <textarea
+                          value={feedbackDrafts[log._id] || ""}
+                          onChange={(e) => setFeedbackDrafts((f) => ({ ...f, [log._id]: e.target.value }))}
+                          placeholder="Write feedback for this update..."
+                          style={{ flex: 1, minHeight: "44px", padding: "8px 10px", border: "1px solid #d1d5db", borderRadius: "8px", fontSize: "13px", fontFamily: "inherit", boxSizing: "border-box" }}
+                        />
+                        <button
+                          onClick={() => handleSendFeedback(log._id)}
+                          disabled={savingFeedbackId === log._id}
+                          style={{
+                            background: "#2563eb", color: "white", border: "none", borderRadius: "8px",
+                            padding: "10px 14px", fontSize: "12.5px", fontWeight: "700", cursor: "pointer", flexShrink: 0,
+                          }}
+                        >
+                          {savingFeedbackId === log._id ? "Sending..." : "Send"}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className={styles.modalActions} style={{ marginTop: "18px" }}>
+              <button className={styles.cancelBtn} onClick={() => setProgressModalProject(null)}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Review History Modal */}
+      {historyProject && (
+        <div className={styles.overlay}>
+          <div className={styles.modal} style={{ maxWidth: "680px" }}>
+            <h3 className={styles.modalTitle}>Review History</h3>
+            <p className={styles.modalSubtitle}>{historyProject.title}</p>
+
+            <div style={{ marginTop: "16px", maxHeight: "480px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "16px" }}>
+              {reviewHistoryLoading ? (
+                <p style={{ color: "#9ca3af", fontSize: "13px" }}>Loading review history...</p>
+              ) : reviewHistory.length === 0 ? (
+                <p style={{ color: "#9ca3af", fontSize: "13px" }}>
+                  You haven't sent any marked-up screenshots for this project yet.
+                </p>
+              ) : (
+                reviewHistory.map((rn) => (
+                  <div key={rn._id} style={{ background: "#f8fafc", borderRadius: "10px", padding: "14px", border: "1px solid #e5e7eb" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+                      <strong style={{ fontSize: "13px", color: "#111827" }}>
+                        {new Date(rn.createdAt).toLocaleDateString()} — {(rn.items || []).length} screenshot{(rn.items || []).length !== 1 ? "s" : ""}
+                      </strong>
+                      <span style={{
+                        fontSize: "11px", fontWeight: "700", padding: "2px 8px", borderRadius: "999px",
+                        background: rn.status === "RESOLVED" ? "#dcfce7" : "#fee2e2",
+                        color: rn.status === "RESOLVED" ? "#15803d" : "#b91c1c",
+                      }}>
+                        {rn.status === "RESOLVED" ? `Resolved ${rn.resolvedAt ? new Date(rn.resolvedAt).toLocaleDateString() : ""}` : "Waiting on team"}
+                      </span>
+                    </div>
+
+                    {rn.remarks && (
+                      <p style={{ fontSize: "12.5px", color: "#374151", margin: "0 0 10px" }}>
+                        <strong>Your remarks:</strong> {rn.remarks}
+                      </p>
+                    )}
+
+                    <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                      {(rn.items || []).map((item, i) => (
+                        <img
+                          key={i}
+                          src={resolveFileUrl(item.screenshotUrl)}
+                          alt={`Screenshot ${i + 1}`}
+                          style={{ width: "90px", height: "60px", objectFit: "cover", borderRadius: "6px", border: "1px solid #e5e7eb" }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className={styles.modalActions} style={{ marginTop: "18px" }}>
+              <button className={styles.cancelBtn} onClick={() => setHistoryProject(null)}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

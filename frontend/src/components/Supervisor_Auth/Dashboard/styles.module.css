@@ -6,6 +6,10 @@
 }
 
 /* ── Hero ── */
+.heroWrap {
+  position: relative;
+}
+
 .hero {
   background: linear-gradient(135deg, #1e40af 0%, #2563eb 60%, #3b82f6 100%);
   border-radius: 18px;
@@ -17,6 +21,15 @@
   box-shadow: 0 8px 32px rgba(37, 99, 235, 0.28);
   position: relative;
   overflow: hidden;
+}
+
+.heroBell {
+  position: absolute;
+  top: 26px;
+  right: 26px;
+  z-index: 2;
+  
+
 }
 
 .heroAvatar {

@@ -1,7 +1,14 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import axios from "axios";
 import styles from "./styles.module.css";
 import DeadlineBanner from "../DeadlineBanner";
+import {
+  FaFileSignature,
+  FaClipboardList,
+  FaHourglassHalf,
+  FaCheckCircle,
+  FaExclamationTriangle,
+} from "react-icons/fa";
 
 const StudentProposal = () => {
   const [proposals, setProposals] = useState([]);
@@ -224,6 +231,16 @@ const StudentProposal = () => {
     }
   };
 
+  const stats = useMemo(() => {
+    const counts = { total: proposals.length, pending: 0, inProgress: 0, needsAction: 0 };
+    proposals.forEach((p) => {
+      if (p.status === "PENDING_ADMIN_REVIEW") counts.pending += 1;
+      if (["APPROVED_BY_ADMIN", "SUPERVISOR_ASSIGNED", "SUPERVISOR_ACCEPTED"].includes(p.status)) counts.inProgress += 1;
+      if (["REVISION_REQUESTED_BY_ADMIN", "REVISION_REQUESTED_BY_SUPERVISOR"].includes(p.status)) counts.needsAction += 1;
+    });
+    return counts;
+  }, [proposals]);
+
   const getStatusBadgeClass = (status) => {
     switch (status) {
       case "PENDING_ADMIN_REVIEW":
@@ -250,7 +267,54 @@ const StudentProposal = () => {
 
   return (
     <div className={styles.proposalContainer}>
-      <h1 className={styles.heading}>Project Proposal Management</h1>
+      <div className={styles.hero}>
+        <div className={styles.heroIcon}><FaFileSignature /></div>
+        <div className={styles.heroText}>
+          <h2 className={styles.heading}>Project Proposal Management</h2>
+          <p className={styles.subheading}>Submit your proposal, track its review status, and respond to revision requests.</p>
+        </div>
+      </div>
+
+      {!loading && proposals.length > 0 && (
+        <div className={styles.statsRow}>
+          <div className={styles.statCard}>
+            <div className={styles.statIcon} style={{ background: "#dbeafe", color: "#1e40af" }}>
+              <FaClipboardList />
+            </div>
+            <div>
+              <h4>Total Proposals</h4>
+              <p>{stats.total}</p>
+            </div>
+          </div>
+          <div className={styles.statCard}>
+            <div className={styles.statIcon} style={{ background: "#fef3c7", color: "#92400e" }}>
+              <FaHourglassHalf />
+            </div>
+            <div>
+              <h4>Pending Review</h4>
+              <p>{stats.pending}</p>
+            </div>
+          </div>
+          <div className={styles.statCard}>
+            <div className={styles.statIcon} style={{ background: "#dcfce7", color: "#15803d" }}>
+              <FaCheckCircle />
+            </div>
+            <div>
+              <h4>In Progress</h4>
+              <p>{stats.inProgress}</p>
+            </div>
+          </div>
+          <div className={styles.statCard}>
+            <div className={styles.statIcon} style={{ background: "#fee2e2", color: "#b91c1c" }}>
+              <FaExclamationTriangle />
+            </div>
+            <div>
+              <h4>Needs Action</h4>
+              <p>{stats.needsAction}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <DeadlineBanner type="proposal" tokenKey="token" />
 

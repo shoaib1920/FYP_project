@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import styles from "./styles.module.css";
+import { resolveFileUrl } from "../../../utils/resolveFileUrl";
 import {
   FaClipboardList,
   FaHourglassHalf,
@@ -288,7 +289,7 @@ const ProposalApprovals = () => {
 
     <div className={styles.fileButtons}>
       <a
-         href={`${process.env.REACT_APP_API_URL}/${proposal.proposalReportUrl}`}
+         href={resolveFileUrl(proposal.proposalReportUrl)}
         target="_blank"
         rel="noopener noreferrer"
         className={styles.previewBtn}
@@ -297,7 +298,7 @@ const ProposalApprovals = () => {
       </a>
 
       <a
-        href={`${process.env.REACT_APP_API_URL}/${proposal.proposalReportUrl}`}
+        href={resolveFileUrl(proposal.proposalReportUrl)}
         download
         className={styles.downloadBtn}
       >

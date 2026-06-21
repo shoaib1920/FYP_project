@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { FaTrash, FaUpload, FaFileAlt, FaFilePdf, FaFileWord, FaFilePowerpoint, FaFileArchive, FaFolderOpen, FaSearch, FaTimes } from "react-icons/fa";
 import styles from "./styles.module.css";
+import { resolveFileUrl } from "../../../utils/resolveFileUrl";
 
 const CATEGORIES = ["Proposal", "Progress Report", "Final Report", "Defense", "General"];
 
@@ -282,7 +283,7 @@ const AdminTemplateManager = () => {
                       <div className={styles.fileCell}>
                         <FileIcon type={tpl.fileType} />
                         <a
-                          href={`${apiBase}${tpl.fileUrl}`}
+                          href={resolveFileUrl(tpl.fileUrl)}
                           target="_blank"
                           rel="noopener noreferrer"
                           className={styles.fileLink}

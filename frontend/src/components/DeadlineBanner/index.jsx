@@ -8,6 +8,7 @@ const LABELS = {
   final: "Final submission deadline",
 };
 
+
 /**
  * Shows the active academic term's relevant deadline (proposal or final submission).
  * Renders nothing if no active term is set, or if the term has no token for this role.

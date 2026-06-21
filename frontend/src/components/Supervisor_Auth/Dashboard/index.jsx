@@ -13,6 +13,7 @@ import {
   FaBuilding,
   FaComments,
 } from "react-icons/fa";
+import Notifications from "../../Notifications";
 
 const STATUS_LABELS = {
   ACTIVE: "Active",
@@ -188,16 +189,21 @@ const SupervisorDashboard = ({ setActiveModule }) => {
   return (
     <div className={styles.container}>
       {/* Hero */}
-      <div className={styles.hero}>
-        <div className={styles.heroAvatar}>{initials}</div>
-        <div className={styles.heroText}>
-          <h2 className={styles.heading}>
-            Welcome back, {supervisor.name ? supervisor.name.split(" ")[0] : "Supervisor"}
-          </h2>
-          <p className={styles.subheading}>
-            {homeDept?.name ? `${homeDept.name} · ` : supervisor.department ? `${supervisor.department} · ` : ""}
-            {supervisor.email}
-          </p>
+      <div className={styles.heroWrap}>
+        <div className={styles.hero}>
+          <div className={styles.heroAvatar}>{initials}</div>
+          <div className={styles.heroText}>
+            <h2 className={styles.heading}>
+              Welcome back, {supervisor.name ? supervisor.name.split(" ")[0] : "Supervisor"}
+            </h2>
+            <p className={styles.subheading}>
+              {homeDept?.name ? `${homeDept.name} · ` : supervisor.department ? `${supervisor.department} · ` : ""}
+              {supervisor.email}
+            </p>
+          </div>
+        </div>
+        <div className={styles.heroBell}>
+          <Notifications onOpenRelated={() => goTo("fyp-projects")} />
         </div>
       </div>
 

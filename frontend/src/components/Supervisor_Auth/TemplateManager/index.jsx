@@ -6,6 +6,7 @@ import {
   FaFolderOpen,
 } from "react-icons/fa";
 import styles from "./styles.module.css";
+import { resolveFileUrl } from "../../../utils/resolveFileUrl";
 
 const CATEGORIES = ["Proposal", "Progress Report", "Final Report", "Defense", "General"];
 
@@ -267,7 +268,7 @@ const SupervisorTemplateManager = () => {
                           <FileIcon type={tpl.fileType} size={15} />
                         </span>
                         <a
-                          href={`${apiBase}${tpl.fileUrl}`}
+                          href={resolveFileUrl(tpl.fileUrl)}
                           target="_blank"
                           rel="noopener noreferrer"
                           className={styles.fileLink}

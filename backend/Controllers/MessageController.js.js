@@ -16,7 +16,7 @@ exports.uploadChatFile = async (req, res) => {
     if (mime.startsWith('image/')) fileType = 'image';
     else if (mime.startsWith('video/')) fileType = 'video';
 
-    const fileUrl = `/uploads/chat/${req.file.filename}`;
+    const fileUrl = req.file.path;
 
     res.status(200).json({
       success: true,

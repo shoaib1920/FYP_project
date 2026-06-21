@@ -15,6 +15,7 @@ import {
   FaTimes,
   FaPaperPlane,
 } from "react-icons/fa";
+import { resolveFileUrl } from "../../utils/resolveFileUrl";
 import { Pie } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -265,7 +266,7 @@ const MyTasks = () => {
                 <p>
                   <strong>📎 Task File:</strong>{" "}
                   <a
-                    href={`${process.env.REACT_APP_API_URL}/uploads/${selectedTask.taskFile}`}
+                    href={resolveFileUrl(selectedTask.taskFile)}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
@@ -284,7 +285,7 @@ const MyTasks = () => {
                     <strong>📦 Submitted File:</strong>{" "}
                     {selectedTask.submissionFile ? (
                       <a
-                        href={`${process.env.REACT_APP_API_URL}/uploads/${selectedTask.submissionFile}`}
+                        href={resolveFileUrl(selectedTask.submissionFile)}
                         target="_blank"
                         rel="noopener noreferrer"
                       >

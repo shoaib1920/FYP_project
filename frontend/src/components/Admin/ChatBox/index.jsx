@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import axios from "axios";
 import { io } from "socket.io-client";
 import { FaComments } from "react-icons/fa";
+import { resolveFileUrl } from "../../../utils/resolveFileUrl";
 import "./Message.css";
 
 const API = process.env.REACT_APP_API_URL || "http://localhost:8000";
@@ -291,7 +292,7 @@ const AdminChatBox = () => {
 
   const handleDownload = async (fileUrl, fileName) => {
     try {
-      const res = await axios.get(`${API}${fileUrl}`, { responseType: "blob" });
+      const res = await axios.get(resolveFileUrl(fileUrl), { responseType: "blob" });
       const blobUrl = window.URL.createObjectURL(new Blob([res.data]));
       const a = document.createElement("a");
       a.href = blobUrl;
@@ -299,7 +300,7 @@ const AdminChatBox = () => {
       a.click();
       window.URL.revokeObjectURL(blobUrl);
     } catch {
-      window.open(`${API}${fileUrl}`, "_blank");
+      window.open(resolveFileUrl(fileUrl), "_blank");
     }
   };
 
@@ -307,7 +308,7 @@ const AdminChatBox = () => {
   const isTyping = selectedUser && typingUsers.has(String(selectedUser._id));
 
   const renderMediaInMessage = (msg) => {
-    const url = `${API}${msg.fileUrl}`;
+    const url = resolveFileUrl(msg.fileUrl);
     if (msg.fileType === "image") {
       return (
         <div className="msg-media">
