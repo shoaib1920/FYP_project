@@ -45,8 +45,10 @@ export function exportToCSV(filename, columns, rows) {
  * @param {string} title - heading printed at the top of the PDF
  * @param {{key:string,label:string,value?:(row:object)=>any}[]} columns
  * @param {object[]} rows
+ * @param {string[]} [summaryLines] - optional summary text printed between the
+ *   title and the table, e.g. totals/averages for a report-style export.
  */
-export function exportToPDF(filename, title, columns, rows) {
+export function exportToPDF(filename, title, columns, rows, summaryLines = []) {
   const doc = new jsPDF({ orientation: "landscape" });
 
   doc.setFontSize(16);
@@ -57,8 +59,18 @@ export function exportToPDF(filename, title, columns, rows) {
   doc.setTextColor(107, 114, 128); // #6b7280
   doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 22);
 
+  let startY = 28;
+  if (summaryLines.length) {
+    doc.setFontSize(10);
+    doc.setTextColor(31, 41, 55); // #1f2937
+    summaryLines.forEach((line, i) => {
+      doc.text(line, 14, startY + i * 6);
+    });
+    startY += summaryLines.length * 6 + 6;
+  }
+
   autoTable(doc, {
-    startY: 28,
+    startY,
     head: [columns.map((c) => c.label)],
     body: rows.map((row) =>
       columns.map((c) => {

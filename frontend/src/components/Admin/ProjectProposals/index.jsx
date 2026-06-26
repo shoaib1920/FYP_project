@@ -249,11 +249,26 @@ const ProposalApprovals = () => {
               <div key={proposal._id} className={styles.card}>
                 <div className={styles.cardHeader}>
                   <h3 className={styles.title}>{proposal.title}</h3>
-                  <span
-                    className={`${styles.statusBadge} ${styles[getStatusBadgeClass(proposal.status)]}`}
-                  >
-                    {formatStatus(proposal.status)}
-                  </span>
+                  <div style={{ display: "flex", gap: "8px", alignItems: "center", flexShrink: 0 }}>
+                    {proposal.aiQualityCheck?.score != null && (
+                      <span
+                        className={styles.statusBadge}
+                        style={{ background: "#ede9fe", color: "#6d28d9" }}
+                        title={
+                          proposal.aiQualityCheck.issues?.length
+                            ? `AI flagged: ${proposal.aiQualityCheck.issues.join("; ")}`
+                            : "AI proposal quality score"
+                        }
+                      >
+                        🤖 {proposal.aiQualityCheck.score}/100
+                      </span>
+                    )}
+                    <span
+                      className={`${styles.statusBadge} ${styles[getStatusBadgeClass(proposal.status)]}`}
+                    >
+                      {formatStatus(proposal.status)}
+                    </span>
+                  </div>
                 </div>
 
                 {expandedProposalId === proposal._id ? (

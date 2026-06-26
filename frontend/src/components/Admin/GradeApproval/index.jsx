@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import styles from "./styles.module.css";
 import { resolveFileUrl } from "../../../utils/resolveFileUrl";
@@ -11,6 +11,7 @@ import {
   FaTimes,
   FaFileCsv,
   FaFilePdf,
+  FaBuilding,
 } from "react-icons/fa";
 import { exportToCSV, exportToPDF } from "../../../utils/exportUtils";
 
@@ -69,6 +70,7 @@ const GRADE_EXPORT_COLUMNS = [
 
 const GradeApproval = () => {
   const [projects, setProjects] = useState([]);
+  const [allProjects, setAllProjects] = useState([]); // every project, any status — denominator for department completion
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("PENDING_RELEASE");
   const [flagModal, setFlagModal] = useState(null); // { projectId, title }
@@ -87,10 +89,16 @@ const GradeApproval = () => {
 
   const fetchProjects = async () => {
     try {
-      const res = await axios.get(`${apiBase}/auth/admin/projects/grades`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setProjects(res.data.projects || []);
+      const [gradesRes, allRes] = await Promise.all([
+        axios.get(`${apiBase}/auth/admin/projects/grades`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        axios.get(`${apiBase}/auth/admin/projects`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+      ]);
+      setProjects(gradesRes.data.projects || []);
+      setAllProjects(allRes.data.projects || []);
     } catch (err) {
       console.error("Error fetching completed projects:", err);
     } finally {
@@ -101,6 +109,60 @@ const GradeApproval = () => {
   useEffect(() => {
     fetchProjects();
   }, []);
+
+  // Per-department grading completion — total projects vs. how many have
+  // had their grades released, so admin can see at a glance which
+  // departments are fully done and ready for a report.
+  const departmentStats = useMemo(() => {
+    const byDept = new Map();
+    allProjects.forEach((p) => {
+      const name = p.departmentId?.name || "Unassigned";
+      if (!byDept.has(name)) byDept.set(name, { name, total: 0, released: 0 });
+      const entry = byDept.get(name);
+      entry.total += 1;
+      if (p.gradesStatus === "RELEASED") entry.released += 1;
+    });
+    return Array.from(byDept.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [allProjects]);
+
+  const generateDepartmentReport = (deptName) => {
+    const deptRows = buildGradeExportRows(
+      projects.filter((p) => (p.departmentId?.name || "Unassigned") === deptName && p.gradesStatus === "RELEASED")
+    );
+
+    if (deptRows.length === 0) {
+      alert(`No released grades yet for ${deptName} — nothing to report.`);
+      return;
+    }
+
+    const avg = (deptRows.reduce((sum, r) => sum + (r.marks || 0), 0) / deptRows.length).toFixed(1);
+    const gradeCounts = deptRows.reduce((acc, r) => {
+      acc[r.grade] = (acc[r.grade] || 0) + 1;
+      return acc;
+    }, {});
+    const distribution = ["A", "B", "C", "D", "F"]
+      .filter((g) => gradeCounts[g])
+      .map((g) => `${g}: ${gradeCounts[g]}`)
+      .join("   |   ");
+
+    const stats = departmentStats.find((d) => d.name === deptName);
+    const summaryLines = [
+      `Total Students Graded: ${deptRows.length}`,
+      `Average Marks: ${avg} / 100`,
+      `Grade Distribution: ${distribution}`,
+      stats && stats.released < stats.total
+        ? `Note: ${stats.total - stats.released} project(s) in this department are not yet released and are excluded from this report.`
+        : "All projects in this department have been graded and released.",
+    ];
+
+    exportToPDF(
+      `${deptName.replace(/\s+/g, "-").toLowerCase()}-grade-report`,
+      `${deptName} — Department Grade Report`,
+      GRADE_EXPORT_COLUMNS.filter((c) => c.key !== "department" && c.key !== "gradesStatus"),
+      deptRows,
+      summaryLines
+    );
+  };
 
   const handleRelease = async (project) => {
     if (!window.confirm(`Release grades for "${project.title}"?\n\nStudents will be notified and can view their marks.`)) return;
@@ -180,6 +242,37 @@ const GradeApproval = () => {
           </p>
         </div>
       </div>
+
+      {!loading && departmentStats.length > 0 && (
+        <div className={styles.deptPanel}>
+          <h3 className={styles.deptPanelTitle}><FaBuilding /> Department Grading Status</h3>
+          <div className={styles.deptList}>
+            {departmentStats.map((d) => {
+              const fullyDone = d.total > 0 && d.released === d.total;
+              return (
+                <div key={d.name} className={styles.deptRow}>
+                  <div className={styles.deptRowInfo}>
+                    <span className={styles.deptRowName}>{d.name}</span>
+                    <span className={`${styles.deptRowBadge} ${fullyDone ? styles.deptRowBadgeDone : styles.deptRowBadgePending}`}>
+                      {fullyDone ? "Fully Released" : "In Progress"}
+                    </span>
+                  </div>
+                  <span className={styles.deptRowCount}>{d.released}/{d.total} released</span>
+                  <button
+                    type="button"
+                    className={styles.deptReportBtn}
+                    onClick={() => generateDepartmentReport(d.name)}
+                    disabled={d.released === 0}
+                    title={d.released === 0 ? "No released grades yet for this department" : "Generate department grade report"}
+                  >
+                    <FaFilePdf /> Generate Report
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {!loading && projects.length > 0 && (
         <div className={styles.statsRow}>

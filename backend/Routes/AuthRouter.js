@@ -54,6 +54,7 @@ const {
   getUsersStatus,
 } = require("../Controllers/MessageController.js.js");
 const authenticate = require("../Middlewares/authenticate.js"); // JWT middleware
+const { authorize } = require("../Middlewares/authMiddleware"); // role-based access control
 const {
   submitFeedback,
   getFeedbacks,
@@ -80,6 +81,7 @@ const {
 const {
   submitProposal,
   updateProposal,
+  analyzeProposalDraft,
   getStudentProposals,
   getTeamProposals,
   getAdminProposals,
@@ -151,6 +153,7 @@ route.get("/templates",                      getAllTemplates);
 // 🎓 FYP PROPOSAL WORKFLOW ROUTES
 // Student: Submit and update proposals
 route.post('/proposals/submit', authenticate, proposalUpload.single('proposalReport'), submitProposal);
+route.post('/proposals/analyze-quality', authenticate, authorize("student"), analyzeProposalDraft);
 route.put('/proposals/:proposalId', authenticate, proposalUpload.single('proposalReport'), updateProposal);
 
 // Fetch proposals by role
@@ -161,11 +164,11 @@ route.get('/proposals/supervisor', authenticate, getSupervisorProposals);
 route.get('/proposals/:proposalId', authenticate, getProposalById);
 
 // Admin: Review and manage proposals
-route.put('/proposals/:proposalId/status', authenticate, updateProposalStatus);
-route.put('/proposals/:proposalId/assign-supervisor', authenticate, assignSupervisor);
+route.put('/proposals/:proposalId/status', authenticate, authorize("admin"), updateProposalStatus);
+route.put('/proposals/:proposalId/assign-supervisor', authenticate, authorize("admin"), assignSupervisor);
 
 // Supervisor: Make decision on assigned proposals
-route.put('/proposals/:proposalId/decision', authenticate, supervisorDecision);
+route.put('/proposals/:proposalId/decision', authenticate, authorize("supervisor"), supervisorDecision);
 
 // 🔔 NOTIFICATION ROUTES
 // Get all notifications for the authenticated user
@@ -293,25 +296,25 @@ route.get("/dashboard/leaderboard", getLeaderboard);
 route.get("/dashboard/recent-tasks", getRecentTasks);
 
 // 🏛️ Department Management Routes (Admin Only)
-route.post("/admin/department", createDepartment); // Create department
-route.get("/admin/department", getAllDepartments); // Get all departments
-route.get("/admin/department/:id", getDepartmentById); // Get department by ID
-route.put("/admin/department/:id", updateDepartment); // Update department
-route.delete("/admin/department/:id", deleteDepartment); // Delete department
+route.post("/admin/department", authenticate, authorize("admin"), createDepartment); // Create department
+route.get("/admin/department", authenticate, authorize("admin"), getAllDepartments); // Get all departments
+route.get("/admin/department/:id", authenticate, authorize("admin"), getDepartmentById); // Get department by ID
+route.put("/admin/department/:id", authenticate, authorize("admin"), updateDepartment); // Update department
+route.delete("/admin/department/:id", authenticate, authorize("admin"), deleteDepartment); // Delete department
 
-// 🔐 Join Code Verification Routes
+// 🔐 Join Code Verification Routes (public — used during signup, before login)
 route.post("/verify-student-join-code", verifyStudentJoinCode); // Verify student join code
 route.post("/verify-supervisor-join-code", verifySupervisorJoinCode); // Verify supervisor join code
 
 // 🔄 Join Code Regeneration Routes (Admin Only)
-route.post("/admin/department/:id/regenerate-student-code", regenerateStudentJoinCode);
-route.post("/admin/department/:id/regenerate-supervisor-code", regenerateSupervisorJoinCode);
+route.post("/admin/department/:id/regenerate-student-code", authenticate, authorize("admin"), regenerateStudentJoinCode);
+route.post("/admin/department/:id/regenerate-supervisor-code", authenticate, authorize("admin"), regenerateSupervisorJoinCode);
 
 // 📊 Department Statistics
-route.get("/admin/department/:id/stats", getDepartmentStats);
+route.get("/admin/department/:id/stats", authenticate, authorize("admin"), getDepartmentStats);
 
 // 👤 Get User's Department Info
-route.get("/department/:departmentId", getUserDepartment);
+route.get("/department/:departmentId", authenticate, getUserDepartment);
 
 // ─────────────────────────────────────────────
 // 📁 PROJECT MANAGEMENT ROUTES
@@ -352,14 +355,27 @@ route.get("/projects/:projectId", authenticate, getProjectById);
 route.put("/projects/:projectId/details", authenticate, updateProjectDetails);
 route.put("/projects/:projectId/progress", authenticate, updateProjectProgress);
 route.put("/projects/:projectId/final-report", authenticate, finalReportUpload.single("finalReport"), submitFinalReport);
-route.put("/projects/:projectId/complete", authenticate, completeProject);
-route.put("/projects/:projectId/regrade", authenticate, reGradeProject);
+route.put("/projects/:projectId/complete", authenticate, authorize("supervisor"), completeProject);
+route.put("/projects/:projectId/regrade", authenticate, authorize("supervisor"), reGradeProject);
 
 // 🎓 ADMIN GRADE MANAGEMENT ROUTES
-route.get("/admin/projects", authenticate, getAllProjectsForAdmin);
-route.get("/admin/projects/grades", authenticate, getCompletedProjectsForAdmin);
-route.put("/admin/projects/:projectId/release-grades", authenticate, releaseGrades);
-route.put("/admin/projects/:projectId/flag-grades", authenticate, flagGrades);
+route.get("/admin/projects", authenticate, authorize("admin"), getAllProjectsForAdmin);
+route.get("/admin/projects/grades", authenticate, authorize("admin"), getCompletedProjectsForAdmin);
+route.put("/admin/projects/:projectId/release-grades", authenticate, authorize("admin"), releaseGrades);
+route.put("/admin/projects/:projectId/flag-grades", authenticate, authorize("admin"), flagGrades);
+
+// ─────────────────────────────────────────────
+// 🧾 AUDIT LOG ROUTES (admin only)
+// ─────────────────────────────────────────────
+const { getAuditLogs, getAuditActionTypes } = require("../Controllers/AuditLogController");
+route.get("/admin/audit-logs", authenticate, authorize("admin"), getAuditLogs);
+route.get("/admin/audit-logs/actions", authenticate, authorize("admin"), getAuditActionTypes);
+
+// ─────────────────────────────────────────────
+// 📊 ANALYTICS (admin only)
+// ─────────────────────────────────────────────
+const { getAnalytics } = require("../Controllers/AnalyticsController");
+route.get("/admin/analytics", authenticate, authorize("admin"), getAnalytics);
 
 // ─────────────────────────────────────────────
 // 📋 PROGRESS LOG ROUTES
@@ -398,9 +414,9 @@ const reviewNoteUpload = multer({
   limits: { fileSize: 8 * 1024 * 1024 }, // 8MB per screenshot
 });
 
-route.post("/review-notes", authenticate, reviewNoteUpload.array("screenshots", 20), createReviewNote);
+route.post("/review-notes", authenticate, authorize("supervisor"), reviewNoteUpload.array("screenshots", 20), createReviewNote);
 route.get("/review-notes/:projectId", authenticate, getProjectReviewNotes);
-route.put("/review-notes/:noteId/resolve", authenticate, resolveReviewNote);
+route.put("/review-notes/:noteId/resolve", authenticate, authorize("student"), resolveReviewNote);
 
 // ─────────────────────────────────────────────
 // 🗓️ MEETING LOG ROUTES

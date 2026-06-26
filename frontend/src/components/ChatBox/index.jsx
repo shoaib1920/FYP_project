@@ -62,6 +62,7 @@ const ChatBox = () => {
   const [lastSeen, setLastSeen] = useState({});
   const [typingUsers, setTypingUsers] = useState(new Set());
   const [searchQuery, setSearchQuery] = useState("");
+  const [sidebarTab, setSidebarTab] = useState("chats"); // "chats" | "groups"
   const [uploadingFile, setUploadingFile] = useState(false);
   const [filePreview, setFilePreview] = useState(null);
   const [socket, setSocket] = useState(null);
@@ -546,13 +547,27 @@ const ChatBox = () => {
     <div className="wa-wrapper">
       {/* Sidebar */}
       <div className="wa-sidebar">
-        {groups.length > 0 && (
-          <>
-            <div className="wa-sidebar-header wa-groups-header">
-              <h2>Team Groups</h2>
-            </div>
-            <div className="wa-contact-list wa-group-list">
-              {groups.map((group) => (
+        <div className="wa-sidebar-tabs">
+          <button
+            className={`wa-tab-btn ${sidebarTab === "chats" ? "active" : ""}`}
+            onClick={() => setSidebarTab("chats")}
+          >
+            Chats
+          </button>
+          <button
+            className={`wa-tab-btn ${sidebarTab === "groups" ? "active" : ""}`}
+            onClick={() => setSidebarTab("groups")}
+          >
+            Groups{groups.length > 0 ? ` (${groups.length})` : ""}
+          </button>
+        </div>
+
+        {sidebarTab === "groups" ? (
+          <div className="wa-contact-list wa-group-list">
+            {groups.length === 0 ? (
+              <div className="wa-empty-tab">No groups yet.</div>
+            ) : (
+              groups.map((group) => (
                 <div
                   key={group.teamId}
                   className={`wa-contact ${selectedGroup?.teamId === group.teamId ? "active" : ""}`}
@@ -569,46 +584,45 @@ const ChatBox = () => {
                   </div>
                   {group.unreadCount > 0 && <span className="unread-badge">{group.unreadCount}</span>}
                 </div>
-              ))}
+              ))
+            )}
+          </div>
+        ) : (
+          <>
+            <div className="wa-search">
+              <input
+                type="text"
+                placeholder="🔍 Search contacts..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <div className="wa-contact-list">
+              {filteredContacts.map((user) => {
+                const online = onlineUsers.has(String(user._id));
+                const ls = lastSeen[String(user._id)];
+                return (
+                  <div
+                    key={user._id}
+                    className={`wa-contact ${selectedUser?._id === user._id ? "active" : ""}`}
+                    onClick={() => openUser(user)}
+                  >
+                    <div className="wa-avatar">
+                      {user.name?.[0]?.toUpperCase() || "?"}
+                      <span className={`status-dot ${online ? "online" : "offline"}`} />
+                    </div>
+                    <div className="wa-contact-info">
+                      <span className="wa-contact-name">{user.name}</span>
+                      <span className="wa-contact-sub">
+                        {online ? "online" : ls ? formatLastSeen(ls) : user.role}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </>
         )}
-
-        <div className="wa-sidebar-header">
-          <h2>Chats</h2>
-        </div>
-        <div className="wa-search">
-          <input
-            type="text"
-            placeholder="🔍 Search contacts..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-        <div className="wa-contact-list">
-          {filteredContacts.map((user) => {
-            const online = onlineUsers.has(String(user._id));
-            const ls = lastSeen[String(user._id)];
-            return (
-              <div
-                key={user._id}
-                className={`wa-contact ${selectedUser?._id === user._id ? "active" : ""}`}
-                onClick={() => openUser(user)}
-              >
-                <div className="wa-avatar">
-                  {user.name?.[0]?.toUpperCase() || "?"}
-                  <span className={`status-dot ${online ? "online" : "offline"}`} />
-                </div>
-                <div className="wa-contact-info">
-                  <span className="wa-contact-name">{user.name}</span>
-                  <span className="wa-contact-sub">
-                    {online ? "online" : ls ? formatLastSeen(ls) : user.role}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
       </div>
 
       {/* Chat Area */}

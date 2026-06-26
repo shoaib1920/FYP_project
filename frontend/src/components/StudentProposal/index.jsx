@@ -8,6 +8,8 @@ import {
   FaHourglassHalf,
   FaCheckCircle,
   FaExclamationTriangle,
+  FaRobot,
+  FaHistory,
 } from "react-icons/fa";
 
 const StudentProposal = () => {
@@ -31,6 +33,9 @@ const StudentProposal = () => {
   const [submitSuccess, setSubmitSuccess] = useState("");
   const [selectedProposal, setSelectedProposal] = useState(null);
   const [fetchError, setFetchError] = useState("");
+  const [qualityCheck, setQualityCheck] = useState(null);
+  const [checkingQuality, setCheckingQuality] = useState(false);
+  const [historyProposal, setHistoryProposal] = useState(null);
 
   const token = localStorage.getItem("token");
   
@@ -154,6 +159,33 @@ const StudentProposal = () => {
     setSubmitError("");
     setSubmitSuccess("");
     setActiveTab("create");
+  };
+
+  const handleCheckQuality = async () => {
+    if (!formData.title || !formData.abstract || !formData.objectives || !formData.technologies) {
+      alert("Fill in title, abstract, objectives, and technologies before running the quality check.");
+      return;
+    }
+    setCheckingQuality(true);
+    setQualityCheck(null);
+    try {
+      const res = await axios.post(
+        `${process.env.REACT_APP_API_URL}/auth/proposals/analyze-quality`,
+        {
+          title: formData.title,
+          category: formData.category,
+          abstract: formData.abstract,
+          objectives: formData.objectives,
+          technologies: formData.technologies,
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setQualityCheck(res.data);
+    } catch (err) {
+      alert(err.response?.data?.message || "AI quality check failed. You can still submit normally.");
+    } finally {
+      setCheckingQuality(false);
+    }
   };
 
   const handleSubmitProposal = async (e) => {
@@ -380,9 +412,23 @@ const StudentProposal = () => {
                 <div key={proposal._id} className={styles.proposalCard}>
                   <div className={styles.cardHeader}>
                     <h3>{proposal.title}</h3>
-                    <span className={`${styles.statusBadge} ${styles[getStatusBadgeClass(proposal.status)]}`}>
-                      {formatStatus(proposal.status)}
-                    </span>
+                    <div style={{ display: "flex", gap: "8px", alignItems: "center", flexShrink: 0 }}>
+                      {proposal.aiQualityCheck?.score != null && (
+                        <span
+                          className={styles.statusBadge}
+                          style={{
+                            background: "#ede9fe", color: "#6d28d9",
+                            display: "flex", alignItems: "center", gap: "4px",
+                          }}
+                          title="AI proposal quality score"
+                        >
+                          <FaRobot /> {proposal.aiQualityCheck.score}/100
+                        </span>
+                      )}
+                      <span className={`${styles.statusBadge} ${styles[getStatusBadgeClass(proposal.status)]}`}>
+                        {formatStatus(proposal.status)}
+                      </span>
+                    </div>
                   </div>
 
                   <div className={styles.proposalField}>
@@ -432,8 +478,17 @@ const StudentProposal = () => {
                     </div>
                   )}
 
-                  {(proposal.status === "REVISION_REQUESTED_BY_ADMIN" || proposal.status === "REVISION_REQUESTED_BY_SUPERVISOR") && (
-                    <div className={styles.cardActionRow}>
+                  <div className={styles.cardActionRow}>
+                    {proposal.revisions?.length > 0 && (
+                      <button
+                        type="button"
+                        className={styles.secondaryButton}
+                        onClick={() => setHistoryProposal(proposal)}
+                      >
+                        <FaHistory /> View Revision History ({proposal.revisions.length})
+                      </button>
+                    )}
+                    {(proposal.status === "REVISION_REQUESTED_BY_ADMIN" || proposal.status === "REVISION_REQUESTED_BY_SUPERVISOR") && (
                       <button
                         type="button"
                         className={styles.secondaryButton}
@@ -441,10 +496,33 @@ const StudentProposal = () => {
                       >
                         Request Again
                       </button>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {historyProposal && (
+            <div className={styles.alert} style={{ display: "block", position: "fixed", inset: 0, background: "rgba(15,23,42,0.6)", zIndex: 1000, padding: "40px" }} onClick={() => setHistoryProposal(null)}>
+              <div
+                style={{ background: "white", borderRadius: "14px", padding: "24px", maxWidth: "640px", margin: "0 auto", maxHeight: "80vh", overflowY: "auto" }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h3 style={{ marginTop: 0 }}>Revision History — {historyProposal.title}</h3>
+                {historyProposal.revisions.map((rev, i) => (
+                  <div key={i} style={{ background: "#f8fafc", border: "1px solid #e5e7eb", borderRadius: "10px", padding: "14px", marginBottom: "12px" }}>
+                    <strong style={{ fontSize: "12.5px", color: "#64748b" }}>
+                      Version {i + 1} — {new Date(rev.revisedAt).toLocaleString()}
+                    </strong>
+                    <p style={{ fontSize: "13px", margin: "8px 0 4px" }}><strong>Title:</strong> {rev.title}</p>
+                    <p style={{ fontSize: "13px", margin: "4px 0" }}><strong>Abstract:</strong> {rev.abstract}</p>
+                    <p style={{ fontSize: "13px", margin: "4px 0" }}><strong>Objectives:</strong> {rev.objectives}</p>
+                    <p style={{ fontSize: "13px", margin: "4px 0" }}><strong>Technologies:</strong> {rev.technologies}</p>
+                  </div>
+                ))}
+                <button type="button" className={styles.secondaryButton} onClick={() => setHistoryProposal(null)}>Close</button>
+              </div>
             </div>
           )}
         </div>
@@ -562,6 +640,47 @@ const StudentProposal = () => {
               />
             </div>
 
+            <div className={styles.formGroup}>
+              <button
+                type="button"
+                onClick={handleCheckQuality}
+                disabled={checkingQuality}
+                className={styles.aiCheckBtn}
+              >
+                <FaRobot /> {checkingQuality ? "Analyzing..." : "Check Proposal Quality with AI"}
+              </button>
+
+              {qualityCheck && (
+                <div className={styles.aiResultBox}>
+                  <div className={styles.aiScoreRow}>
+                    <span className={styles.aiScoreLabel}>Quality Score</span>
+                    <span
+                      className={styles.aiScoreValue}
+                      style={{
+                        color: qualityCheck.score >= 75 ? "#15803d" : qualityCheck.score >= 50 ? "#92400e" : "#b91c1c",
+                      }}
+                    >
+                      {qualityCheck.score}/100
+                    </span>
+                  </div>
+                  {qualityCheck.issues?.length > 0 && (
+                    <div className={styles.aiSection}>
+                      <strong>Issues found:</strong>
+                      <ul>{qualityCheck.issues.map((it, i) => <li key={i}>{it}</li>)}</ul>
+                    </div>
+                  )}
+                  {qualityCheck.suggestions?.length > 0 && (
+                    <div className={styles.aiSection}>
+                      <strong>Suggestions:</strong>
+                      <ul>{qualityCheck.suggestions.map((s, i) => <li key={i}>{s}</li>)}</ul>
+                    </div>
+                  )}
+                  {qualityCheck.issues?.length === 0 && qualityCheck.suggestions?.length === 0 && (
+                    <p className={styles.aiClean}>No major issues found — looks ready to submit.</p>
+                  )}
+                </div>
+              )}
+            </div>
 
              <div className={styles.formGroup}>
               <label className={styles.formLabel}>📄 Initial Proposal Report (PDF)</label>

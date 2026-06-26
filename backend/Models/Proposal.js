@@ -90,6 +90,30 @@ const proposalSchema = new mongoose.Schema(
 
     approvedAt: Date,
     supervisorAcceptedAt: Date,
+
+    aiQualityCheck: {
+      score: { type: Number, default: null },
+      issues: { type: [String], default: [] },
+      suggestions: { type: [String], default: [] },
+      checkedAt: { type: Date, default: null },
+    },
+
+    // Snapshot of every prior version, captured right before a resubmission
+    // overwrites the live fields — so nothing about earlier drafts is lost.
+    revisions: {
+      type: [
+        {
+          title: String,
+          category: String,
+          abstract: String,
+          objectives: String,
+          technologies: String,
+          proposalReportUrl: String,
+          revisedAt: { type: Date, default: Date.now },
+        },
+      ],
+      default: [],
+    },
   },
   {
     timestamps: true,

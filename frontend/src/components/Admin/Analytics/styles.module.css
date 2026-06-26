@@ -1,0 +1,134 @@
+.container {
+  padding: 28px 26px;
+  font-family: 'Segoe UI', Arial, sans-serif;
+  background: #f8fafc;
+  min-height: 100vh;
+}
+
+/* ── Hero ── */
+.hero {
+  background: linear-gradient(135deg, #1e40af 0%, #2563eb 60%, #3b82f6 100%);
+  border-radius: 18px;
+  padding: 26px 28px;
+  margin-bottom: 22px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  box-shadow: 0 8px 32px rgba(37, 99, 235, 0.28);
+}
+
+.heroIcon {
+  flex-shrink: 0;
+  width: 56px;
+  height: 56px;
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  color: white;
+  backdrop-filter: blur(4px);
+}
+
+.heroText { min-width: 0; }
+
+.heading {
+  font-size: 22px;
+  font-weight: 800;
+  color: white;
+  margin: 0 0 4px;
+  letter-spacing: -0.3px;
+}
+
+.subheading {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.82);
+  margin: 0;
+}
+
+/* ── Stats ── */
+.statsRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.statCard {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 16px 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.04);
+  transition: transform 0.15s ease;
+}
+
+.statCard:hover { transform: translateY(-2px); }
+
+.statIcon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.statCard h4 {
+  margin: 0 0 4px;
+  font-size: 12.5px;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.statCard p {
+  margin: 0;
+  font-size: 22px;
+  color: #111827;
+  font-weight: 800;
+}
+
+/* ── Charts ── */
+.chartGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px;
+}
+
+.chartPanel {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 20px 22px;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.04);
+}
+
+.chartPanelWide {
+  grid-column: 1 / -1;
+}
+
+.panelTitle {
+  margin: 0 0 16px;
+  font-size: 14.5px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.emptyMsg {
+  color: #94a3b8;
+  font-size: 13.5px;
+  text-align: center;
+  padding: 30px 0;
+}
+
+@media (max-width: 900px) {
+  .chartGrid {
+    grid-template-columns: 1fr;
+  }
+}

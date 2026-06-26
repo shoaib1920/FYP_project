@@ -1,0 +1,257 @@
+.container {
+  padding: 28px 26px;
+  font-family: 'Segoe UI', Arial, sans-serif;
+  background: #f8fafc;
+  min-height: 100vh;
+}
+
+/* ── Hero ── */
+.hero {
+  background: linear-gradient(135deg, #1e40af 0%, #2563eb 60%, #3b82f6 100%);
+  border-radius: 18px;
+  padding: 26px 28px;
+  margin-bottom: 22px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  box-shadow: 0 8px 32px rgba(37, 99, 235, 0.28);
+}
+
+.heroIcon {
+  flex-shrink: 0;
+  width: 56px;
+  height: 56px;
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  color: white;
+  backdrop-filter: blur(4px);
+}
+
+.heroText { min-width: 0; }
+
+.heading {
+  font-size: 22px;
+  font-weight: 800;
+  color: white;
+  margin: 0 0 4px;
+  letter-spacing: -0.3px;
+}
+
+.subheading {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.82);
+  margin: 0;
+}
+
+/* ── Filters ── */
+.filterBar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.searchBox {
+  position: relative;
+  flex: 1;
+  min-width: 220px;
+  display: flex;
+  align-items: center;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 14px;
+  color: #9ca3af;
+  pointer-events: none;
+}
+
+.searchInput {
+  width: 100%;
+  padding: 10px 36px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  font-size: 13.5px;
+  color: #1f2937;
+  background: white;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.searchInput:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.searchClearBtn {
+  position: absolute;
+  right: 8px;
+  background: none;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.searchClearBtn:hover { background: #f1f5f9; color: #374151; }
+
+.statusSelect {
+  padding: 10px 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  background: white;
+  cursor: pointer;
+  outline: none;
+  flex-shrink: 0;
+}
+
+.statusSelect:focus { border-color: #3b82f6; }
+
+.clearFiltersBtn {
+  background: #eff6ff;
+  border: 1px solid #93c5fd;
+  color: #1e40af;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 10px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+
+.clearFiltersBtn:hover { background: #dbeafe; }
+
+.resultsCount {
+  font-size: 12.5px;
+  color: #64748b;
+  margin: 0 0 14px;
+}
+
+.emptyMsg {
+  color: #6b7280;
+  font-size: 14px;
+  text-align: center;
+}
+
+.noResultsBox {
+  text-align: center;
+  padding: 48px 24px;
+  background: #fff;
+  border: 2px dashed #e5e7eb;
+  border-radius: 14px;
+}
+
+/* ── Log entries ── */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.logRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
+.logIcon {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+}
+
+.logBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.logHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.logAction {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #111827;
+  text-transform: capitalize;
+}
+
+.logTime {
+  font-size: 11.5px;
+  color: #9ca3af;
+  flex-shrink: 0;
+}
+
+.logDetails {
+  font-size: 13px;
+  color: #374151;
+  margin: 4px 0 6px;
+  line-height: 1.45;
+}
+
+.logMeta {
+  font-size: 11px;
+  color: #94a3b8;
+  text-transform: capitalize;
+}
+
+/* ── Pagination ── */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.pageBtn {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  color: #1f2937;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 9px;
+  cursor: pointer;
+}
+
+.pageBtn:disabled {
+  color: #cbd5e1;
+  cursor: not-allowed;
+}
+
+.pageBtn:not(:disabled):hover {
+  background: #f8fafc;
+}
+
+.pageInfo {
+  font-size: 12.5px;
+  color: #64748b;
+  font-weight: 600;
+}

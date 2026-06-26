@@ -4,6 +4,7 @@ const AssignedProject = require("../Models/SupervisorModels/AssignedProject");
 const Users = require("../Models/Users");
 const AcademicTerm = require("../Models/AcademicTerm");
 const sendEmail = require("../utils/emailService");
+const { logAction } = require("./AuditLogController");
 
 const createNotification = async ({ userId, title, message, relatedType, relatedId }) => {
   try {
@@ -325,6 +326,15 @@ exports.completeProject = async (req, res) => {
       relatedId: project._id,
     });
 
+    await logAction({
+      actorId: supervisorId,
+      actorRole: "supervisor",
+      action: "PROJECT_GRADED_COMPLETED",
+      targetType: "Project",
+      targetId: project._id,
+      details: `Marked "${project.title}" complete with evaluation marks ${project.evaluationMarks ?? "N/A"}/100`,
+    });
+
     res.json({ success: true, project });
   } catch (err) {
     console.error("Error completing project:", err);
@@ -418,6 +428,15 @@ exports.releaseGrades = async (req, res) => {
       }`,
     });
 
+    await logAction({
+      actorId: req.user._id,
+      actorRole: "admin",
+      action: "GRADE_RELEASED",
+      targetType: "Project",
+      targetId: project._id,
+      details: `Released grades for "${project.title}"${adminRemarks ? ` — remarks: ${adminRemarks}` : ""}`,
+    });
+
     res.json({ success: true, message: "Grades released successfully", project });
   } catch (err) {
     console.error("Error releasing grades:", err);
@@ -454,6 +473,15 @@ exports.flagGrades = async (req, res) => {
       message: `Admin has flagged the grades for project "${project.title}". Reason: ${flaggedReason}. Please review and re-grade.`,
       relatedType: "project",
       relatedId: project._id,
+    });
+
+    await logAction({
+      actorId: req.user._id,
+      actorRole: "admin",
+      action: "GRADE_FLAGGED",
+      targetType: "Project",
+      targetId: project._id,
+      details: `Flagged grades for "${project.title}" — reason: ${flaggedReason.trim()}`,
     });
 
     res.json({ success: true, message: "Project flagged for re-grading", project });
@@ -500,6 +528,15 @@ exports.reGradeProject = async (req, res) => {
       message: `Your project "${project.title}" has been re-graded by your supervisor and is pending admin approval.`,
       relatedType: "project",
       relatedId: project._id,
+    });
+
+    await logAction({
+      actorId: supervisorId,
+      actorRole: "supervisor",
+      action: "PROJECT_REGRADED",
+      targetType: "Project",
+      targetId: project._id,
+      details: `Re-graded "${project.title}" with evaluation marks ${project.evaluationMarks ?? "N/A"}/100`,
     });
 
     res.json({ success: true, project });

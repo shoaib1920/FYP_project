@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import styles from "./styles.module.css";
 import { resolveFileUrl } from "../../../utils/resolveFileUrl";
+import { generateCompletionCertificate } from "../../../utils/certificateUtils";
 import {
   FaFolderOpen,
   FaProjectDiagram,
@@ -15,6 +16,7 @@ import {
   FaCalendarWeek,
   FaMarker,
   FaHistory,
+  FaAward,
 } from "react-icons/fa";
 import LivePreview from "../../LivePreview";
 import LiveReviewModal from "../../LiveReviewModal";
@@ -625,6 +627,18 @@ const FYPProjects = () => {
                               ))}
                             </div>
                           )}
+                          <button
+                            type="button"
+                            onClick={() => generateCompletionCertificate(project)}
+                            style={{
+                              display: "flex", alignItems: "center", gap: "5px", marginTop: "6px",
+                              background: "#ede9fe", color: "#6d28d9", border: "1px solid #ddd6fe",
+                              borderRadius: "6px", padding: "4px 9px", fontSize: "11px", fontWeight: "700",
+                              cursor: "pointer", width: "fit-content",
+                            }}
+                          >
+                            <FaAward /> Certificate
+                          </button>
                         </div>
                       )}
                       {!["UNDER_REVIEW", "COMPLETED"].includes(project.status) && (

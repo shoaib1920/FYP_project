@@ -7,6 +7,19 @@ const Notification = require('../Models/Notification');
 const AssignedProject = require('../Models/SupervisorModels/AssignedProject');
 const AcademicTerm = require('../Models/AcademicTerm');
 const sendEmail = require('../utils/emailService');
+const { logAction } = require('./AuditLogController');
+const { analyzeProposalQuality } = require('../utils/geminiService');
+
+// Best-effort — a failed/unconfigured AI check must never block a proposal submission.
+const runQualityCheck = async (proposal) => {
+  try {
+    const result = await analyzeProposalQuality(proposal);
+    return { ...result, checkedAt: new Date() };
+  } catch (err) {
+    console.error('AI proposal quality check failed:', err.message);
+    return null;
+  }
+};
 
 
 const createNotification = async ({ userId, title, message, relatedType, relatedId }) => {
@@ -85,6 +98,13 @@ console.log("here after tam check ");
     const proposalReportUrl = req.file ? req.file.path.replace(/\\/g, '/') : undefined;
 
     const newProposal = await Proposal.create({ teamId, teamLeaderId: studentId, departmentId, title, category, academicSession, abstract, objectives, technologies, preferredSupervisorId: preferredSupervisor ? preferredSupervisor._id : null, proposalReportUrl, status: 'PENDING_ADMIN_REVIEW', submittedAt: new Date(), });
+
+    const qualityCheck = await runQualityCheck({ title, category, abstract, objectives, technologies });
+    if (qualityCheck) {
+      newProposal.aiQualityCheck = qualityCheck;
+      await newProposal.save();
+    }
+
     await createNotification({
       userId: null,
       title: 'New Project Proposal Submitted',
@@ -135,6 +155,17 @@ exports.updateProposal = async (req, res) => {
       proposal.preferredSupervisorId = preferredSupervisor._id;
     }
 
+    // Snapshot the version about to be overwritten, so revision history is never lost.
+    proposal.revisions.push({
+      title: proposal.title,
+      category: proposal.category,
+      abstract: proposal.abstract,
+      objectives: proposal.objectives,
+      technologies: proposal.technologies,
+      proposalReportUrl: proposal.proposalReportUrl,
+      revisedAt: new Date(),
+    });
+
     if (req.file) {
       proposal.proposalReportUrl = req.file.path.replace(/\\/g, '/');
     }
@@ -152,6 +183,15 @@ exports.updateProposal = async (req, res) => {
     proposal.supervisorAcceptedAt = undefined;
     proposal.updatedAt = new Date();
 
+    const qualityCheck = await runQualityCheck({
+      title: proposal.title,
+      category: proposal.category,
+      abstract: proposal.abstract,
+      objectives: proposal.objectives,
+      technologies: proposal.technologies,
+    });
+    if (qualityCheck) proposal.aiQualityCheck = qualityCheck;
+
     await proposal.save();
 
     await createNotification({
@@ -166,6 +206,22 @@ exports.updateProposal = async (req, res) => {
   } catch (error) {
     console.error('Error updating proposal:', error);
     res.status(500).json({ message: 'Server error while updating proposal' });
+  }
+};
+
+// POST /proposals/analyze-quality — on-demand AI check on a draft, before submission.
+// Does not touch the database; purely advisory.
+exports.analyzeProposalDraft = async (req, res) => {
+  try {
+    const { title, category, abstract, objectives, technologies } = req.body;
+    if (!title || !abstract || !objectives || !technologies) {
+      return res.status(400).json({ message: 'title, abstract, objectives, and technologies are required' });
+    }
+    const result = await analyzeProposalQuality({ title, category, abstract, objectives, technologies });
+    res.json({ success: true, ...result });
+  } catch (error) {
+    console.error('Error analyzing proposal draft:', error);
+    res.status(500).json({ message: error.message || 'AI quality check failed' });
   }
 };
 
@@ -292,6 +348,15 @@ exports.updateProposalStatus = async (req, res) => {
       }`
     );
 
+    await logAction({
+      actorId: req.user._id,
+      actorRole: 'admin',
+      action: `PROPOSAL_${status}`,
+      targetType: 'Proposal',
+      targetId: proposal._id,
+      details: `"${proposal.title}" set to ${status}${adminRemarks ? ` — remarks: ${adminRemarks}` : ''}`,
+    });
+
     res.json({ success: true, proposal });
   } catch (error) {
     console.error('Error updating proposal status:', error);
@@ -356,6 +421,15 @@ exports.assignSupervisor = async (req, res) => {
       'Supervisor Assigned',
       `<p>Supervisor <strong>${supervisor.name}</strong> has been assigned to your proposal "<strong>${proposal.title}</strong>".</p>`
     );
+
+    await logAction({
+      actorId: req.user._id,
+      actorRole: 'admin',
+      action: 'SUPERVISOR_ASSIGNED',
+      targetType: 'Proposal',
+      targetId: proposal._id,
+      details: `Assigned ${supervisor.name} to "${proposal.title}"`,
+    });
 
     res.json({ success: true, proposal });
   } catch (error) {
@@ -554,6 +628,15 @@ exports.supervisorDecision = async (req, res) => {
         supervisorRemarks ? `<p><strong>Remarks:</strong> ${supervisorRemarks}</p>` : ''
       }`
     );
+
+    await logAction({
+      actorId: supervisorId,
+      actorRole: 'supervisor',
+      action: `PROPOSAL_${decision}`,
+      targetType: 'Proposal',
+      targetId: proposal._id,
+      details: `"${proposal.title}" — ${decision}${supervisorRemarks ? ` — remarks: ${supervisorRemarks}` : ''}`,
+    });
 
     res.json({
       success: true,

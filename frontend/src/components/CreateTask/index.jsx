@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import DeadlineBanner from "../DeadlineBanner";
 import LivePreview from "../LivePreview";
 import { resolveFileUrl } from "../../utils/resolveFileUrl";
+import { generateCompletionCertificate } from "../../utils/certificateUtils";
 import {
   FaProjectDiagram,
   FaClipboardList,
@@ -17,6 +18,7 @@ import {
   FaGithub,
   FaPlayCircle,
   FaEdit,
+  FaAward,
 } from "react-icons/fa";
 
 const CreateTask = () => {
@@ -1287,14 +1289,30 @@ const CreateTask = () => {
                         if (project.status !== "COMPLETED") return <span style={{ color: "#9ca3af", fontSize: "12px" }}>—</span>;
                         if (project.gradesStatus === "RELEASED") {
                           const myGrade = project.memberGrades?.find(g => String(g.userId) === String(userId));
-                          return myGrade ? (
-                            <span style={{ fontWeight: "700", fontSize: "15px", color: "#2e7d32" }}>
-                              {myGrade.marks}<span style={{ fontWeight: "400", fontSize: "11px", color: "#6b7280" }}>/100</span>
-                            </span>
-                          ) : (
-                            <span style={{ color: "#2e7d32", fontWeight: "600", fontSize: "13px" }}>
-                              {project.evaluationMarks ?? "—"}/100
-                            </span>
+                          return (
+                            <div style={{ display: "flex", flexDirection: "column", gap: "4px", alignItems: "flex-start" }}>
+                              {myGrade ? (
+                                <span style={{ fontWeight: "700", fontSize: "15px", color: "#2e7d32" }}>
+                                  {myGrade.marks}<span style={{ fontWeight: "400", fontSize: "11px", color: "#6b7280" }}>/100</span>
+                                </span>
+                              ) : (
+                                <span style={{ color: "#2e7d32", fontWeight: "600", fontSize: "13px" }}>
+                                  {project.evaluationMarks ?? "—"}/100
+                                </span>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => generateCompletionCertificate(project)}
+                                style={{
+                                  display: "flex", alignItems: "center", gap: "5px",
+                                  background: "#ede9fe", color: "#6d28d9", border: "1px solid #ddd6fe",
+                                  borderRadius: "6px", padding: "4px 9px", fontSize: "11px", fontWeight: "700",
+                                  cursor: "pointer",
+                                }}
+                              >
+                                <FaAward /> Certificate
+                              </button>
+                            </div>
                           );
                         }
                         if (project.gradesStatus === "PENDING_RELEASE") {

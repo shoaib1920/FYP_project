@@ -43,11 +43,14 @@ const DepartmentManagement = () => {
   const [regeneratingId, setRegeneratingId] = useState(null);
 
   const API_URL = process.env.REACT_APP_API_URL;
+  const authHeader = () => ({
+    headers: { Authorization: `Bearer ${localStorage.getItem("adminToken")}` },
+  });
 
   const fetchDepartments = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${API_URL}/auth/admin/department`);
+      const response = await axios.get(`${API_URL}/auth/admin/department`, authHeader());
       setDepartments(response.data.departments || []);
     } catch (error) {
       console.error("Error fetching departments:", error);
@@ -76,7 +79,7 @@ const DepartmentManagement = () => {
     e.preventDefault();
     try {
       setLoading(true);
-      await axios.post(`${API_URL}/auth/admin/department`, formData);
+      await axios.post(`${API_URL}/auth/admin/department`, formData, authHeader());
       setMessage("Department created successfully!");
       setFormData({ name: "", code: "", academicSession: "", description: "" });
       setShowModal(false);
@@ -93,7 +96,7 @@ const DepartmentManagement = () => {
     e.preventDefault();
     try {
       setLoading(true);
-      await axios.put(`${API_URL}/auth/admin/department/${selectedDept._id}`, formData);
+      await axios.put(`${API_URL}/auth/admin/department/${selectedDept._id}`, formData, authHeader());
       setMessage("Department updated successfully!");
       setFormData({ name: "", code: "", academicSession: "", description: "" });
       setSelectedDept(null);
@@ -111,7 +114,7 @@ const DepartmentManagement = () => {
     if (!window.confirm("Delete this department? This cannot be undone.")) return;
     try {
       setLoading(true);
-      await axios.delete(`${API_URL}/auth/admin/department/${id}`);
+      await axios.delete(`${API_URL}/auth/admin/department/${id}`, authHeader());
       setMessage("Department deleted successfully!");
       fetchDepartments();
     } catch (error) {
@@ -144,7 +147,7 @@ const DepartmentManagement = () => {
     try {
       setRegeneratingId(`${id}_${type}`);
       const endpoint = type === "student" ? "regenerate-student-code" : "regenerate-supervisor-code";
-      await axios.post(`${API_URL}/auth/admin/department/${id}/${endpoint}`);
+      await axios.post(`${API_URL}/auth/admin/department/${id}/${endpoint}`, {}, authHeader());
       setMessage(`${type === "student" ? "Student" : "Supervisor"} join code regenerated!`);
       fetchDepartments();
     } catch (error) {
