@@ -1,3 +1,9 @@
+const axios = require("axios");
+
+const OPENROUTER_BASE = "https://openrouter.ai/api/v1/chat/completions";
+const CHAT_MODEL = "nvidia/nemotron-3-super-120b-a12b:free";
+const QUALITY_MODEL = "nvidia/nemotron-3-super-120b-a12b:free";
+
 const SYSTEM_PROMPT = `You are CodeMate, the built-in AI coding assistant inside the FYP (Final Year Project) Management Portal.
 You help final-year students with: debugging errors, explaining code, planning implementation approaches, and learning programming concepts relevant to their FYP.
 
@@ -8,50 +14,58 @@ Rules:
 - Keep a friendly, professional, mentor-like tone — you are helping a student finish their degree project, not just answering trivia.
 - Do not claim to take actions inside the portal (you cannot submit, approve, or change anything) — you only provide guidance.`;
 
-const MODEL = "gemini-2.0-flash";
+function getApiKey() {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) throw new Error("AI assistant is not configured (missing OPENROUTER_API_KEY).");
+  return apiKey;
+}
+
+function buildHeaders(apiKey) {
+  return {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${apiKey}`,
+    "HTTP-Referer": process.env.CLIENT_URL || "http://localhost:3000",
+    "X-Title": "FYP Management Portal",
+  };
+}
+
+function handleAxiosError(err) {
+  const status = err?.response?.status;
+  if (status === 429) {
+    throw new Error("AI rate limit reached — please wait 30 seconds and try again.");
+  }
+  if (status === 401 || status === 403) {
+    throw new Error("AI API key is invalid or unauthorized. Contact the administrator.");
+  }
+  const msg = err?.response?.data?.error?.message || err.message;
+  throw new Error(msg || "AI service unavailable. Please try again later.");
+}
 
 /**
- * Calls the Gemini API with the running conversation and returns the assistant's reply.
+ * Calls OpenRouter with the running conversation and returns the assistant's reply.
  * @param {{role: 'user'|'assistant', content: string}[]} history
  * @returns {Promise<string>}
  */
 async function getAIReply(history) {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new Error("AI assistant is not configured (missing GEMINI_API_KEY).");
+  const apiKey = getApiKey();
+  const messages = [
+    { role: "system", content: SYSTEM_PROMPT },
+    ...history.map((m) => ({ role: m.role, content: m.content })),
+  ];
+
+  let response;
+  try {
+    response = await axios.post(
+      OPENROUTER_BASE,
+      { model: CHAT_MODEL, messages, temperature: 0.6, max_tokens: 1024 },
+      { headers: buildHeaders(apiKey), timeout: 30000 }
+    );
+  } catch (err) {
+    handleAxiosError(err);
   }
 
-  const contents = history.map((m) => ({
-    role: m.role === "assistant" ? "model" : "user",
-    parts: [{ text: m.content }],
-  }));
-
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`;
-
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents,
-      systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-      generationConfig: { temperature: 0.6, maxOutputTokens: 1024 },
-    }),
-  });
-
-  const data = await res.json();
-
-  if (!res.ok) {
-    const msg = data?.error?.message || `Gemini API error (status ${res.status})`;
-    if (res.status === 429) {
-      throw new Error("The AI assistant is temporarily busy (rate limit reached). Please try again in a moment.");
-    }
-    throw new Error(msg);
-  }
-
-  const reply = data?.candidates?.[0]?.content?.parts?.map((p) => p.text).join("") || "";
-  if (!reply) {
-    throw new Error("The AI assistant did not return a response. Please try rephrasing your question.");
-  }
+  const reply = response.data?.choices?.[0]?.message?.content || "";
+  if (!reply) throw new Error("The AI assistant did not return a response. Please try rephrasing your question.");
   return reply;
 }
 
@@ -66,43 +80,40 @@ Respond with ONLY a JSON object (no markdown fences, no extra text) in exactly t
 }`;
 
 /**
- * Sends a draft/submitted proposal to Gemini for a structured quality assessment.
- * Never throws on a malformed AI response — falls back to a neutral result instead,
- * since this is an advisory feature and must not block proposal submission.
+ * Sends a proposal to OpenRouter for a structured quality assessment.
+ * Never throws on a malformed AI response — falls back to a neutral result.
  * @param {{title:string, category?:string, abstract:string, objectives:string, technologies:string}} proposal
  * @returns {Promise<{score:number, issues:string[], suggestions:string[]}>}
  */
 async function analyzeProposalQuality(proposal) {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new Error("AI assistant is not configured (missing GEMINI_API_KEY).");
-  }
-
+  const apiKey = getApiKey();
   const userText = `Title: ${proposal.title}
 Category: ${proposal.category || "N/A"}
 Abstract: ${proposal.abstract}
 Objectives: ${proposal.objectives}
 Technologies: ${proposal.technologies}`;
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`;
-
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: [{ role: "user", parts: [{ text: userText }] }],
-      systemInstruction: { parts: [{ text: QUALITY_CHECK_PROMPT }] },
-      generationConfig: { temperature: 0.3, maxOutputTokens: 512, responseMimeType: "application/json" },
-    }),
-  });
-
-  const data = await res.json();
-  if (!res.ok) {
-    const msg = data?.error?.message || `Gemini API error (status ${res.status})`;
-    throw new Error(msg);
+  let response;
+  try {
+    response = await axios.post(
+      OPENROUTER_BASE,
+      {
+        model: QUALITY_MODEL,
+        messages: [
+          { role: "system", content: QUALITY_CHECK_PROMPT },
+          { role: "user", content: userText },
+        ],
+        temperature: 0.3,
+        max_tokens: 512,
+        response_format: { type: "json_object" },
+      },
+      { headers: buildHeaders(apiKey), timeout: 30000 }
+    );
+  } catch (err) {
+    handleAxiosError(err);
   }
 
-  const raw = data?.candidates?.[0]?.content?.parts?.map((p) => p.text).join("") || "";
+  const raw = response.data?.choices?.[0]?.message?.content || "";
   try {
     const parsed = JSON.parse(raw);
     return {

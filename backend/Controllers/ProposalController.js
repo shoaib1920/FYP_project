@@ -491,7 +491,8 @@ exports.assignSupervisor = async (req, res) => {
 
 exports.supervisorDecision = async (req, res) => {
   try {
-    const supervisorId = req.user._id;
+    // Support both _id (login token) and id (signup token) JWT payloads
+    const supervisorId = req.user._id || req.user.id;
     const { proposalId } = req.params;
     const { decision, supervisorRemarks } = req.body;
 

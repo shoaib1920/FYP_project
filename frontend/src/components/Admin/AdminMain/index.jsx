@@ -13,12 +13,13 @@ import ProposalApprovals from "../ProjectProposals";
 import DepartmentManagement from "../DepartmentManagement";
 import GradeApproval from "../GradeApproval";
 import AcademicCalendar from "../AcademicCalendar";
-import AuditLog from "../AuditLog";
-import Analytics from "../Analytics";
+// Hidden for now (not deleted) — see ShowModule nav below.
+// import AuditLog from "../AuditLog";
+// import Analytics from "../Analytics";
 
 
 // Icons
-import { FaHome, FaTasks, FaUserGraduate, FaUserTie, FaProjectDiagram, FaComments, FaSignOutAlt, FaFileUpload, FaFileSignature, FaBuilding, FaStar, FaShieldAlt, FaCalendarAlt, FaHistory, FaChartLine } from "react-icons/fa";
+import { FaHome, FaTasks, FaUserGraduate, FaUserTie, FaProjectDiagram, FaComments, FaSignOutAlt, FaFileUpload, FaFileSignature, FaBuilding, FaStar, FaShieldAlt, FaCalendarAlt } from "react-icons/fa";
 
 const Main = ({ defaultModule = "Dashboard" }) => {
   const navigate = useNavigate();
@@ -132,13 +133,7 @@ const Main = ({ defaultModule = "Dashboard" }) => {
         <FaTasks /> Feedback
       </button>
 
-      <div className={styles.nav_section_label}>System</div>
-      <button onClick={() => ShowModule("Analytics")} className={activeModule === "Analytics" ? styles.active : ""}>
-        <FaChartLine /> Analytics
-      </button>
-      <button onClick={() => ShowModule("AuditLog")} className={activeModule === "AuditLog" ? styles.active : ""}>
-        <FaHistory /> Audit Trail
-      </button>
+      {/* Analytics / Audit Trail nav hidden for now — not deleted, see AdminMain imports */}
 
       <button onClick={handleLogout} className={styles.logout_btn}>
         <FaSignOutAlt /> Logout
@@ -158,8 +153,7 @@ const Main = ({ defaultModule = "Dashboard" }) => {
     {activeModule === "AcademicCalendar"  && <AcademicCalendar />}
     {activeModule === "ChatBox"          && <ChatBox />}
     {activeModule === "Feedback" && <Feedback />}
-    {activeModule === "AuditLog" && <AuditLog />}
-    {activeModule === "Analytics" && <Analytics />}
+    {/* AuditLog / Analytics modules hidden for now — not deleted, see imports above */}
   </main>
 </div>
   );

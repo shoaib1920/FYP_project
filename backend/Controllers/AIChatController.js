@@ -8,7 +8,7 @@ const isAllowed = createRateLimiter({ maxRequests: 10, windowMs: 60 * 1000 });
 const HISTORY_LIMIT = 20; // messages of context sent to Gemini per turn
 
 // POST /auth/ai/chat
-exports.sendMessage = async (req, res) => {
+exports.sendAIMessage = async (req, res) => {
   try {
     const userId = req.user._id;
     const { message } = req.body;
@@ -44,8 +44,9 @@ exports.sendMessage = async (req, res) => {
   }
 };
 
+
 // GET /auth/ai/history
-exports.getHistory = async (req, res) => {
+exports.getAIHistory = async (req, res) => {
   try {
     const userId = req.user._id;
     const messages = await AIChatMessage.find({ userId }).sort({ timestamp: 1 }).limit(100);
@@ -57,7 +58,7 @@ exports.getHistory = async (req, res) => {
 };
 
 // DELETE /auth/ai/history
-exports.clearHistory = async (req, res) => {
+exports.clearAIHistory = async (req, res) => {
   try {
     const userId = req.user._id;
     await AIChatMessage.deleteMany({ userId });

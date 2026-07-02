@@ -1,8 +1,6 @@
 const express = require("express");
 const router = express.Router();
 const multer = require("multer");
-const { CloudinaryStorage } = require("multer-storage-cloudinary");
-const cloudinary = require("../utils/cloudinary");
 const Task = require("../Models/Task");
 const TaskAssignment = require("../Models/TaskAssignment");
 const UserProjectSummary = require("../Models/UserProjectSummary");
@@ -106,10 +104,10 @@ const TaskList = async (req, res) =>{
 
 // Create a New Task and Assign it to a User
 
-// Multer Storage Configuration — uploads go to Cloudinary, not local disk
-const storage = new CloudinaryStorage({
-	cloudinary,
-	params: { folder: "fyp/tasks", resource_type: "auto" },
+const path = require("path");
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, "uploads/tasks/"),
+  filename:    (req, file, cb) => cb(null, Date.now() + path.extname(file.originalname)),
 });
 
 // Multer Middleware

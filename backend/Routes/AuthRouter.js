@@ -1,7 +1,6 @@
 const route = require("express").Router();
 const multer = require("multer");
-const { CloudinaryStorage } = require("multer-storage-cloudinary");
-const cloudinary = require("../utils/cloudinary");
+const path = require("path");
 const { signup, login, studentSignup } = require("../Controllers/AuthController");
 const {
   signupValidation,
@@ -100,20 +99,22 @@ const {
   clearAllNotifications
 } = require("../Controllers/NotificationController");
 
+// const {getAIHistory,sendAIMessage, clearAIHistory} = require("../Controllers/AIChatController.js");
+
 const { admin_signup, admin_login,getAllAdmins,updateProjectStatus  } = require('../Controllers/adminController.js');
 const { forgotPassword, resetPassword } = require('../Controllers/PasswordResetController');
 const { verifyEmail, resendVerification } = require('../Controllers/EmailVerificationController');
 
-// setup multer — all uploads go straight to Cloudinary, no local disk storage
-const storage = new CloudinaryStorage({
-  cloudinary,
-  params: { folder: "fyp/templates", resource_type: "auto" },
+// ── Multer: local disk storage ────────────────────────────────────────────────
+const templateStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, "uploads/templates/"),
+  filename:    (req, file, cb) => cb(null, Date.now() + "-" + file.originalname),
 });
-const upload = multer({ storage });
+const upload = multer({ storage: templateStorage });
 
-const proposalStorage = new CloudinaryStorage({
-  cloudinary,
-  params: { folder: "fyp/proposals", resource_type: "auto" },
+const proposalStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, "uploads/proposals/"),
+  filename:    (req, file, cb) => cb(null, Date.now() + "-" + file.originalname),
 });
 const proposalUpload = multer({
   storage: proposalStorage,
@@ -123,18 +124,16 @@ const proposalUpload = multer({
     }
     cb(null, true);
   },
-  limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB max
-  },
+  limits: { fileSize: 10 * 1024 * 1024 },
 });
 
-const chatStorage = new CloudinaryStorage({
-  cloudinary,
-  params: { folder: "fyp/chat", resource_type: "auto" },
+const chatStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, "uploads/chat/"),
+  filename:    (req, file, cb) => cb(null, Date.now() + path.extname(file.originalname)),
 });
 const chatUpload = multer({
   storage: chatStorage,
-  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB max for videos
+  limits: { fileSize: 50 * 1024 * 1024 },
 });
 
 route.put('/update-project-status/:projectId', updateProjectStatus);
@@ -334,9 +333,9 @@ const {
   flagGrades,
 } = require("../Controllers/ProjectController");
 
-const finalReportStorage = new CloudinaryStorage({
-  cloudinary,
-  params: { folder: "fyp/final-reports", resource_type: "auto" },
+const finalReportStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, "uploads/final-reports/"),
+  filename:    (req, file, cb) => cb(null, Date.now() + "-" + file.originalname),
 });
 const finalReportUpload = multer({
   storage: finalReportStorage,
@@ -346,7 +345,7 @@ const finalReportUpload = multer({
     }
     cb(null, true);
   },
-  limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
+  limits: { fileSize: 20 * 1024 * 1024 },
 });
 
 route.get("/projects/team/:teamId", authenticate, getProjectsByTeam);
@@ -399,9 +398,9 @@ const {
   resolveReviewNote,
 } = require("../Controllers/ProjectReviewNoteController");
 
-const reviewNoteStorage = new CloudinaryStorage({
-  cloudinary,
-  params: { folder: "fyp/review-notes", resource_type: "image" },
+const reviewNoteStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, "uploads/review-notes/"),
+  filename:    (req, file, cb) => cb(null, Date.now() + "-" + file.originalname),
 });
 const reviewNoteUpload = multer({
   storage: reviewNoteStorage,
@@ -411,7 +410,7 @@ const reviewNoteUpload = multer({
     }
     cb(null, true);
   },
-  limits: { fileSize: 8 * 1024 * 1024 }, // 8MB per screenshot
+  limits: { fileSize: 8 * 1024 * 1024 },
 });
 
 route.post("/review-notes", authenticate, authorize("supervisor"), reviewNoteUpload.array("screenshots", 20), createReviewNote);
@@ -452,7 +451,7 @@ route.get("/group-chats/:teamId/messages", authenticate, getGroupMessages);
 // ─────────────────────────────────────────────
 // 🤖 AI CODING ASSISTANT (Gemini)
 // ─────────────────────────────────────────────
-const { sendMessage: sendAIMessage, getHistory: getAIHistory, clearHistory: clearAIHistory } = require("../Controllers/AIChatController");
+const { sendAIMessage,  getAIHistory,  clearAIHistory } = require("../Controllers/AIChatController");
 route.post("/ai/chat", authenticate, sendAIMessage);
 route.get("/ai/history", authenticate, getAIHistory);
 route.delete("/ai/history", authenticate, clearAIHistory);
