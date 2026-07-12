@@ -9,7 +9,7 @@ const VerifyPending = ({ role, loginPath }) => {
 
   const [email, setEmail] = useState(location.state?.email || "");
   const [newEmail, setNewEmail] = useState("");
-  const [showChangeEmail, setShowChangeEmail] = useState(false);
+  const [showChangeForm, setShowChangeForm] = useState(false);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const [msgType, setMsgType] = useState("");
@@ -67,7 +67,7 @@ const VerifyPending = ({ role, loginPath }) => {
       if (data.success) {
         setEmail(newEmail);
         setNewEmail("");
-        setShowChangeEmail(false);
+        setShowChangeForm(false);
       }
       setMsg(data.message);
       setMsgType(data.success ? "success" : "error");
@@ -80,76 +80,82 @@ const VerifyPending = ({ role, loginPath }) => {
   return (
     <div className={styles.page}>
       <div className={styles.card}>
-        <div className={styles.envelope}>
-          <FaEnvelope />
+
+        {/* Icon */}
+        <div className={styles.iconWrap}>
+          <FaEnvelope className={styles.icon} />
         </div>
 
+        {/* Header */}
         <h2 className={styles.heading}>Check Your Inbox</h2>
         <p className={styles.subheading}>
-          We sent a verification link to{" "}
-          <strong className={styles.emailBadge}>{email || "your email"}</strong>.
-          Open that email and click the link to activate your account.
+          We sent a verification link to
+        </p>
+        <div className={styles.emailPill}>{email || "your email"}</div>
+        <p className={styles.instruction}>
+          Open the email and click the link to activate your account.
         </p>
 
+        {/* Alert message */}
         {msg && (
-          <p className={`${styles.alertMsg} ${msgType === "error" ? styles.alertError : styles.alertSuccess}`}>
+          <div className={`${styles.alert} ${msgType === "error" ? styles.alertError : styles.alertSuccess}`}>
             {msg}
-          </p>
-        )}
-
-        {!msg && (
-          <div className={styles.actionBox}>
-            <div className={styles.verifyTabs}>
-              <button
-                type="button"
-                className={`${styles.verifyTab} ${!showChangeEmail ? styles.activeTab : ""}`}
-                onClick={() => setShowChangeEmail(false)}
-              >
-                Resend Email
-              </button>
-              <button
-                type="button"
-                className={`${styles.verifyTab} ${showChangeEmail ? styles.activeTab : ""}`}
-                onClick={() => setShowChangeEmail(true)}
-              >
-                Wrong Email?
-              </button>
-            </div>
-
-            {!showChangeEmail ? (
-              <button type="button" onClick={handleResend} disabled={busy} className={styles.actionBtn}>
-                {busy ? "Sending..." : "Resend Verification Email"}
-              </button>
-            ) : (
-              <form onSubmit={handleChangeEmail}>
-                <input
-                  type="email"
-                  placeholder="Enter your correct email"
-                  value={newEmail}
-                  onChange={(e) => setNewEmail(e.target.value)}
-                  required
-                  className={styles.actionInput}
-                />
-                <button type="submit" disabled={busy} className={styles.actionBtn}>
-                  {busy ? "Updating..." : "Update & Resend Verification"}
-                </button>
-              </form>
-            )}
           </div>
         )}
 
-        <hr className={styles.divider} />
-
+        {/* Primary CTA */}
         <button
           type="button"
           onClick={() => checkAndRedirect(false)}
           disabled={checking || !email}
-          className={styles.checkBtn}
+          className={styles.primaryBtn}
         >
-          {checking ? "Checking..." : "I've verified my email →"}
+          {checking ? "Checking..." : "I've Verified My Email"}
         </button>
+        <p className={styles.autoCheck}>Page checks automatically every few seconds</p>
 
-        <p className={styles.autoCheck}>This page checks automatically every few seconds.</p>
+        <div className={styles.divider} />
+
+        {/* Resend section */}
+        <div className={styles.helpRow}>
+          <span className={styles.helpQuestion}>Didn't receive the email?</span>
+          <button type="button" onClick={handleResend} disabled={busy} className={styles.helpBtn}>
+            {busy ? "Sending..." : "Resend verification email"}
+          </button>
+        </div>
+
+        <div className={styles.divider} />
+
+        {/* Change email section */}
+        <div className={styles.helpRow}>
+          <span className={styles.helpQuestion}>Used a wrong email address?</span>
+          {!showChangeForm ? (
+            <button type="button" onClick={() => setShowChangeForm(true)} className={styles.helpBtn}>
+              Change email address
+            </button>
+          ) : (
+            <form onSubmit={handleChangeEmail} className={styles.changeForm}>
+              <input
+                type="email"
+                placeholder="Enter your correct email"
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+                required
+                className={styles.changeInput}
+                autoFocus
+              />
+              <div className={styles.changeActions}>
+                <button type="submit" disabled={busy} className={styles.changeSubmit}>
+                  {busy ? "Updating..." : "Update & Resend"}
+                </button>
+                <button type="button" onClick={() => setShowChangeForm(false)} className={styles.changeCancelBtn}>
+                  Cancel
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+
       </div>
     </div>
   );

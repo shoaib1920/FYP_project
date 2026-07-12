@@ -3,157 +3,206 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  background: linear-gradient(145deg, #eff6ff 0%, #e0ecff 100%);
   padding: 20px;
 }
 
 .card {
-  background: #fff;
+  background: #ffffff;
   border-radius: 20px;
-  padding: 44px 36px 36px;
+  padding: 44px 40px 36px;
   width: 100%;
-  max-width: 440px;
-  box-shadow: 0 12px 40px rgba(59, 130, 246, 0.13);
+  max-width: 420px;
+  box-shadow: 0 16px 48px rgba(59, 130, 246, 0.12), 0 2px 8px rgba(0,0,0,0.04);
   text-align: center;
 }
 
-.envelope {
-  width: 72px;
-  height: 72px;
-  margin: 0 auto 20px;
-  background: linear-gradient(135deg, #1e40af, #3b82f6);
+/* ── Icon ── */
+.iconWrap {
+  width: 76px;
+  height: 76px;
+  margin: 0 auto 22px;
+  background: linear-gradient(135deg, #1d4ed8, #3b82f6);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 32px;
+  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.35);
+  animation: float 3.2s ease-in-out infinite;
+}
+
+.icon {
+  font-size: 30px;
   color: #fff;
-  animation: float 3s ease-in-out infinite;
 }
 
 @keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-9px); }
 }
 
+/* ── Header text ── */
 .heading {
-  font-size: 23px;
+  font-size: 22px;
   font-weight: 800;
-  color: #1e3a8a;
-  margin: 0 0 10px;
+  color: #111827;
+  margin: 0 0 6px;
+  letter-spacing: -0.3px;
 }
 
 .subheading {
   font-size: 14px;
   color: #6b7280;
-  line-height: 1.6;
-  margin: 0 0 20px;
+  margin: 0 0 10px;
 }
 
-.emailBadge {
-  color: #2563eb;
+.emailPill {
+  display: inline-block;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1d4ed8;
+  font-size: 13.5px;
+  font-weight: 600;
+  padding: 5px 14px;
+  border-radius: 999px;
+  margin-bottom: 10px;
   word-break: break-all;
 }
 
-.alertMsg {
+.instruction {
   font-size: 13.5px;
-  border-radius: 8px;
-  padding: 10px 14px;
-  margin: 0 0 16px;
-  font-weight: 500;
+  color: #9ca3af;
+  margin: 0 0 22px;
+  line-height: 1.55;
 }
 
-.alertSuccess { background: #d1fae5; color: #065f46; }
-.alertError   { background: #fee2e2; color: #991b1b; }
-
-.actionBox {
-  background: #f0f7ff;
-  border: 1px solid #bfdbfe;
-  border-radius: 12px;
-  padding: 16px;
+/* ── Alert ── */
+.alert {
+  font-size: 13.5px;
+  border-radius: 9px;
+  padding: 11px 14px;
   margin-bottom: 18px;
+  font-weight: 500;
+  line-height: 1.45;
   text-align: left;
 }
 
-.verifyTabs {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 12px;
-}
+.alertSuccess { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
+.alertError   { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
 
-.verifyTab {
-  flex: 1;
-  padding: 7px 10px;
-  border-radius: 7px;
-  border: 1px solid #93c5fd;
-  background: white;
-  color: #1e40af;
-  font-size: 12.5px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s;
-}
-
-.verifyTab.activeTab {
-  background: #3b82f6;
-  color: #fff;
-  border-color: #3b82f6;
-}
-
-.actionInput {
+/* ── Primary button ── */
+.primaryBtn {
   width: 100%;
-  padding: 10px 12px;
-  border: 1px solid #93c5fd;
-  border-radius: 8px;
-  font-size: 13.5px;
-  color: #1e3a8a;
-  background: white;
-  outline: none;
-  box-sizing: border-box;
-  margin-bottom: 8px;
-}
-
-.actionInput:focus { border-color: #3b82f6; }
-
-.actionBtn {
-  width: 100%;
-  padding: 10px;
-  border-radius: 8px;
+  padding: 13px;
+  border-radius: 11px;
   border: none;
-  background: #3b82f6;
+  background: linear-gradient(135deg, #1d4ed8, #3b82f6);
   color: #fff;
-  font-size: 13.5px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: opacity 0.15s;
-}
-
-.actionBtn:disabled { opacity: 0.6; cursor: not-allowed; }
-
-.divider {
-  border: none;
-  border-top: 1px solid #e5e7eb;
-  margin: 18px 0;
-}
-
-.checkBtn {
-  width: 100%;
-  padding: 12px;
-  border-radius: 10px;
-  border: 2px solid #1e40af;
-  background: #1e40af;
-  color: #fff;
-  font-size: 14.5px;
+  font-size: 15px;
   font-weight: 700;
   cursor: pointer;
-  transition: opacity 0.15s;
-  margin-bottom: 10px;
+  letter-spacing: 0.2px;
+  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.35);
+  transition: opacity 0.15s, transform 0.15s;
 }
 
-.checkBtn:disabled { opacity: 0.55; cursor: not-allowed; }
+.primaryBtn:hover:not(:disabled) { opacity: 0.92; transform: translateY(-1px); }
+.primaryBtn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
 
 .autoCheck {
   font-size: 11.5px;
-  color: #9ca3af;
-  margin: 0;
+  color: #c4c9d4;
+  margin: 8px 0 0;
 }
+
+/* ── Divider ── */
+.divider {
+  border: none;
+  border-top: 1px solid #f0f2f5;
+  margin: 22px 0;
+}
+
+/* ── Help rows ── */
+.helpRow {
+  text-align: left;
+}
+
+.helpQuestion {
+  display: block;
+  font-size: 13px;
+  color: #6b7280;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.helpBtn {
+  background: none;
+  border: 1.5px solid #bfdbfe;
+  color: #2563eb;
+  font-size: 13.5px;
+  font-weight: 600;
+  padding: 9px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  width: 100%;
+  text-align: center;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.helpBtn:hover:not(:disabled) { background: #eff6ff; border-color: #93c5fd; }
+.helpBtn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* ── Change email form ── */
+.changeForm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.changeInput {
+  width: 100%;
+  padding: 10px 13px;
+  border: 1.5px solid #bfdbfe;
+  border-radius: 8px;
+  font-size: 13.5px;
+  color: #1e3a8a;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+}
+
+.changeInput:focus { border-color: #3b82f6; }
+
+.changeActions {
+  display: flex;
+  gap: 8px;
+}
+
+.changeSubmit {
+  flex: 1;
+  padding: 10px;
+  border-radius: 8px;
+  border: none;
+  background: #2563eb;
+  color: #fff;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.changeSubmit:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.changeCancelBtn {
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1.5px solid #e5e7eb;
+  background: white;
+  color: #6b7280;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.changeCancelBtn:hover { background: #f9fafb; }
