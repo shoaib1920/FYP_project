@@ -22,9 +22,15 @@ require("./Models/Department");
 const app = express();
 const server = http.createServer(app);
 
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  process.env.CLIENT_URL,
+].filter(Boolean);
+
 const io = new Server(server, {
   cors: {
-    origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+    origin: allowedOrigins,
     methods: ['GET', 'POST'],
     credentials: true,
   },
@@ -223,7 +229,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use(bodyParser.json());
 
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+  origin: allowedOrigins,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   credentials: true,
 }));
@@ -238,6 +244,14 @@ app.use(
 );
 
 app.use('/auth', AuthRouter);
+
+// Serve React build in production
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, '../frontend/build')));
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/build', 'index.html'));
+  });
+}
 
 const PORT = process.env.PORT || 8000;
 server.listen(PORT, () => {
