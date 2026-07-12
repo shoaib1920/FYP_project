@@ -1,0 +1,5 @@
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/textyhcd/FYP_project
+    - cd $DEPLOYPATH/backend && npm install --omit=dev
