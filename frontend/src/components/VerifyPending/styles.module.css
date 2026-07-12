@@ -87,8 +87,9 @@
   text-align: left;
 }
 
-.alertSuccess { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
-.alertError   { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+.alert_success { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
+.alert_error   { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+.alert_warn    { background: #fffbeb; color: #92400e; border: 1px solid #fcd34d; }
 
 /* ── Primary button ── */
 .primaryBtn {
