@@ -93,6 +93,20 @@ const resendVerification = async (req, res) => {
   }
 };
 
+// POST /auth/check-verification  { email, role }
+const checkVerification = async (req, res) => {
+  try {
+    const { email, role } = req.body;
+    const Model = MODELS[role];
+    if (!Model || !email) return res.status(400).json({ verified: false });
+    const account = await Model.findOne({ email });
+    if (!account) return res.status(404).json({ verified: false, message: "No account found with this email." });
+    return res.json({ verified: !!account.isEmailVerified });
+  } catch (error) {
+    res.status(500).json({ verified: false, message: "Server error." });
+  }
+};
+
 // POST /auth/change-pending-email  { email, newEmail, role }
 const changePendingEmail = async (req, res) => {
   try {
@@ -120,4 +134,4 @@ const changePendingEmail = async (req, res) => {
   }
 };
 
-module.exports = { sendVerificationEmail, verifyEmail, resendVerification, changePendingEmail };
+module.exports = { sendVerificationEmail, verifyEmail, resendVerification, changePendingEmail, checkVerification };

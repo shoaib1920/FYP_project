@@ -113,12 +113,7 @@ const SupervisorSignup = () => {
 			}
 
 			await response.json();
-			setSuccess("Registration successful! Please check your email to verify your account before logging in.");
-			setSuccessVisible(true);
-
-			setTimeout(() => {
-				navigate("/supervisor/login");
-			}, 3500);
+			navigate("/supervisor/verify-pending", { state: { email: data.email } });
 		} catch (error) {
 			setError(error.message || "An unexpected error occurred");
 			setErrorVisible(true);

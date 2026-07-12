@@ -16,6 +16,7 @@ import StudentProposal from "./components/StudentProposal";
 import ForgotPassword from "./components/ForgotPassword";
 import ResetPassword from "./components/ResetPassword";
 import VerifyEmail from "./components/VerifyEmail";
+import VerifyPending from "./components/VerifyPending";
 
 
 
@@ -66,6 +67,10 @@ function App() {
     path="/admin/verify-email/:token"
     element={<VerifyEmail role="admin" loginPath="/admin/login" />}
   />
+  <Route
+    path="/admin/verify-pending"
+    element={<VerifyPending role="admin" loginPath="/admin/login" />}
+  />
 
 
 
@@ -87,6 +92,10 @@ function App() {
     path="/supervisor/verify-email/:token"
     element={<VerifyEmail role="supervisor" loginPath="/supervisor/login" />}
   />
+  <Route
+    path="/supervisor/verify-pending"
+    element={<VerifyPending role="supervisor" loginPath="/supervisor/login" />}
+  />
   <Route path="/supervisor/dashboard" element={<SupervisorMain defaultModule="Dashboard" />} />
 
   {/* <Route path="/ManageTeams" element={<ManageTeams defaultModule="Dashboard" />} /> */}
@@ -107,6 +116,10 @@ function App() {
   <Route
     path="/student/verify-email/:token"
     element={<VerifyEmail role="student" loginPath="/student/login" />}
+  />
+  <Route
+    path="/student/verify-pending"
+    element={<VerifyPending role="student" loginPath="/student/login" />}
   />
   <Route path="/student/my-tasks" element={<Main defaultModule="MyTasks" />} />
   <Route path="/student/create-tasks" element={<Main defaultModule="CreateTask" />} />

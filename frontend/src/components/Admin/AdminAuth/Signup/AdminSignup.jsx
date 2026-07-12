@@ -19,8 +19,7 @@ const AdminSignup = () => {
     setLoading(true);
     try {
       await axios.post(`${process.env.REACT_APP_API_URL}/auth/admin_signup`, admin);
-      setSuccess('Admin registered successfully! Please check your email to verify your account before logging in.');
-      setTimeout(() => navigate('/admin/login'), 3500);
+      navigate('/admin/verify-pending', { state: { email: admin.email } });
     } catch (error) {
       setError(error.response?.data?.message || error.message || "Signup failed");
     } finally {

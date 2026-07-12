@@ -111,12 +111,7 @@ const StudentSignup = () => {
 			}
 
 			await response.json();
-			setSuccess("Registration successful! Please check your email to verify your account before logging in.");
-			setSuccessVisible(true);
-
-			setTimeout(() => {
-				navigate("/student/login");
-			}, 3500);
+			navigate("/student/verify-pending", { state: { email: data.email } });
 		} catch (error) {
 			setError(error.message || "An unexpected error occurred");
 			setErrorVisible(true);
