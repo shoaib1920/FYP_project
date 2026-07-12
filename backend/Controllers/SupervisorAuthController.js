@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const Supervisor = require("../models/supervisorModel");
+const Supervisor = require("../Models/supervisorModel");
 const Department = require("../Models/Department");
 const { sendVerificationEmail } = require("./EmailVerificationController");
 

@@ -1,4 +1,4 @@
-const userModel = require("../models/UserModel");
+const userModel = require("../Models/Users");
 const jwt = require("jsonwebtoken");
 
 const verifyOTP = async (req, res) => {
