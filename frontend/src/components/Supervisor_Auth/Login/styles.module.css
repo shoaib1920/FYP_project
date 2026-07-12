@@ -133,6 +133,16 @@
   cursor: not-allowed;
 }
 
+.verifyTabs { display: flex; gap: 6px; margin-bottom: 10px; }
+.verifyTab { flex: 1; padding: 5px 8px; border-radius: 6px; border: 1px solid #93c5fd; background: white; color: #1e40af; font-size: 12px; font-weight: 600; cursor: pointer; }
+.verifyTab.activeTab { background: #3b82f6; color: white; border-color: #3b82f6; }
+.changeEmailForm { display: flex; flex-direction: column; gap: 7px; }
+.changeEmailInput { padding: 8px 10px; border: 1px solid #93c5fd; border-radius: 7px; font-size: 13px; outline: none; color: #1e3a8a; background: white; width: 100%; box-sizing: border-box; }
+.changeEmailInput:focus { border-color: #3b82f6; }
+.changeEmailBtn { padding: 8px; border-radius: 7px; border: none; background: #3b82f6; color: white; font-size: 13px; font-weight: 600; cursor: pointer; }
+.changeEmailBtn:disabled { opacity: 0.6; cursor: not-allowed; }
+.verifyMsg { font-size: 13px; text-align: center; color: #1e40af; }
+
 .forgotLink {
   align-self: flex-end;
   margin-top: -6px;

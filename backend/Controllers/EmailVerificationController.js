@@ -93,4 +93,31 @@ const resendVerification = async (req, res) => {
   }
 };
 
-module.exports = { sendVerificationEmail, verifyEmail, resendVerification };
+// POST /auth/change-pending-email  { email, newEmail, role }
+const changePendingEmail = async (req, res) => {
+  try {
+    const { email, newEmail, role } = req.body;
+    const Model = MODELS[role];
+    if (!Model) return res.status(400).json({ success: false, message: "Invalid role." });
+    if (!email || !newEmail) return res.status(400).json({ success: false, message: "Both current and new email are required." });
+    if (!/\S+@\S+\.\S+/.test(newEmail)) return res.status(400).json({ success: false, message: "Invalid email format." });
+    if (email.toLowerCase() === newEmail.toLowerCase()) return res.status(400).json({ success: false, message: "New email must be different from the current one." });
+
+    const account = await Model.findOne({ email });
+    if (!account) return res.status(404).json({ success: false, message: "No account found with this email." });
+    if (account.isEmailVerified) return res.status(400).json({ success: false, message: "This account is already verified. Please log in." });
+
+    const taken = await Model.findOne({ email: newEmail });
+    if (taken) return res.status(400).json({ success: false, message: "This email is already registered." });
+
+    account.email = newEmail;
+    await sendVerificationEmail(account, role);
+
+    res.status(200).json({ success: true, message: `Verification email sent to ${newEmail}. Please check your inbox.` });
+  } catch (error) {
+    console.error("Change pending email error:", error);
+    res.status(500).json({ success: false, message: "Server error while changing email." });
+  }
+};
+
+module.exports = { sendVerificationEmail, verifyEmail, resendVerification, changePendingEmail };

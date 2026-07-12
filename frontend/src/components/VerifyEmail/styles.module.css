@@ -101,3 +101,61 @@
 .backLink:hover {
   text-decoration: underline;
 }
+
+.recoveryBox {
+  background: #eff6ff;
+  border: 1px solid #93c5fd;
+  border-radius: 10px;
+  padding: 14px;
+  margin: 14px 0;
+  text-align: left;
+}
+
+.recoveryLabel {
+  font-size: 12.5px;
+  color: #1e40af;
+  font-weight: 600;
+  margin: 0 0 8px;
+  text-align: center;
+}
+
+.verifyTabs { display: flex; gap: 6px; margin-bottom: 10px; }
+.verifyTab { flex: 1; padding: 6px 8px; border-radius: 6px; border: 1px solid #93c5fd; background: white; color: #1e40af; font-size: 12px; font-weight: 600; cursor: pointer; }
+.verifyTab.activeTab { background: #3b82f6; color: white; border-color: #3b82f6; }
+
+.recoveryInput {
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid #93c5fd;
+  border-radius: 7px;
+  font-size: 13px;
+  outline: none;
+  color: #1e3a8a;
+  background: white;
+  box-sizing: border-box;
+  margin-bottom: 7px;
+}
+
+.recoveryInput:focus { border-color: #3b82f6; }
+
+.recoveryBtn {
+  width: 100%;
+  padding: 9px;
+  border-radius: 7px;
+  border: none;
+  background: #3b82f6;
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 6px;
+}
+
+.recoveryBtn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.recoveryMsg {
+  font-size: 13px;
+  text-align: center;
+  color: #1e40af;
+  margin: 6px 0 0;
+}

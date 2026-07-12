@@ -103,7 +103,7 @@ const {
 
 const { admin_signup, admin_login,getAllAdmins,updateProjectStatus  } = require('../Controllers/adminController.js');
 const { forgotPassword, resetPassword } = require('../Controllers/PasswordResetController');
-const { verifyEmail, resendVerification } = require('../Controllers/EmailVerificationController');
+const { verifyEmail, resendVerification, changePendingEmail } = require('../Controllers/EmailVerificationController');
 
 // ── Multer: local disk storage ────────────────────────────────────────────────
 const templateStorage = multer.diskStorage({
@@ -266,6 +266,7 @@ route.post("/reset-password", resetPassword);
 // ✉️ Email verification (works for student/supervisor/admin via { role } in the body)
 route.post("/verify-email", verifyEmail);
 route.post("/resend-verification", resendVerification);
+route.post("/change-pending-email", changePendingEmail);
 
 route.post("/signup", signupValidation, signup);
 route.post("/student/signup", studentSignup); // ✅ Student signup with department join code

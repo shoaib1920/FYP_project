@@ -12,6 +12,10 @@ const Login = () => {
   const [unverified, setUnverified] = useState(false);
   const [resending, setResending] = useState(false);
   const [resendMsg, setResendMsg] = useState("");
+  const [showChangeEmail, setShowChangeEmail] = useState(false);
+  const [newEmail, setNewEmail] = useState("");
+  const [changingEmail, setChangingEmail] = useState(false);
+  const [changeMsg, setChangeMsg] = useState("");
 
   const handleResend = async () => {
     setResending(true);
@@ -28,6 +32,25 @@ const Login = () => {
       setResendMsg("Failed to resend. Please try again.");
     } finally {
       setResending(false);
+    }
+  };
+
+  const handleChangeEmail = async (e) => {
+    e.preventDefault();
+    setChangingEmail(true);
+    setChangeMsg("");
+    try {
+      const res = await fetch(`${process.env.REACT_APP_API_URL}/auth/change-pending-email`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: data.email, newEmail, role: "student" }),
+      });
+      const result = await res.json();
+      setChangeMsg(result.message);
+    } catch {
+      setChangeMsg("Failed to update email. Please try again.");
+    } finally {
+      setChangingEmail(false);
     }
   };
 
@@ -156,12 +179,38 @@ const Login = () => {
 
           {unverified && (
             <div className={styles.resendBox}>
-              {resendMsg ? (
-                <span>{resendMsg}</span>
+              {changeMsg || resendMsg ? (
+                <span className={styles.verifyMsg}>{changeMsg || resendMsg}</span>
               ) : (
-                <button type="button" onClick={handleResend} disabled={resending} className={styles.resendBtn}>
-                  {resending ? "Sending..." : "Resend verification email"}
-                </button>
+                <>
+                  <div className={styles.verifyTabs}>
+                    <button type="button" className={`${styles.verifyTab} ${!showChangeEmail ? styles.activeTab : ""}`} onClick={() => setShowChangeEmail(false)}>
+                      Resend Email
+                    </button>
+                    <button type="button" className={`${styles.verifyTab} ${showChangeEmail ? styles.activeTab : ""}`} onClick={() => setShowChangeEmail(true)}>
+                      Change Email
+                    </button>
+                  </div>
+                  {!showChangeEmail ? (
+                    <button type="button" onClick={handleResend} disabled={resending} className={styles.resendBtn}>
+                      {resending ? "Sending..." : "Resend verification email"}
+                    </button>
+                  ) : (
+                    <form onSubmit={handleChangeEmail} className={styles.changeEmailForm}>
+                      <input
+                        type="email"
+                        placeholder="Enter your correct email"
+                        value={newEmail}
+                        onChange={(e) => setNewEmail(e.target.value)}
+                        required
+                        className={styles.changeEmailInput}
+                      />
+                      <button type="submit" disabled={changingEmail} className={styles.changeEmailBtn}>
+                        {changingEmail ? "Updating..." : "Update & Send Verification"}
+                      </button>
+                    </form>
+                  )}
+                </>
               )}
             </div>
           )}
