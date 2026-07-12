@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import styles from "./styles.module.css";
+import Loader from "../../Loader";
 import { resolveFileUrl } from "../../../utils/resolveFileUrl";
 import {
   FaClipboardList,
@@ -240,7 +241,7 @@ const ProposalApprovals = () => {
       )}
 
       {loading ? (
-        <div className={styles.message}>Loading proposals...</div>
+        <Loader text="Loading proposals..." />
       ) : displayedProposals.length === 0 ? (
         <div className={styles.message}>No proposals found.</div>
       ) : (

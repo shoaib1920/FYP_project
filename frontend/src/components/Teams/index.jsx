@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import styles from "./styles.module.css";
+import Loader from "../Loader";
 
 const ManageTeams = () => {
   const [teamName, setTeamName] = useState("");
@@ -78,7 +79,7 @@ const ManageTeams = () => {
 
       <div className={styles.teams_list}>
         {loading ? (
-          <p>Loading teams...</p>
+          <Loader text="Loading teams..." />
         ) : (
           <ul>
             {teams.length > 0 ? (

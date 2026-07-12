@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import styles from "./styles.module.css";
+import Loader from "../../Loader";
 import {
   FaUserTie,
   FaUserCheck,
@@ -282,7 +283,7 @@ const Supervisors = () => {
       )}
 
       {loading ? (
-        <p className={styles.emptyMsg}>Loading supervisors...</p>
+        <Loader text="Loading supervisors..." />
       ) : noDataYet ? (
         <div className={styles.noResultsBox}>
           <div className={styles.emptyIconWrap}><FaUserTie /></div>

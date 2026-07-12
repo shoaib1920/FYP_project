@@ -6,6 +6,7 @@ import {
   FaCalendarAlt, FaTimes, FaExclamationCircle, FaCheckCircle,
 } from "react-icons/fa";
 import styles from "./styles.module.css";
+import Loader from "../../Loader";
 
 /* ── Copy-to-clipboard icon button ── */
 const CopyIconBtn = ({ text }) => {
@@ -219,10 +220,7 @@ const DepartmentManagement = () => {
       </div>
 
       {loading && departments.length === 0 ? (
-        <div className={styles.loadingWrap}>
-          <div className={styles.spinner} />
-          <p>Loading departments...</p>
-        </div>
+        <Loader text="Loading departments..." />
       ) : departments.length === 0 ? (
         <div className={styles.emptyBox}>
           <div className={styles.emptyIconWrap}><FaBuilding /></div>

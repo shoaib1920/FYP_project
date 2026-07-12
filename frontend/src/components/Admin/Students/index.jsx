@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import styles from "./styles.module.css";
+import Loader from "../../Loader";
 import {
   FaUserGraduate,
   FaLayerGroup,
@@ -341,7 +342,7 @@ const AllUserGroups = () => {
       )}
 
       {loading ? (
-        <p className={styles.emptyMsg}>Loading students and teams...</p>
+        <Loader text="Loading students and teams..." />
       ) : noDataYet ? (
         <div className={styles.noResultsBox}>
           <div className={styles.emptyIconWrap}><FaLayerGroup /></div>

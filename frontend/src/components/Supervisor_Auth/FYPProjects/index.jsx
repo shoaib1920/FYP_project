@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import styles from "./styles.module.css";
+import Loader from "../../Loader";
 import { resolveFileUrl } from "../../../utils/resolveFileUrl";
 import { generateCompletionCertificate } from "../../../utils/certificateUtils";
 import {
@@ -466,7 +467,7 @@ const FYPProjects = () => {
       )}
 
       {loading ? (
-        <p className={styles.emptyMsg}>Loading projects...</p>
+        <Loader text="Loading projects..." />
       ) : projects.length === 0 ? (
         <p className={styles.emptyMsg}>No FYP projects assigned to you yet.</p>
       ) : filteredProjects.length === 0 ? (

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import styles from "./styles.module.css";
+import Loader from "../../Loader";
 import {
   FaProjectDiagram,
   FaUserGraduate,
@@ -210,7 +211,7 @@ const SupervisorDashboard = ({ setActiveModule }) => {
       {error && <div className={styles.errorBanner}>{error}</div>}
 
       {loading ? (
-        <div className={styles.loadingState}>Loading dashboard...</div>
+        <Loader text="Loading dashboard..." />
       ) : (
         <>
           {/* Quick actions */}

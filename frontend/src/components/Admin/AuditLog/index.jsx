@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import styles from "./styles.module.css";
+import Loader from "../../Loader";
 import {
   FaHistory,
   FaSearch,
@@ -134,7 +135,7 @@ const AuditLog = () => {
       </p>
 
       {loading ? (
-        <p className={styles.emptyMsg}>Loading audit logs...</p>
+        <Loader text="Loading audit logs..." />
       ) : filtered.length === 0 ? (
         <div className={styles.noResultsBox}>
           <p className={styles.emptyMsg}>No matching audit log entries.</p>

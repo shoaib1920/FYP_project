@@ -7,6 +7,7 @@ import {
   FaSearch, FaTimes,
 } from "react-icons/fa";
 import styles from "./styles.module.css";
+import Loader from "../../Loader";
 
 const STATUS_CHIP = {
   ACTIVE:       styles.chipActive,
@@ -167,14 +168,7 @@ const SupervisorDepartments = () => {
   const clearFilters = () => { setSearchTerm(""); setStatusFilter("ALL"); };
 
   /* ── Loading ── */
-  if (loading) {
-    return (
-      <div className={styles.loadingWrap}>
-        <div className={styles.spinner} />
-        <p>Loading department overview...</p>
-      </div>
-    );
-  }
+  if (loading) return <Loader text="Loading department overview..." />;
 
   /* ── Error ── */
   if (error) {

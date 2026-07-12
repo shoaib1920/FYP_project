@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import styles from "./styles.module.css";
+import Loader from "../../Loader";
 import {
   FaCalendarAlt,
   FaPlus,
@@ -183,7 +184,7 @@ const AcademicCalendar = () => {
       </div>
 
       {loading ? (
-        <p className={styles.emptyMsg}>Loading terms...</p>
+        <Loader text="Loading academic terms..." />
       ) : noData ? (
         <div className={styles.noResultsBox}>
           <div className={styles.emptyIconWrap}><FaCalendarAlt /></div>

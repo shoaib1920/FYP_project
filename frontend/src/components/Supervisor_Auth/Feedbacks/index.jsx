@@ -3,6 +3,7 @@ import axios from "axios";
 import { Star, MessageSquareText, Search, X, AlertTriangle } from "lucide-react";
 import dayjs from "dayjs";
 import styles from "./styles.module.css";
+import Loader from "../../Loader";
 
 const initials = (name) =>
   name ? name.split(" ").filter(Boolean).map((w) => w[0]).join("").toUpperCase().slice(0, 2) : "?";
@@ -175,7 +176,7 @@ const FeedbackList = () => {
       )}
 
       {loading ? (
-        <p className={styles.emptyMsg}>Loading feedback...</p>
+        <Loader text="Loading feedback..." />
       ) : noDataYet ? (
         <div className={styles.noResultsBox}>
           <div className={styles.emptyIconWrap}><MessageSquareText size={26} /></div>

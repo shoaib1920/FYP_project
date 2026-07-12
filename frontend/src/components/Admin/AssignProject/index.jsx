@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import styles from "./styles.module.css";
+import Loader from "../../Loader";
 import { resolveFileUrl } from "../../../utils/resolveFileUrl";
 import {
   FaProjectDiagram,
@@ -275,7 +276,7 @@ const AdminProjects = () => {
       )}
 
       {loading ? (
-        <p className={styles.emptyMsg}>Loading projects...</p>
+        <Loader text="Loading projects..." />
       ) : noDataYet ? (
         <div className={styles.noResultsBox}>
           <div className={styles.emptyIconWrap}><FaProjectDiagram /></div>

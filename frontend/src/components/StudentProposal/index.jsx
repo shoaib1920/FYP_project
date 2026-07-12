@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import axios from "axios";
 import styles from "./styles.module.css";
+import Loader from "../Loader";
 import DeadlineBanner from "../DeadlineBanner";
 import {
   FaFileSignature,
@@ -400,7 +401,7 @@ const StudentProposal = () => {
       {activeTab === "view" && (
         <div className={styles.viewTab}>
           {loading ? (
-            <p className={styles.info}>Loading proposals...</p>
+            <Loader text="Loading proposals..." />
           ) : proposals.length === 0 ? (
             <div className={styles.alert}>
               No proposals found. 

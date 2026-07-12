@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import styles from "./TemplateManager.module.css";
+import Loader from "../Loader";
 import { resolveFileUrl } from "../../utils/resolveFileUrl";
 import {
   FaDownload, FaFilePdf, FaFileWord, FaFilePowerpoint,
@@ -134,14 +135,7 @@ export default function TemplateManager() {
   const filteredProject = filterFn(projectTemplates);
   const totalDocs = globalTemplates.length + projectTemplates.length;
 
-  if (loading) {
-    return (
-      <div className={styles.loadingWrap}>
-        <div className={styles.spinner} />
-        <p>Loading templates...</p>
-      </div>
-    );
-  }
+  if (loading) return <Loader text="Loading templates..." />;
 
   return (
     <div className={styles.container}>

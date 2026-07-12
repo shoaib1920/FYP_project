@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import styles from "./styles.module.css";
+import Loader from "../../Loader";
 
 const CreateProject = () => {
   const [projects, setProjects] = useState([]);
@@ -95,7 +96,7 @@ useEffect(() => {
     {/* Projects Table */}
 <div className={styles.tableWrapper}>
   {loading ? (
-    <p className={styles.loadingText}>Loading projects...</p>
+    <Loader text="Loading projects..." />
   ) : (
     <div className={styles.tableContainer}>
       <table className={styles.styledTable}>

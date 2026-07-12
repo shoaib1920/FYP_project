@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import styles from "./styles.module.css";
+import Loader from "../../Loader";
 import { Bar, Doughnut } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -43,13 +44,7 @@ const Analytics = () => {
       .finally(() => setLoading(false));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (loading) {
-    return (
-      <div className={styles.container}>
-        <p className={styles.emptyMsg}>Loading analytics...</p>
-      </div>
-    );
-  }
+  if (loading) return <Loader text="Loading analytics..." />;
 
   if (error || !data) {
     return (

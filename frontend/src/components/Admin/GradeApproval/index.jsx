@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import styles from "./styles.module.css";
+import Loader from "../../Loader";
 import { resolveFileUrl } from "../../../utils/resolveFileUrl";
 import {
   FaStar,
@@ -425,7 +426,7 @@ const GradeApproval = () => {
       )}
 
       {loading ? (
-        <p className={styles.emptyMsg}>Loading projects...</p>
+        <Loader text="Loading projects..." />
       ) : filtered.length === 0 ? (
         <div className={styles.emptyBox}>
           <p className={styles.emptyMsg}>
