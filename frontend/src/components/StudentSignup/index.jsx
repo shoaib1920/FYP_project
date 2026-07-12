@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { FaUserGraduate, FaUser, FaEnvelope, FaLock, FaIdBadge, FaKey, FaCheckCircle } from "react-icons/fa";
+import { FaUserGraduate, FaUser, FaEnvelope, FaLock, FaIdBadge, FaKey, FaCheckCircle, FaEye, FaEyeSlash } from "react-icons/fa";
 import styles from "./styles.module.css";
 
 const StudentSignup = () => {
@@ -19,6 +19,8 @@ const StudentSignup = () => {
 	const [successVisible, setSuccessVisible] = useState(false);
 	const [loading, setLoading] = useState(false);
 	const [verifyingCode, setVerifyingCode] = useState(false);
+	const [showPassword, setShowPassword] = useState(false);
+	const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 	const navigate = useNavigate();
 
 	const handleChange = ({ currentTarget: input }) => {
@@ -197,20 +199,24 @@ const StudentSignup = () => {
 					<div className={styles.inputGroup}>
 						<FaLock className={styles.inputIcon} />
 						<input
-							type="password"
+							type={showPassword ? "text" : "password"}
 							placeholder="Password (Min 6 characters)"
 							name="password"
 							onChange={handleChange}
 							value={data.password}
 							required
 							className={styles.input}
+							style={{ paddingRight: '40px' }}
 						/>
+						<button type="button" onClick={() => setShowPassword(v => !v)} style={{ position: 'absolute', right: '12px', background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', display: 'flex', alignItems: 'center', padding: 0 }}>
+							{showPassword ? <FaEyeSlash /> : <FaEye />}
+						</button>
 					</div>
 
 					<div className={styles.inputGroup}>
 						<FaLock className={styles.inputIcon} />
 						<input
-							type="password"
+							type={showConfirmPassword ? "text" : "password"}
 							placeholder="Confirm Password"
 							name="confirmPassword"
 							onChange={handleChange}
@@ -218,7 +224,11 @@ const StudentSignup = () => {
 							disabled={!!departmentInfo}
 							required
 							className={styles.input}
+							style={{ paddingRight: '40px' }}
 						/>
+						<button type="button" onClick={() => setShowConfirmPassword(v => !v)} style={{ position: 'absolute', right: '12px', background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', display: 'flex', alignItems: 'center', padding: 0 }}>
+							{showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
+						</button>
 					</div>
 
 					<div className={styles.joinCodeGroup}>

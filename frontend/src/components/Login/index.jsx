@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { FaUserGraduate, FaEnvelope, FaLock } from "react-icons/fa";
+import { FaUserGraduate, FaEnvelope, FaLock, FaEye, FaEyeSlash } from "react-icons/fa";
 import styles from "./styles.module.css";
 
 const Login = () => {
   const [data, setData] = useState({ email: "", password: "" });
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorVisible, setErrorVisible] = useState(false); // Track animation state
@@ -129,14 +130,18 @@ const Login = () => {
           <div className={styles.inputGroup}>
             <FaLock className={styles.inputIcon} />
             <input
-              type="password"
+              type={showPassword ? "text" : "password"}
               placeholder="Password"
               name="password"
               onChange={handleChange}
               value={data.password}
               required
               className={styles.input}
+              style={{ paddingRight: '40px' }}
             />
+            <button type="button" onClick={() => setShowPassword(v => !v)} style={{ position: 'absolute', right: '12px', background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', display: 'flex', alignItems: 'center', padding: 0 }}>
+              {showPassword ? <FaEyeSlash /> : <FaEye />}
+            </button>
           </div>
 
           {error && (

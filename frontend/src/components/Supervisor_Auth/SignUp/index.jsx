@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaUserAlt, FaEnvelope, FaLock, FaPhoneAlt } from 'react-icons/fa'; // Importing icons
+import { FaUserAlt, FaEnvelope, FaLock, FaPhoneAlt, FaEye, FaEyeSlash } from 'react-icons/fa';
 import styles from "./styles.module.css";
 
 const SupervisorSignup = () => {
+  const [showPassword, setShowPassword] = useState(false);
   const [data, setData] = useState({
     name: "",
     email: "",
@@ -130,13 +131,17 @@ const SupervisorSignup = () => {
           <div className={styles.inputContainer}>
             <FaLock className={styles.inputIcon} />
             <input
-              type="password"
+              type={showPassword ? "text" : "password"}
               name="password"
               value={data.password}
               onChange={handleChange}
               placeholder="Password"
               required
+              style={{ paddingRight: '40px' }}
             />
+            <button type="button" onClick={() => setShowPassword(v => !v)} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', display: 'flex', alignItems: 'center', padding: 0 }}>
+              {showPassword ? <FaEyeSlash /> : <FaEye />}
+            </button>
           </div>
 
           <div className={styles.inputContainer}>

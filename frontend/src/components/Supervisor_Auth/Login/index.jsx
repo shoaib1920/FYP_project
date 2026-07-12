@@ -1,10 +1,11 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { FaUserTie, FaEnvelope, FaLock } from "react-icons/fa";
+import { FaUserTie, FaEnvelope, FaLock, FaEye, FaEyeSlash } from "react-icons/fa";
 import styles from "./styles.module.css";
 
 const SupervisorLogin = () => {
   const [data, setData] = useState({ email: "", password: "" });
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [unverified, setUnverified] = useState(false);
@@ -107,14 +108,18 @@ const SupervisorLogin = () => {
           <div className={styles.inputGroup}>
             <FaLock className={styles.inputIcon} />
             <input
-              type="password"
+              type={showPassword ? "text" : "password"}
               name="password"
               placeholder="Password"
               value={data.password}
               onChange={handleChange}
               required
               className={styles.input}
+              style={{ paddingRight: '40px' }}
             />
+            <button type="button" onClick={() => setShowPassword(v => !v)} style={{ position: 'absolute', right: '12px', background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', display: 'flex', alignItems: 'center', padding: 0 }}>
+              {showPassword ? <FaEyeSlash /> : <FaEye />}
+            </button>
           </div>
 
           {error && <p className={styles.error}>{error}</p>}
