@@ -1222,18 +1222,19 @@ const CreateTask = () => {
                             </span>
                           )}
                           {project.deploymentLink && (
-                            <button
-                              type="button"
-                              onClick={() => setPreviewUrl(project.deploymentLink)}
-                              title="View Live"
+                            <a
+                              href={/^https?:\/\//i.test(project.deploymentLink) ? project.deploymentLink : `https://${project.deploymentLink}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title="Open Live Site"
                               style={{
                                 display: "flex", alignItems: "center", justifyContent: "center",
                                 width: "28px", height: "28px", background: "#dbeafe", border: "1px solid #93c5fd",
-                                color: "#1e40af", borderRadius: "7px", fontSize: "13px", cursor: "pointer",
+                                color: "#1e40af", borderRadius: "7px", fontSize: "13px", textDecoration: "none",
                               }}
                             >
                               <FaPlayCircle />
-                            </button>
+                            </a>
                           )}
                           {isTeamLeader && !["COMPLETED", "CANCELLED"].includes(project.status) && (
                             <button
@@ -1322,7 +1323,7 @@ const CreateTask = () => {
                     </td>
                     <td>
                       <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                        {isTeamLeader && !["COMPLETED", "CANCELLED", "UNDER_REVIEW"].includes(project.status) && (
+                        {/* {isTeamLeader && !["COMPLETED", "CANCELLED", "UNDER_REVIEW"].includes(project.status) && (
                           <button
                             onClick={() => handleOpenModal(project._id)}
                             style={{
@@ -1334,7 +1335,7 @@ const CreateTask = () => {
                           >
                             <FaPlus style={{ fontSize: "10px" }} /> Add Task
                           </button>
-                        )}
+                        )} */}
                         {isTeamLeader && ["ACTIVE", "IN_PROGRESS"].includes(project.status) ? (
                           <button
                             onClick={() => handleOpenReportModal(project._id)}
