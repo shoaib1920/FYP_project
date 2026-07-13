@@ -105,22 +105,17 @@ const TaskList = async (req, res) =>{
 
 // Create a New Task and Assign it to a User
 
-const cloudinary = require("../utils/cloudinary");
+const path = require("path");
 
-// Use memory storage — no disk writes, works on any hosting without permission issues
-const upload = multer({ storage: multer.memoryStorage() }).single("taskFile");
-// Submission file also uses memory storage
-const submissionUpload = multer({ storage: multer.memoryStorage() }).single("submissionFile");
+// Disk storage — directory must exist at: backend/uploads/tasks/
+// Create it in cPanel File Manager with 755 permissions if it doesn't exist
+const taskStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, path.join(__dirname, "../uploads/tasks")),
+  filename:    (req, file, cb) => cb(null, Date.now() + path.extname(file.originalname)),
+});
 
-// Helper: upload a buffer to Cloudinary and return the secure URL
-const uploadToCloudinary = (buffer, originalname) =>
-  new Promise((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream(
-      { folder: "fyp_tasks", resource_type: "auto", public_id: `task_${Date.now()}` },
-      (error, result) => (error ? reject(error) : resolve(result.secure_url))
-    );
-    stream.end(buffer);
-  });
+const upload = multer({ storage: taskStorage }).single("taskFile");
+const submissionUpload = multer({ storage: taskStorage }).single("submissionFile");
 
 const createTask = async (req, res) => {
   upload(req, res, async (err) => {
@@ -132,7 +127,7 @@ const createTask = async (req, res) => {
       const { title, description, taskCode, startDate, dueDate, priority, projectId, createdBy, studentJoinCode } = req.body;
 
       if (!title || !description || !taskCode || !startDate || !dueDate) {
-        return res.status(400).json({ success: false, message: "All required fields (title, description, taskCode, startDate, dueDate) must be provided." });
+        return res.status(400).json({ success: false, message: "All required fields must be provided." });
       }
       if (!projectId || !mongoose.Types.ObjectId.isValid(projectId)) {
         return res.status(400).json({ success: false, message: "A valid project must be selected." });
@@ -141,16 +136,12 @@ const createTask = async (req, res) => {
         return res.status(400).json({ success: false, message: "Invalid user session. Please log out and log in again." });
       }
 
-      // Upload file to Cloudinary if provided
-      let taskFileUrl = null;
-      if (req.file) {
-        taskFileUrl = await uploadToCloudinary(req.file.buffer, req.file.originalname);
-      }
+      const taskFile = req.file ? req.file.path.replace(/\\/g, "/") : null;
 
       const newTask = new Task({
         title,
         description,
-        taskFile: taskFileUrl,
+        taskFile,
         taskCode,
         startDate,
         dueDate,
