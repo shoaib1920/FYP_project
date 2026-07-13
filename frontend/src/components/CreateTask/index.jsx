@@ -274,8 +274,8 @@ const CreateTask = () => {
     try {
       const response = await axios.post(
         `${process.env.REACT_APP_API_URL}/auth/task`,
-        formData,
-        { headers: { "Content-Type": "multipart/form-data" } }
+        formData
+        // axios sets Content-Type: multipart/form-data with the correct boundary automatically
       );
 
       const newTask = response.data.task || response.data;
