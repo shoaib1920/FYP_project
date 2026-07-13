@@ -436,13 +436,29 @@ const MyTasks = () => {
         <div className={styles.chartCard}>
           <h4 className={styles.chartTitle}>My Task Distribution</h4>
           <div className={styles.chartBody}>
-            <Pie data={MypieData} options={{ ...pieOptions, cutout: "55%" }} />
+            {filteredTasks.length > 0 ? (
+              <Pie data={MypieData} options={{ ...pieOptions, cutout: "55%" }} />
+            ) : (
+              <div className={styles.chartEmpty}>
+                <FaChartPie className={styles.chartEmptyIcon} />
+                <p className={styles.chartEmptyTitle}>No data yet</p>
+                <span className={styles.chartEmptyText}>Your task breakdown will appear here once tasks are assigned to you.</span>
+              </div>
+            )}
           </div>
         </div>
         <div className={styles.chartCard}>
           <h4 className={styles.chartTitle}>Others Task Distribution</h4>
           <div className={styles.chartBody}>
-            <Pie data={OtherpieData} options={{ ...pieOptions, cutout: "55%" }} />
+            {filteredOtherTasks.length > 0 ? (
+              <Pie data={OtherpieData} options={{ ...pieOptions, cutout: "55%" }} />
+            ) : (
+              <div className={styles.chartEmpty}>
+                <FaChartPie className={styles.chartEmptyIcon} />
+                <p className={styles.chartEmptyTitle}>No data yet</p>
+                <span className={styles.chartEmptyText}>Tasks you assign to team members will appear here once created.</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
