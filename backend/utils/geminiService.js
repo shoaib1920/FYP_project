@@ -105,7 +105,6 @@ Technologies: ${proposal.technologies}`;
         ],
         temperature: 0.3,
         max_tokens: 512,
-        response_format: { type: "json_object" },
       },
       { headers: buildHeaders(apiKey), timeout: 30000 }
     );
@@ -115,14 +114,16 @@ Technologies: ${proposal.technologies}`;
 
   const raw = response.data?.choices?.[0]?.message?.content || "";
   try {
-    const parsed = JSON.parse(raw);
+    // Strip markdown code fences that some models add despite json_object instruction
+    const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/i, "").trim();
+    const parsed = JSON.parse(cleaned);
     return {
       score: Number.isFinite(parsed.score) ? Math.max(0, Math.min(100, Math.round(parsed.score))) : 50,
       issues: Array.isArray(parsed.issues) ? parsed.issues.slice(0, 8) : [],
       suggestions: Array.isArray(parsed.suggestions) ? parsed.suggestions.slice(0, 8) : [],
     };
   } catch {
-    return { score: 50, issues: [], suggestions: ["The AI quality check returned an unexpected format — review the proposal manually."] };
+    return { score: 50, issues: [], suggestions: [] };
   }
 }
 

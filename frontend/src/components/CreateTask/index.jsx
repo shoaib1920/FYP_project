@@ -240,79 +240,67 @@ const CreateTask = () => {
 
 
   const handleSubmit = async (e) => {
-  e.preventDefault();
+    e.preventDefault();
 
-  if (!isTeamLeader) {
-    setMessage("Only the team leader can create tasks.");
-    return;
-  }
+    if (!isTeamLeader) {
+      setMessage("Only the team leader can create tasks.");
+      return;
+    }
 
-  setLoading(true);
+    if (!taskData.projectId) {
+      setMessage("❌ Please select a project for this task.");
+      return;
+    }
 
-  const formData = new FormData();
-  formData.append("title", taskData.title);
-  formData.append("description", taskData.description);
+    if (!userId) {
+      setMessage("❌ Session error — please log out and log in again.");
+      return;
+    }
 
-  if (taskData.taskFile) {
-    formData.append("taskFile", taskData.taskFile);
-  }
+    setLoading(true);
 
-  formData.append("taskCode", taskData.taskCode);
-  formData.append("startDate", taskData.startDate);
-  formData.append("dueDate", taskData.dueDate);
-  formData.append("priority", taskData.priority);
-  formData.append("projectId", taskData.projectId);
+    const formData = new FormData();
+    formData.append("title", taskData.title);
+    formData.append("description", taskData.description);
+    if (taskData.taskFile) formData.append("taskFile", taskData.taskFile);
+    formData.append("taskCode", taskData.taskCode);
+    formData.append("startDate", taskData.startDate);
+    formData.append("dueDate", taskData.dueDate);
+    formData.append("priority", taskData.priority || "Medium");
+    formData.append("projectId", taskData.projectId);
+    formData.append("createdBy", userId);
+    if (studentJoinCode) formData.append("studentJoinCode", studentJoinCode);
 
-  // ✅ Send creator ID
-  formData.append("createdBy", userId);
-  
-  // ✅ Send studentJoinCode
-  formData.append("studentJoinCode", studentJoinCode);
+    try {
+      const response = await axios.post(
+        `${process.env.REACT_APP_API_URL}/auth/task`,
+        formData,
+        { headers: { "Content-Type": "multipart/form-data" } }
+      );
 
-  try {
-    const response = await axios.post(
-      `${process.env.REACT_APP_API_URL}/auth/task`,
-      formData,
-      {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      }
-    );
+      const newTask = response.data.task || response.data;
+      const projectName = groupProjects.find((p) => String(p._id) === String(taskData.projectId))?.title || "Unknown Project";
 
-    const newTask = response.data.task || response.data;
+      const formattedTask = {
+        ...newTask,
+        projectName,
+        startDate: newTask.startDate ? newTask.startDate.split("T")[0] : "N/A",
+        dueDate: newTask.dueDate ? newTask.dueDate.split("T")[0] : "N/A",
+      };
 
-    const formattedTask = {
-      ...newTask,
-      startDate: newTask.startDate
-        ? newTask.startDate.split("T")[0]
-        : "N/A",
-      dueDate: newTask.dueDate
-        ? newTask.dueDate.split("T")[0]
-        : "N/A",
-    };
-
-    setMessage("✅ Task Created Successfully!");
-    setTasks((prevTasks) => [...prevTasks, formattedTask]);
-
-    setTaskData({
-      title: "",
-      description: "",
-      taskFile: null,
-      taskCode: "",
-      startDate: "",
-      dueDate: "",
-      priority: "Medium",
-      projectId: "",
-    });
-  } catch (error) {
-    setMessage("❌ Error creating task. Please try again.");
-    console.error("Task creation error:", error);
-  } finally {
-    setLoading(false);
-    setTimeout(() => setMessage(""), 3000);
-  }
-};
+      setMessage("✅ Task Created Successfully!");
+      setTasks((prevTasks) => [...prevTasks, formattedTask]);
+      setShowModal(false);
+      setTaskData({ title: "", description: "", taskFile: null, taskCode: "", startDate: "", dueDate: "", priority: "Medium", projectId: "" });
+    } catch (error) {
+      const msg = error.response?.data?.message || "Error creating task. Please try again.";
+      setMessage(`❌ ${msg}`);
+      console.error("Task creation error:", error.response?.data || error);
+    } finally {
+      setLoading(false);
+      setTimeout(() => setMessage(""), 5000);
+    }
+  };
 
   // Edit Task
   const handleEdit = (task) => {
@@ -349,16 +337,24 @@ const CreateTask = () => {
       setMessage("❌ Error updating task.");
     }
   };
-  const handleOpenModal = () => {
+  const handleOpenModal = (preselectedProjectId = "") => {
     if (!isTeamLeader) {
       setMessage("Only the team leader can create tasks.");
       return;
     }
+    if (preselectedProjectId) {
+      setTaskData((prev) => ({ ...prev, projectId: preselectedProjectId }));
+    }
+    setEditingTaskId(null);
     setShowModal(true);
   };
   const handleCloseModal = () => {
     setShowModal(false);
-    setEditingTaskId(null); // Optional: reset edit mode on close
+    setEditingTaskId(null);
+    setTaskData({
+      title: "", description: "", taskFile: null, taskCode: "",
+      startDate: "", dueDate: "", priority: "Medium", projectId: "",
+    });
   };
 
   const handleAssign = (task) => {
@@ -1325,23 +1321,36 @@ const CreateTask = () => {
                       })()}
                     </td>
                     <td>
-                      {isTeamLeader && ["ACTIVE", "IN_PROGRESS"].includes(project.status) ? (
-                        <button
-                          onClick={() => handleOpenReportModal(project._id)}
-                          style={{
-                            padding: "6px 12px", background: "#7c3aed", color: "white",
-                            border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "13px", fontWeight: "600",
-                          }}
-                        >
-                          Submit Report
-                        </button>
-                      ) : project.status === "UNDER_REVIEW" ? (
-                        <span style={{ color: "#6a1b9a", fontSize: "12px", fontWeight: "600" }}>Under Review</span>
-                      ) : project.status === "COMPLETED" ? (
-                        <span style={{ color: "#2e7d32", fontSize: "12px", fontWeight: "600" }}>Completed</span>
-                      ) : (
-                        <span style={{ color: "#9ca3af", fontSize: "12px" }}>—</span>
-                      )}
+                      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                        {isTeamLeader && !["COMPLETED", "CANCELLED", "UNDER_REVIEW"].includes(project.status) && (
+                          <button
+                            onClick={() => handleOpenModal(project._id)}
+                            style={{
+                              display: "flex", alignItems: "center", gap: "5px",
+                              padding: "5px 10px", background: "#eff6ff", color: "#1e40af",
+                              border: "1px solid #bfdbfe", borderRadius: "6px", cursor: "pointer",
+                              fontSize: "12px", fontWeight: "600",
+                            }}
+                          >
+                            <FaPlus style={{ fontSize: "10px" }} /> Add Task
+                          </button>
+                        )}
+                        {isTeamLeader && ["ACTIVE", "IN_PROGRESS"].includes(project.status) ? (
+                          <button
+                            onClick={() => handleOpenReportModal(project._id)}
+                            style={{
+                              padding: "5px 10px", background: "#7c3aed", color: "white",
+                              border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "12px", fontWeight: "600",
+                            }}
+                          >
+                            Submit Report
+                          </button>
+                        ) : project.status === "UNDER_REVIEW" ? (
+                          <span style={{ color: "#6a1b9a", fontSize: "12px", fontWeight: "600" }}>Under Review</span>
+                        ) : project.status === "COMPLETED" ? (
+                          <span style={{ color: "#2e7d32", fontSize: "12px", fontWeight: "600" }}>Completed</span>
+                        ) : null}
+                      </div>
                     </td>
                   </tr>
                 );

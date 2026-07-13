@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const multer = require("multer");
+const mongoose = require("mongoose");
 const Task = require("../Models/Task");
 const TaskAssignment = require("../Models/TaskAssignment");
 const UserProjectSummary = require("../Models/UserProjectSummary");
@@ -105,9 +106,21 @@ const TaskList = async (req, res) =>{
 // Create a New Task and Assign it to a User
 
 const path = require("path");
+const fs = require("fs");
+
+const TASK_UPLOAD_DIR = path.join(__dirname, "../uploads/tasks");
+
+// Lazily create the directory inside the destination callback — never at module load
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, "uploads/tasks/"),
-  filename:    (req, file, cb) => cb(null, Date.now() + path.extname(file.originalname)),
+  destination: (req, file, cb) => {
+    try {
+      if (!fs.existsSync(TASK_UPLOAD_DIR)) fs.mkdirSync(TASK_UPLOAD_DIR, { recursive: true });
+      cb(null, TASK_UPLOAD_DIR);
+    } catch (dirErr) {
+      cb(dirErr);
+    }
+  },
+  filename: (req, file, cb) => cb(null, Date.now() + path.extname(file.originalname)),
 });
 
 // Multer Middleware
@@ -154,10 +167,7 @@ const submissionUpload = multer({ storage: storage }).single("submissionFile");
 const createTask = async (req, res) => {
   upload(req, res, async (err) => {
     if (err) {
-      return res.status(500).json({
-        success: false,
-        message: "File upload failed",
-      });
+      return res.status(500).json({ success: false, message: "File upload failed: " + err.message });
     }
 
     try {
@@ -173,6 +183,17 @@ const createTask = async (req, res) => {
         studentJoinCode,
       } = req.body;
 
+      // Explicit validation so the caller gets a clear 400, not a cryptic 500
+      if (!title || !description || !taskCode || !startDate || !dueDate) {
+        return res.status(400).json({ success: false, message: "All required fields (title, description, taskCode, startDate, dueDate) must be provided." });
+      }
+      if (!projectId || !mongoose.Types.ObjectId.isValid(projectId)) {
+        return res.status(400).json({ success: false, message: "A valid project must be selected." });
+      }
+      if (!createdBy || !mongoose.Types.ObjectId.isValid(createdBy)) {
+        return res.status(400).json({ success: false, message: "Invalid user session. Please log out and log in again." });
+      }
+
       const taskFile = req.file ? req.file.path : null;
 
       const newTask = new Task({
@@ -182,26 +203,19 @@ const createTask = async (req, res) => {
         taskCode,
         startDate,
         dueDate,
-        priority,
+        priority: priority || "Medium",
         projectId,
         createdBy,
-        studentJoinCode,
+        studentJoinCode: studentJoinCode || undefined,
         isAssigned: false,
       });
 
       await newTask.save();
 
-      res.status(201).json({
-        success: true,
-        message: "Task Created Successfully!",
-        task: newTask,
-      });
+      res.status(201).json({ success: true, message: "Task Created Successfully!", task: newTask });
     } catch (error) {
       console.error("Task Creation Error:", error);
-      res.status(500).json({
-        success: false,
-        message: "Internal Server Error",
-      });
+      res.status(500).json({ success: false, message: error.message || "Internal Server Error" });
     }
   });
 };
