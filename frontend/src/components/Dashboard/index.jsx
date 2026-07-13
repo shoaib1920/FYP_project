@@ -2,12 +2,15 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import styles from "./styles.module.css";
 import { useNavigate } from "react-router-dom";
-import { Bar } from "react-chartjs-2";
+import { Bar, Line } from "react-chartjs-2";
 import {
   Chart as ChartJS,
   CategoryScale,
   LinearScale,
   BarElement,
+  LineElement,
+  PointElement,
+  Filler,
   Title,
   Tooltip,
   Legend,
@@ -17,7 +20,7 @@ import {
   FaClipboardList, FaCheckCircle, FaLock, FaFileAlt,
 } from "react-icons/fa";
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
+ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Filler, Title, Tooltip, Legend);
 
 const Dashboard = ({ setActiveModule }) => {
   const navigate = useNavigate();
@@ -243,6 +246,49 @@ const Dashboard = ({ setActiveModule }) => {
     },
   };
 
+  const hasWeeklyData = progressCompletedData.some((v) => v > 0) || progressPendingData.some((v) => v > 0);
+
+  const weeklyProgressData = {
+    labels: progressLabels,
+    datasets: [
+      {
+        label: "Completed",
+        data: progressCompletedData,
+        borderColor: "#22c55e",
+        backgroundColor: "rgba(34,197,94,0.12)",
+        borderWidth: 2.5,
+        pointBackgroundColor: "#22c55e",
+        pointRadius: 4,
+        tension: 0.4,
+        fill: true,
+      },
+      {
+        label: "Pending",
+        data: progressPendingData,
+        borderColor: "#f97316",
+        backgroundColor: "rgba(249,115,22,0.08)",
+        borderWidth: 2.5,
+        pointBackgroundColor: "#f97316",
+        pointRadius: 4,
+        tension: 0.4,
+        fill: true,
+      },
+    ],
+  };
+
+  const weeklyChartOptions = {
+    responsive: true,
+    plugins: {
+      legend: { position: "top", labels: { font: { size: 12 }, boxWidth: 12, padding: 16 } },
+      title: { display: false },
+      tooltip: { mode: "index", intersect: false },
+    },
+    scales: {
+      x: { grid: { display: false } },
+      y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: "rgba(0,0,0,0.04)" } },
+    },
+  };
+
   const steps = [
     { icon: <FaCheckCircle />, label: "Email verified & account created", done: true },
     {
@@ -401,6 +447,25 @@ const Dashboard = ({ setActiveModule }) => {
         )}
       </div>
 
+      {/* ── Weekly Progress Chart ── */}
+      <div className={styles.weeklySection}>
+        <div className={styles.sectionHeader}>
+          <h2 className={styles.sectionTitle}>Weekly Progress</h2>
+          <span className={styles.sectionBadge}>Last 8 weeks</span>
+        </div>
+        {hasWeeklyData ? (
+          <div className={styles.weeklyChart}>
+            <Line data={weeklyProgressData} options={weeklyChartOptions} />
+          </div>
+        ) : (
+          <div className={styles.emptyState}>
+            <FaChartBar className={styles.emptyIcon} />
+            <p className={styles.emptyTitle}>No weekly progress yet</p>
+            <span className={styles.emptyText}>Once tasks are assigned and completed, your week-by-week progress will appear here.</span>
+          </div>
+        )}
+      </div>
+
       {/* ── Leaderboard ── */}
       <div className={styles.leaderboard}>
         <h2>Top Performers</h2>
@@ -417,10 +482,12 @@ const Dashboard = ({ setActiveModule }) => {
             </thead>
             <tbody>
               {filteredLeaderboard.map((user, index) => (
-                <tr key={user.userId}>
-                  <td>#{index + 1}</td>
+                <tr key={user.userId} className={index === 0 ? styles.rankGold : index === 1 ? styles.rankSilver : index === 2 ? styles.rankBronze : ""}>
+                  <td className={styles.rankCell}>
+                    {index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `#${index + 1}`}
+                  </td>
                   <td>{user.userName}</td>
-                  <td>{user.completedProjects}</td>
+                  <td><span className={styles.taskCount}>{user.completedProjects}</span></td>
                 </tr>
               ))}
             </tbody>

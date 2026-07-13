@@ -477,6 +477,43 @@
 	}
 }
 
+/* ── Weekly Progress Section ── */
+.weeklySection {
+	background: white;
+	padding: 20px 22px;
+	border-radius: 14px;
+	box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+	margin: 0 0 22px;
+}
+
+.sectionHeader {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin-bottom: 18px;
+}
+
+.sectionTitle {
+	font-size: 16px;
+	font-weight: 700;
+	color: #1f2937;
+	margin: 0;
+}
+
+.sectionBadge {
+	background: #eff6ff;
+	color: #2563eb;
+	font-size: 11.5px;
+	font-weight: 600;
+	padding: 3px 9px;
+	border-radius: 999px;
+}
+
+.weeklyChart {
+	height: 240px;
+	position: relative;
+}
+
 /* 📌 Leaderboard Section */
 .leaderboard {
 	background: white;
@@ -523,6 +560,25 @@
 .leaderboard tr:hover {
 	background: #eff6ff;
 	cursor: pointer;
+}
+
+.rankGold  { background: #fffbeb !important; }
+.rankSilver { background: #f8fafc !important; }
+.rankBronze { background: #fff7ed !important; }
+
+.rankCell {
+	font-size: 18px;
+	text-align: center;
+}
+
+.taskCount {
+	display: inline-block;
+	background: #eff6ff;
+	color: #1e40af;
+	font-weight: 700;
+	font-size: 12.5px;
+	padding: 3px 10px;
+	border-radius: 999px;
 }
 
 /* 📱 Responsive Design */
