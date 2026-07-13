@@ -262,7 +262,6 @@ const CreateTask = () => {
     const formData = new FormData();
     formData.append("title", taskData.title);
     formData.append("description", taskData.description);
-    if (taskData.taskFile) formData.append("taskFile", taskData.taskFile);
     formData.append("taskCode", taskData.taskCode);
     formData.append("startDate", taskData.startDate);
     formData.append("dueDate", taskData.dueDate);
@@ -1071,12 +1070,6 @@ const CreateTask = () => {
                 required
               ></textarea>
 
-              <label htmlFor="taskFile">Task File (optional):</label>
-              <input
-                type="file"
-                name="taskFile"
-                onChange={handleChange}
-              />
 
               <label htmlFor="taskCode">Task Code:</label>
               <input
