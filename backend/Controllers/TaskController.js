@@ -136,7 +136,7 @@ const createTask = async (req, res) => {
         return res.status(400).json({ success: false, message: "Invalid user session. Please log out and log in again." });
       }
 
-      const taskFile = req.file ? req.file.path.replace(/\\/g, "/") : null;
+      const taskFile = req.file ? "uploads/tasks/" + req.file.filename : null;
 
       const newTask = new Task({
         title,
@@ -196,7 +196,7 @@ const submitProject = async (req, res) => {
       };
 
       if (req.file) {
-        update.submissionFile = req.file.path;
+        update.submissionFile = "uploads/tasks/" + req.file.filename;
       }
 
       const assignmentUpdateResult = await TaskAssignment.updateOne(

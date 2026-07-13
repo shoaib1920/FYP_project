@@ -251,73 +251,133 @@ const MyTasks = () => {
       {showModal && selectedTask && (
         <div className={styles.modalOverlay}>
           <div className={styles.modalContainer}>
-            <h2 className={styles.modalTitle}>{reviewMode ? "📋 Review Submission" : "🔍 Inspect Task"}</h2>
-            <div className={styles.modalBody}>
-              <p><strong>📁 Project:</strong> {selectedTask.projectTitle || selectedTask.project || "Unknown Project"}</p>
-              <p><strong>🧩 Task Code:</strong> {selectedTask.taskCode || "N/A"}</p>
-              <p><strong>👤 User:</strong> {selectedTask.user}</p>
-              <p><strong>📌 Status:</strong> {selectedTask.status}</p>
-              <p><strong>🔖 Role:</strong> {selectedTask.role}</p>
-              <p><strong>📄 Description:</strong> {selectedTask.description || "No description available."}</p>
-              <p><strong>🎯 Priority:</strong> {selectedTask.priority || "N/A"}</p>
-              <p><strong>🗓 Start Date:</strong> {selectedTask.startDate ? new Date(selectedTask.startDate).toLocaleDateString() : "N/A"}</p>
-              <p><strong>⏰ Due Date:</strong> {selectedTask.dueDate ? new Date(selectedTask.dueDate).toLocaleDateString() : "N/A"}</p>
-              {selectedTask.taskFile ? (
-                <p>
-                  <strong>📎 Task File:</strong>{" "}
-                  <a
-                    href={resolveFileUrl(selectedTask.taskFile)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    View File
-                  </a>
+            {/* Modal header */}
+            <div className={styles.modalHeader}>
+              <div className={styles.modalHeaderIcon}>
+                {reviewMode ? <FaCheck /> : <FaEye />}
+              </div>
+              <div>
+                <h2 className={styles.modalTitle}>
+                  {reviewMode ? "Review Submission" : "Task Details"}
+                </h2>
+                <p className={styles.modalSubtitle}>
+                  {selectedTask.projectTitle || selectedTask.project || "Unknown Project"}
                 </p>
-              ) : (
-                <p><strong>📎 Task File:</strong> Not available</p>
+              </div>
+              <button className={styles.modalCloseX} onClick={() => setShowModal(false)}>✕</button>
+            </div>
+
+            <div className={styles.modalBody}>
+              {/* Status + role badges */}
+              <div className={styles.modalBadgeRow}>
+                <span className={`${styles.statusBadge} ${STATUS_CLASS[selectedTask.status] || ""}`}>
+                  {STATUS_ICON[selectedTask.status]} {selectedTask.status}
+                </span>
+                <span className={`${styles.roleBadge} ${ROLE_CLASS[selectedTask.role] || ""}`}>
+                  {selectedTask.role}
+                </span>
+              </div>
+
+              {/* Info grid */}
+              <div className={styles.infoGrid}>
+                <div className={styles.infoItem}>
+                  <span className={styles.infoLabel}>Assigned To</span>
+                  <span className={styles.infoValue}>{selectedTask.user || "N/A"}</span>
+                </div>
+                <div className={styles.infoItem}>
+                  <span className={styles.infoLabel}>Task Code</span>
+                  <span className={styles.infoValue}>{selectedTask.taskCode || "N/A"}</span>
+                </div>
+                <div className={styles.infoItem}>
+                  <span className={styles.infoLabel}>Priority</span>
+                  <span className={styles.infoValue}>{selectedTask.priority || "N/A"}</span>
+                </div>
+                <div className={styles.infoItem}>
+                  <span className={styles.infoLabel}>Start Date</span>
+                  <span className={styles.infoValue}>
+                    {selectedTask.startDate ? new Date(selectedTask.startDate).toLocaleDateString() : "N/A"}
+                  </span>
+                </div>
+                <div className={styles.infoItem}>
+                  <span className={styles.infoLabel}>Due Date</span>
+                  <span className={styles.infoValue}>
+                    {selectedTask.dueDate ? new Date(selectedTask.dueDate).toLocaleDateString() : "N/A"}
+                  </span>
+                </div>
+                {selectedTask.submittedAt && (
+                  <div className={styles.infoItem}>
+                    <span className={styles.infoLabel}>Submitted At</span>
+                    <span className={styles.infoValue}>
+                      {new Date(selectedTask.submittedAt).toLocaleString()}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Description */}
+              {selectedTask.description && (
+                <div className={styles.descSection}>
+                  <span className={styles.infoLabel}>Description</span>
+                  <p className={styles.descText}>{selectedTask.description}</p>
+                </div>
               )}
 
+              {/* Task file */}
+              {selectedTask.taskFile && (
+                <a
+                  className={styles.fileBtn}
+                  href={resolveFileUrl(selectedTask.taskFile)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  download
+                >
+                  📎 Download Task File
+                </a>
+              )}
+
+              {/* Submission section */}
               {(selectedTask.submissionNote || selectedTask.submissionFile) && (
-                <>
-                  <hr className={styles.modalDivider} />
-                  <p><strong>📝 Submission Note:</strong> {selectedTask.submissionNote || "No note provided."}</p>
-                  <p>
-                    <strong>📦 Submitted File:</strong>{" "}
-                    {selectedTask.submissionFile ? (
-                      <a
-                        href={resolveFileUrl(selectedTask.submissionFile)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        View Submission File
-                      </a>
-                    ) : (
-                      "No file attached."
-                    )}
-                  </p>
-                  {selectedTask.submittedAt && (
-                    <p><strong>🗓 Submitted At:</strong> {new Date(selectedTask.submittedAt).toLocaleString()}</p>
+                <div className={styles.submissionCard}>
+                  <div className={styles.submissionCardHeader}>Submission</div>
+                  {selectedTask.submissionNote && (
+                    <p className={styles.submissionNote}>{selectedTask.submissionNote}</p>
                   )}
-                </>
+                  {selectedTask.submissionFile && (
+                    <a
+                      className={styles.fileBtn}
+                      href={resolveFileUrl(selectedTask.submissionFile)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      download
+                    >
+                      📥 Download Submitted File
+                    </a>
+                  )}
+                </div>
               )}
 
+              {/* Rejection note */}
               {selectedTask.status === "Rejected" && selectedTask.reviewNote && (
-                <p><strong>❌ Rejection Reason:</strong> {selectedTask.reviewNote}</p>
+                <div className={styles.rejectionCard}>
+                  <span className={styles.rejectionLabel}>Rejection Reason</span>
+                  <p className={styles.rejectionText}>{selectedTask.reviewNote}</p>
+                </div>
               )}
 
+              {/* Review input (leader only, review mode) */}
               {reviewMode && (
-                <>
-                  <hr className={styles.modalDivider} />
-                  <label className={styles.reviewNoteLabel}>Feedback to the student (optional)</label>
+                <div style={{ marginTop: "16px" }}>
+                  <label className={styles.reviewNoteLabel}>Feedback to student (optional)</label>
                   <textarea
-                    placeholder="Add a comment, e.g. reason for rejection or feedback..."
+                    placeholder="Add a comment, e.g. reason for rejection or approval note..."
                     value={reviewNote}
                     onChange={(e) => setReviewNote(e.target.value)}
                     className={styles.submitNoteInput}
                   />
-                </>
+                </div>
               )}
             </div>
+
             <div className={styles.modalActions}>
               {reviewMode ? (
                 <>
@@ -326,14 +386,14 @@ const MyTasks = () => {
                     disabled={reviewing}
                     onClick={() => handleApprovProject(selectedTask, reviewNote.trim())}
                   >
-                    <FaCheck /> Approve
+                    <FaCheck /> {reviewing ? "Approving..." : "Approve"}
                   </button>
                   <button
                     className={styles.rejectBtn}
                     disabled={reviewing}
                     onClick={() => handleRejectProject(selectedTask, reviewNote.trim())}
                   >
-                    <FaTimes /> Reject
+                    <FaTimes /> {reviewing ? "Rejecting..." : "Reject"}
                   </button>
                   <button className={styles.closeBtn} onClick={() => setShowModal(false)}>
                     Cancel
