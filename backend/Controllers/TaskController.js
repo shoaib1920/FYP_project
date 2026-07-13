@@ -105,64 +105,22 @@ const TaskList = async (req, res) =>{
 
 // Create a New Task and Assign it to a User
 
-const path = require("path");
-const fs = require("fs");
+const cloudinary = require("../utils/cloudinary");
 
-const TASK_UPLOAD_DIR = path.join(__dirname, "../uploads/tasks");
+// Use memory storage — no disk writes, works on any hosting without permission issues
+const upload = multer({ storage: multer.memoryStorage() }).single("taskFile");
+// Submission file also uses memory storage
+const submissionUpload = multer({ storage: multer.memoryStorage() }).single("submissionFile");
 
-// Lazily create the directory inside the destination callback — never at module load
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    try {
-      if (!fs.existsSync(TASK_UPLOAD_DIR)) fs.mkdirSync(TASK_UPLOAD_DIR, { recursive: true });
-      cb(null, TASK_UPLOAD_DIR);
-    } catch (dirErr) {
-      cb(dirErr);
-    }
-  },
-  filename: (req, file, cb) => cb(null, Date.now() + path.extname(file.originalname)),
-});
-
-// Multer Middleware
-const upload = multer({ storage: storage }).single("taskFile");
-const submissionUpload = multer({ storage: storage }).single("submissionFile");
-
-// const createTask = async (req, res) => {
-// 	upload(req, res, async (err) => {
-// 		if (err) {
-// 			return res.status(500).json({ success: false, message: "File upload failed" });
-// 		}
-
-// 		try {
-// 			const { title, description, taskCode, startDate, dueDate, priority, projectId } = req.body;
-// 			const taskFile = req.file ? req.file.filename : null; // File ka naam store karo
-
-// 			if (!taskFile) {
-// 				return res.status(400).json({ success: false, message: "Please upload a file" });
-// 			}
-
-// 			const newTask = new Task({
-// 				title,
-// 				description,
-// 				taskFile,
-// 				taskCode,
-// 				startDate,
-// 				dueDate,
-// 				priority,
-// 				projectId,
-// 			});
-
-// 			await newTask.save();
-
-// 			res.status(201).json({ success: true, message: "Task Created Successfully!", task: newTask });
-// 		} catch (error) {
-// 			console.error("Task Creation Error:", error);
-// 			res.status(500).json({ success: false, message: "Internal Server Error" });
-// 		}
-// 	});
-// };
-
-
+// Helper: upload a buffer to Cloudinary and return the secure URL
+const uploadToCloudinary = (buffer, originalname) =>
+  new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      { folder: "fyp_tasks", resource_type: "auto", public_id: `task_${Date.now()}` },
+      (error, result) => (error ? reject(error) : resolve(result.secure_url))
+    );
+    stream.end(buffer);
+  });
 
 const createTask = async (req, res) => {
   upload(req, res, async (err) => {
@@ -171,19 +129,8 @@ const createTask = async (req, res) => {
     }
 
     try {
-      const {
-        title,
-        description,
-        taskCode,
-        startDate,
-        dueDate,
-        priority,
-        projectId,
-        createdBy,
-        studentJoinCode,
-      } = req.body;
+      const { title, description, taskCode, startDate, dueDate, priority, projectId, createdBy, studentJoinCode } = req.body;
 
-      // Explicit validation so the caller gets a clear 400, not a cryptic 500
       if (!title || !description || !taskCode || !startDate || !dueDate) {
         return res.status(400).json({ success: false, message: "All required fields (title, description, taskCode, startDate, dueDate) must be provided." });
       }
@@ -194,12 +141,16 @@ const createTask = async (req, res) => {
         return res.status(400).json({ success: false, message: "Invalid user session. Please log out and log in again." });
       }
 
-      const taskFile = req.file ? req.file.path : null;
+      // Upload file to Cloudinary if provided
+      let taskFileUrl = null;
+      if (req.file) {
+        taskFileUrl = await uploadToCloudinary(req.file.buffer, req.file.originalname);
+      }
 
       const newTask = new Task({
         title,
         description,
-        taskFile,
+        taskFile: taskFileUrl,
         taskCode,
         startDate,
         dueDate,
