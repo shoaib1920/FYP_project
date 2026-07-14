@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import axios from "axios";
+import { useLocation } from "react-router-dom";
 import styles from "./styles.module.css";
 import { FaRobot, FaTimes, FaPaperPlane, FaTrash } from "react-icons/fa";
 
@@ -32,6 +33,10 @@ function renderContent(content) {
 }
 
 const AIAssistant = () => {
+  const location = useLocation();
+  // Chat page has the send button at bottom-right — move FAB to bottom-left to avoid overlap
+  const isChatPage = /chats?/i.test(location.pathname);
+
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
@@ -120,6 +125,7 @@ const AIAssistant = () => {
     <>
       <button
         className={styles.fab}
+        style={isChatPage ? { right: "auto", left: "26px" } : undefined}
         onClick={() => setOpen((prev) => !prev)}
         title="AI Coding Assistant"
         aria-label="Open AI coding assistant"
@@ -128,7 +134,10 @@ const AIAssistant = () => {
       </button>
 
       {open && (
-        <div className={styles.panel}>
+        <div
+          className={styles.panel}
+          style={isChatPage ? { right: "auto", left: "26px" } : undefined}
+        >
           <div className={styles.panelHeader}>
             <div className={styles.headerInfo}>
               <FaRobot className={styles.headerIcon} />
