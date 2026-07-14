@@ -174,7 +174,10 @@ const SupervisorChatBox = () => {
       const isOpen = String(selectedGroupRef.current?.teamId) === String(msg.teamId);
       if (isOpen) {
         setGroupMessages((prev) => {
-          if (prev.find((m) => String(m._id) === String(msg._id))) return prev;
+          if (prev.some((m) => String(m._id) === String(msg._id))) return prev;
+          if (msg.tempId && prev.some((m) => m.tempId && String(m.tempId) === String(msg.tempId))) {
+            return prev.map((m) => (m.tempId && String(m.tempId) === String(msg.tempId) ? { ...msg } : m));
+          }
           return [...prev, msg];
         });
       }
