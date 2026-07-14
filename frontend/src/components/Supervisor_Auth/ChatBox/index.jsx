@@ -13,7 +13,7 @@ function getSocket(token) {
   if (!supervisorSocketInstance || !supervisorSocketInstance.connected) {
     supervisorSocketInstance = io(API, {
       auth: { token },
-      transports: ["websocket"],
+      transports: ["polling", "websocket"],
       reconnectionAttempts: 5,
     });
   }
