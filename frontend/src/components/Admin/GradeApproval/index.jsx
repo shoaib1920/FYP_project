@@ -528,10 +528,22 @@ const ProjectCard = ({ project, activeTab, actionLoading, onRelease, onFlag, api
                 const letter = g.marks >= 80 ? "A" : g.marks >= 70 ? "B" : g.marks >= 60 ? "C" : g.marks >= 50 ? "D" : "F";
                 const gradeColor = g.marks >= 80 ? "#2e7d32" : g.marks >= 70 ? "#1565c0" : g.marks >= 60 ? "#e65100" : g.marks >= 50 ? "#d97706" : "#c62828";
                 return (
-                  <div key={i} className={styles.gradeRow}>
-                    <span className={styles.studentName}>{g.name}</span>
-                    <span className={styles.marksVal}>{g.marks}/100</span>
-                    <span className={styles.letterGrade} style={{ color: gradeColor }}>{letter}</span>
+                  <div key={i}>
+                    <div className={styles.gradeRow}>
+                      <span className={styles.studentName}>{g.name}</span>
+                      <span className={styles.marksVal}>{g.marks}/100</span>
+                      <span className={styles.letterGrade} style={{ color: gradeColor }}>{letter}</span>
+                    </div>
+                    {g.rubricScores?.length > 0 && (
+                      <div className={styles.rubricBreakdown}>
+                        {g.rubricScores.map((rs, j) => (
+                          <div key={j} className={styles.rubricBreakdownRow}>
+                            <span className={styles.rbCriterion}>{rs.criterionName}</span>
+                            <span className={styles.rbMeta}>{rs.score}/100 × {rs.weight}% = <strong>{((rs.score * rs.weight) / 100).toFixed(1)} pts</strong></span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
               })}

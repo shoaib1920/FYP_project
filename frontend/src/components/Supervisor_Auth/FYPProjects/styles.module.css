@@ -496,8 +496,10 @@
   background: white;
   padding: 28px;
   border-radius: 14px;
-  width: 90%;
-  max-width: 460px;
+  width: 92%;
+  max-width: 680px;
+  max-height: 90vh;
+  overflow-y: auto;
   box-shadow: 0 8px 32px rgba(0,0,0,0.2);
 }
 
@@ -632,6 +634,124 @@
   font-size: 14px;
   color: #374151;
   text-align: right;
+}
+
+/* ── Rubric grading ── */
+.memberRubricBlock {
+  margin-bottom: 18px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.memberRubricHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: #f0f4ff;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.memberWeightedScore {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1d4ed8;
+  background: #dbeafe;
+  border-radius: 20px;
+  padding: 2px 12px;
+}
+
+.rubricTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.rubricTable thead tr {
+  background: #f9fafb;
+}
+
+.rubricTable thead th {
+  padding: 7px 10px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.rubricThCriterion { width: 44%; }
+.rubricThWt        { width: 10%; text-align: center; }
+.rubricThScore     { width: 22%; text-align: center; }
+.rubricThContrib   { width: 24%; text-align: center; }
+
+.rubricRow {
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.rubricRow:last-child {
+  border-bottom: none;
+}
+
+.rubricRow:hover {
+  background: #fafafa;
+}
+
+.rubricCriterionCell {
+  padding: 8px 10px;
+  vertical-align: top;
+}
+
+.criterionName {
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 2px;
+}
+
+.criterionDesc {
+  font-size: 11px;
+  color: #9ca3af;
+  line-height: 1.4;
+}
+
+.rubricWeightCell {
+  text-align: center;
+  padding: 8px 6px;
+  font-weight: 600;
+  color: #4b5563;
+  vertical-align: middle;
+}
+
+.rubricScoreCell {
+  text-align: center;
+  padding: 6px;
+  vertical-align: middle;
+}
+
+.criterionInput {
+  width: 68px;
+  padding: 5px 7px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 13px;
+  text-align: center;
+}
+
+.criterionInput:focus {
+  outline: none;
+  border-color: #7c3aed;
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.15);
+}
+
+.rubricContribCell {
+  text-align: center;
+  padding: 8px 6px;
+  font-weight: 600;
+  color: #059669;
+  vertical-align: middle;
 }
 
 /* Completed grades display */

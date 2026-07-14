@@ -120,6 +120,13 @@ const projectSchema = new mongoose.Schema(
         userId: { type: mongoose.Schema.Types.ObjectId, ref: "users" },
         name: { type: String },
         marks: { type: Number, min: 0, max: 100, default: 0 },
+        rubricScores: [
+          {
+            criterionName: { type: String },
+            weight: { type: Number },
+            score: { type: Number, min: 0, max: 100 },
+          },
+        ],
       },
     ],
 

@@ -46,6 +46,15 @@ const GRADES_STATUS_COLORS = {
   FLAGGED:         { bg: "#fee2e2", color: "#991b1b", label: "Flagged — Re-grade Required" },
 };
 
+const DEFAULT_RUBRIC = [
+  { name: "Problem Definition & Objectives", weight: 10, description: "Clarity, relevance and measurability of the research problem and objectives" },
+  { name: "Literature Review",               weight: 10, description: "Quality, breadth and critical analysis of related work" },
+  { name: "System Design & Architecture",    weight: 20, description: "Design decisions, system architecture and technical approach" },
+  { name: "Implementation & Functionality",  weight: 30, description: "Code quality, feature completeness, robustness and correctness" },
+  { name: "Testing & Validation",            weight: 15, description: "Test planning, coverage, results and QA" },
+  { name: "Report & Documentation",          weight: 15, description: "Report structure, clarity, formatting and completeness" },
+];
+
 const buildMemberList = (project) => {
   const seen = new Set();
   const members = [];
@@ -66,7 +75,7 @@ const FYPProjects = () => {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [gradeModal, setGradeModal] = useState(null); // { projectId, title, members, isRegrade }
-  const [memberGrades, setMemberGrades] = useState({});
+  const [rubricScores, setRubricScores] = useState({}); // { [memberId]: [score0, score1, ...] }
   const [evalRemarks, setEvalRemarks] = useState("");
   const [completing, setCompleting] = useState(false);
   const [toast, setToast] = useState("");
@@ -201,34 +210,69 @@ const FYPProjects = () => {
 
   const openGradeModal = (project, isRegrade = false) => {
     const members = buildMemberList(project);
-    const initialGrades = {};
+    const initialScores = {};
     members.forEach((m) => {
       const existing = project.memberGrades?.find((g) => String(g.userId) === m._id);
-      initialGrades[m._id] = existing ? String(existing.marks) : "";
+      if (existing?.rubricScores?.length) {
+        initialScores[m._id] = DEFAULT_RUBRIC.map((c) => {
+          const rs = existing.rubricScores.find((r) => r.criterionName === c.name);
+          return rs !== undefined ? String(rs.score) : "";
+        });
+      } else {
+        initialScores[m._id] = DEFAULT_RUBRIC.map(() => "");
+      }
     });
+    setRubricScores(initialScores);
     setGradeModal({ projectId: project._id, title: project.title, members, isRegrade, flaggedReason: project.flaggedReason });
-    setMemberGrades(initialGrades);
-    setEvalRemarks(project.remarks || "");
+    setEvalRemarks(isRegrade ? (project.remarks || "") : "");
   };
 
-  const setGrade = (id, val) => setMemberGrades((prev) => ({ ...prev, [id]: val }));
+  const setCriterionScore = (memberId, idx, val) => {
+    setRubricScores((prev) => {
+      const scores = [...(prev[memberId] || DEFAULT_RUBRIC.map(() => ""))];
+      scores[idx] = val;
+      return { ...prev, [memberId]: scores };
+    });
+  };
+
+  const calcMemberWeightedScore = (memberId) => {
+    const scores = rubricScores[memberId] || [];
+    for (let i = 0; i < DEFAULT_RUBRIC.length; i++) {
+      if (scores[i] === "" || scores[i] === undefined) return null;
+      const n = Number(scores[i]);
+      if (isNaN(n) || n < 0 || n > 100) return null;
+    }
+    return Math.round(
+      DEFAULT_RUBRIC.reduce((sum, c, i) => sum + (Number(scores[i]) * c.weight) / 100, 0)
+    );
+  };
 
   const handleSubmitGrades = async () => {
     const { members, projectId, title, isRegrade } = gradeModal;
 
     for (const m of members) {
-      const num = Number(memberGrades[m._id]);
-      if (memberGrades[m._id] === "" || isNaN(num) || num < 0 || num > 100) {
-        alert(`Please enter valid marks (0–100) for "${m.name}".`);
-        return;
+      const scores = rubricScores[m._id] || [];
+      for (let i = 0; i < DEFAULT_RUBRIC.length; i++) {
+        const n = Number(scores[i]);
+        if (scores[i] === "" || scores[i] === undefined || isNaN(n) || n < 0 || n > 100) {
+          alert(`Please enter valid marks (0–100) for "${m.name}" — ${DEFAULT_RUBRIC[i].name}.`);
+          return;
+        }
       }
     }
 
-    const gradesArray = members.map((m) => ({
-      userId: m._id,
-      name: m.name,
-      marks: Number(memberGrades[m._id]),
-    }));
+    const gradesArray = members.map((m) => {
+      const scores = rubricScores[m._id] || [];
+      const rubricArr = DEFAULT_RUBRIC.map((c, i) => ({
+        criterionName: c.name,
+        weight: c.weight,
+        score: Number(scores[i]),
+      }));
+      const weightedMarks = Math.round(
+        rubricArr.reduce((sum, rs) => sum + (rs.score * rs.weight) / 100, 0)
+      );
+      return { userId: m._id, name: m.name, marks: weightedMarks, rubricScores: rubricArr };
+    });
     const avgMarks = Math.round(gradesArray.reduce((s, g) => s + g.marks, 0) / gradesArray.length);
 
     setCompleting(true);
@@ -271,14 +315,12 @@ const FYPProjects = () => {
     }
   };
 
-  const allFilled = gradeModal?.members?.every(
-    (m) => memberGrades[m._id] !== "" && !isNaN(Number(memberGrades[m._id]))
-  ) ?? false;
+  const allFilled = (gradeModal?.members?.every((m) => calcMemberWeightedScore(m._id) !== null) ?? false);
 
   const liveAvg =
     allFilled && gradeModal?.members?.length
       ? Math.round(
-          gradeModal.members.reduce((s, m) => s + Number(memberGrades[m._id] || 0), 0) /
+          gradeModal.members.reduce((s, m) => s + (calcMemberWeightedScore(m._id) || 0), 0) /
             gradeModal.members.length
         )
       : null;
@@ -412,31 +454,71 @@ const FYPProjects = () => {
             )}
 
             <div className={styles.membersSection}>
-              <p className={styles.sectionLabel}>Individual Marks (0–100)</p>
+              <p className={styles.sectionLabel}>Rubric-Based Evaluation</p>
               {gradeModal.members.length === 0 ? (
                 <p className={styles.noMembersNote}>No team members found.</p>
               ) : (
-                gradeModal.members.map((m) => (
-                  <div key={m._id} className={styles.memberRow}>
-                    <span className={styles.memberName}>{m.name}</span>
-                    <input
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={memberGrades[m._id] ?? ""}
-                      onChange={(e) => setGrade(m._id, e.target.value)}
-                      className={styles.gradeInput}
-                      placeholder="0–100"
-                    />
-                    <span className={styles.outOf}>/100</span>
-                  </div>
-                ))
+                gradeModal.members.map((m) => {
+                  const memberScore = calcMemberWeightedScore(m._id);
+                  return (
+                    <div key={m._id} className={styles.memberRubricBlock}>
+                      <div className={styles.memberRubricHeader}>
+                        <span className={styles.memberName}>{m.name}</span>
+                        {memberScore !== null && (
+                          <span className={styles.memberWeightedScore}>
+                            {memberScore}/100
+                          </span>
+                        )}
+                      </div>
+                      <table className={styles.rubricTable}>
+                        <thead>
+                          <tr>
+                            <th className={styles.rubricThCriterion}>Criterion</th>
+                            <th className={styles.rubricThWt}>Wt.</th>
+                            <th className={styles.rubricThScore}>Score</th>
+                            <th className={styles.rubricThContrib}>Contrib.</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {DEFAULT_RUBRIC.map((c, i) => {
+                            const raw = rubricScores[m._id]?.[i];
+                            const contrib =
+                              raw !== "" && raw !== undefined && !isNaN(Number(raw))
+                                ? ((Number(raw) * c.weight) / 100).toFixed(1)
+                                : "—";
+                            return (
+                              <tr key={i} className={styles.rubricRow}>
+                                <td className={styles.rubricCriterionCell}>
+                                  <div className={styles.criterionName}>{c.name}</div>
+                                  <div className={styles.criterionDesc}>{c.description}</div>
+                                </td>
+                                <td className={styles.rubricWeightCell}>{c.weight}%</td>
+                                <td className={styles.rubricScoreCell}>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    value={raw ?? ""}
+                                    onChange={(e) => setCriterionScore(m._id, i, e.target.value)}
+                                    className={styles.criterionInput}
+                                    placeholder="0–100"
+                                  />
+                                </td>
+                                <td className={styles.rubricContribCell}>{contrib}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  );
+                })
               )}
             </div>
 
             {liveAvg !== null && (
               <p className={styles.avgNote}>
-                Average: <strong>{liveAvg}</strong>/100
+                Team Average: <strong>{liveAvg}</strong>/100
               </p>
             )}
 
