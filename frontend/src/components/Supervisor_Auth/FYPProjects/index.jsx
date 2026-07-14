@@ -55,6 +55,32 @@ const DEFAULT_RUBRIC = [
   { name: "Report & Documentation",          weight: 15, description: "Report structure, clarity, formatting and completeness" },
 ];
 
+const INTERNAL_RUBRIC = [
+  { name: "Commitment & Attendance",  weight: 25, description: "Regularity of supervision meetings and responsiveness" },
+  { name: "Problem Understanding",    weight: 25, description: "Depth of understanding of the research problem and domain" },
+  { name: "Independent Initiative",   weight: 25, description: "Self-driven progress and proactivity between meetings" },
+  { name: "Communication Quality",    weight: 25, description: "Clarity of progress updates and oral presentations" },
+];
+
+const MIDTERM_RUBRIC = [
+  { name: "Progress vs Plan",    weight: 30, description: "Achievement of milestones relative to the project timeline" },
+  { name: "Technical Depth",     weight: 30, description: "Quality and depth of implementation completed so far" },
+  { name: "Problem Solving",     weight: 20, description: "How challenges and blockers have been handled" },
+  { name: "Documentation",       weight: 20, description: "Quality of interim reports, diagrams and progress notes" },
+];
+
+const PHASE_CONFIG = {
+  INTERNAL: { label: "Supervisor Internal Assessment", weight: 20, rubric: null },
+  MIDTERM:  { label: "Mid-term Evaluation",            weight: 20, rubric: null },
+  FINAL:    { label: "Final Assessment",               weight: 60, rubric: null },
+};
+
+function getRubricForPhase(phase) {
+  if (phase === "INTERNAL") return INTERNAL_RUBRIC;
+  if (phase === "MIDTERM")  return MIDTERM_RUBRIC;
+  return DEFAULT_RUBRIC; // FINAL
+}
+
 const buildMemberList = (project) => {
   const seen = new Set();
   const members = [];
@@ -95,6 +121,9 @@ const FYPProjects = () => {
   const [historyProject, setHistoryProject] = useState(null); // project whose review history is open
   const [reviewHistory, setReviewHistory] = useState([]);
   const [reviewHistoryLoading, setReviewHistoryLoading] = useState(false);
+
+  const [phaseModal, setPhaseModal] = useState(null);   // { project } — phase overview
+  const [historyModal, setHistoryModal] = useState(null); // { project } — grade history
 
   const token = localStorage.getItem("token");
   const apiBase = process.env.REACT_APP_API_URL || "";
@@ -208,23 +237,45 @@ const FYPProjects = () => {
   const hasActiveFilters = searchTerm.trim() !== "" || statusFilter !== "ALL" || gradesFilter !== "ALL";
   const clearFilters = () => { setSearchTerm(""); setStatusFilter("ALL"); setGradesFilter("ALL"); };
 
-  const openGradeModal = (project, isRegrade = false) => {
+  const openGradeModal = (project, phase = "FINAL", isRegrade = false) => {
     const members = buildMemberList(project);
+    const rubric  = getRubricForPhase(phase);
     const initialScores = {};
     members.forEach((m) => {
-      const existing = project.memberGrades?.find((g) => String(g.userId) === m._id);
+      // Try to pre-fill from evaluationPhases data
+      const phaseData = (project.evaluationPhases || []).find((p) => p.phase === phase);
+      const existing  = phaseData?.memberGrades?.find((g) => String(g.userId) === m._id);
       if (existing?.rubricScores?.length) {
-        initialScores[m._id] = DEFAULT_RUBRIC.map((c) => {
+        initialScores[m._id] = rubric.map((c) => {
           const rs = existing.rubricScores.find((r) => r.criterionName === c.name);
           return rs !== undefined ? String(rs.score) : "";
         });
+      } else if (!existing && isRegrade && phase === "FINAL") {
+        // Legacy: pre-fill from top-level memberGrades for re-grade
+        const leg = project.memberGrades?.find((g) => String(g.userId) === m._id);
+        if (leg?.rubricScores?.length) {
+          initialScores[m._id] = rubric.map((c) => {
+            const rs = leg.rubricScores.find((r) => r.criterionName === c.name);
+            return rs !== undefined ? String(rs.score) : "";
+          });
+        } else {
+          initialScores[m._id] = rubric.map(() => "");
+        }
       } else {
-        initialScores[m._id] = DEFAULT_RUBRIC.map(() => "");
+        initialScores[m._id] = rubric.map(() => "");
       }
     });
     setRubricScores(initialScores);
-    setGradeModal({ projectId: project._id, title: project.title, members, isRegrade, flaggedReason: project.flaggedReason });
-    setEvalRemarks(isRegrade ? (project.remarks || "") : "");
+    setGradeModal({
+      projectId:    project._id,
+      title:        project.title,
+      members,
+      phase,
+      isRegrade,
+      flaggedReason: project.flaggedReason,
+    });
+    setEvalRemarks(isRegrade || phase !== "FINAL" ? (project.remarks || "") : "");
+    setPhaseModal(null); // close phase overview when opening rubric
   };
 
   const setCriterionScore = (memberId, idx, val) => {
@@ -236,26 +287,28 @@ const FYPProjects = () => {
   };
 
   const calcMemberWeightedScore = (memberId) => {
+    const rubric = getRubricForPhase(gradeModal?.phase || "FINAL");
     const scores = rubricScores[memberId] || [];
-    for (let i = 0; i < DEFAULT_RUBRIC.length; i++) {
+    for (let i = 0; i < rubric.length; i++) {
       if (scores[i] === "" || scores[i] === undefined) return null;
       const n = Number(scores[i]);
       if (isNaN(n) || n < 0 || n > 100) return null;
     }
     return Math.round(
-      DEFAULT_RUBRIC.reduce((sum, c, i) => sum + (Number(scores[i]) * c.weight) / 100, 0)
+      rubric.reduce((sum, c, i) => sum + (Number(scores[i]) * c.weight) / 100, 0)
     );
   };
 
   const handleSubmitGrades = async () => {
-    const { members, projectId, title, isRegrade } = gradeModal;
+    const { members, projectId, title, isRegrade, phase } = gradeModal;
+    const rubric = getRubricForPhase(phase);
 
     for (const m of members) {
       const scores = rubricScores[m._id] || [];
-      for (let i = 0; i < DEFAULT_RUBRIC.length; i++) {
+      for (let i = 0; i < rubric.length; i++) {
         const n = Number(scores[i]);
         if (scores[i] === "" || scores[i] === undefined || isNaN(n) || n < 0 || n > 100) {
-          alert(`Please enter valid marks (0–100) for "${m.name}" — ${DEFAULT_RUBRIC[i].name}.`);
+          alert(`Please enter valid marks (0–100) for "${m.name}" — ${rubric[i].name}.`);
           return;
         }
       }
@@ -263,7 +316,7 @@ const FYPProjects = () => {
 
     const gradesArray = members.map((m) => {
       const scores = rubricScores[m._id] || [];
-      const rubricArr = DEFAULT_RUBRIC.map((c, i) => ({
+      const rubricArr = rubric.map((c, i) => ({
         criterionName: c.name,
         weight: c.weight,
         score: Number(scores[i]),
@@ -277,36 +330,63 @@ const FYPProjects = () => {
 
     setCompleting(true);
     try {
-      const endpoint = isRegrade
-        ? `${apiBase}/auth/projects/${projectId}/regrade`
-        : `${apiBase}/auth/projects/${projectId}/complete`;
+      let endpoint, body, updatedProjectPatch;
 
-      await axios.put(
-        endpoint,
-        { evaluationMarks: avgMarks, remarks: evalRemarks, memberGrades: gradesArray },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      if (phase === "FINAL") {
+        endpoint = isRegrade
+          ? `${apiBase}/auth/projects/${projectId}/regrade`
+          : `${apiBase}/auth/projects/${projectId}/complete`;
+        body = { evaluationMarks: avgMarks, remarks: evalRemarks, memberGrades: gradesArray };
+        updatedProjectPatch = {
+          status: "COMPLETED",
+          progress: 100,
+          evaluationMarks: avgMarks,
+          memberGrades: gradesArray,
+          gradesStatus: "PENDING_RELEASE",
+          flaggedReason: "",
+          remarks: evalRemarks,
+        };
+      } else {
+        endpoint = `${apiBase}/auth/projects/${projectId}/grade-phase`;
+        body = { phase, memberGrades: gradesArray, remarks: evalRemarks };
+        const phaseEntry = {
+          phase,
+          label:           phase === "INTERNAL" ? "Supervisor Internal Assessment" : "Mid-term Evaluation",
+          weight:          20,
+          status:          "SUBMITTED",
+          submittedAt:     new Date(),
+          evaluationMarks: avgMarks,
+          memberGrades:    gradesArray,
+          remarks:         evalRemarks,
+        };
+        updatedProjectPatch = {
+          evaluationPhases: null, // will merge below
+          _phaseEntry: phaseEntry,
+        };
+      }
+
+      await axios.put(endpoint, body, { headers: { Authorization: `Bearer ${token}` } });
 
       showToast(
-        isRegrade
-          ? `Re-grading submitted for "${title}". Waiting for admin approval.`
-          : `Project "${title}" graded and marked complete. Avg: ${avgMarks}/100.`
+        phase === "FINAL"
+          ? (isRegrade
+            ? `Re-grading submitted for "${title}". Waiting for admin approval.`
+            : `Project "${title}" graded and marked complete. Avg: ${avgMarks}/100.`)
+          : `${phase === "INTERNAL" ? "Internal" : "Mid-term"} grades saved for "${title}". Avg: ${avgMarks}/100.`
       );
+
       setGradeModal(null);
       setProjects((prev) =>
-        prev.map((p) =>
-          p._id === projectId
-            ? {
-                ...p,
-                status: "COMPLETED",
-                progress: 100,
-                evaluationMarks: avgMarks,
-                memberGrades: gradesArray,
-                gradesStatus: "PENDING_RELEASE",
-                flaggedReason: "",
-              }
-            : p
-        )
+        prev.map((p) => {
+          if (p._id !== projectId) return p;
+          if (phase === "FINAL") {
+            return { ...p, ...updatedProjectPatch };
+          } else {
+            // Merge phase into evaluationPhases
+            const existing = (p.evaluationPhases || []).filter((ep) => ep.phase !== phase);
+            return { ...p, evaluationPhases: [...existing, updatedProjectPatch._phaseEntry] };
+          }
+        })
       );
     } catch (err) {
       alert(err.response?.data?.message || "Failed to submit grades.");
@@ -443,7 +523,10 @@ const FYPProjects = () => {
         <div className={styles.overlay}>
           <div className={styles.modal}>
             <h3 className={styles.modalTitle}>
-              {gradeModal.isRegrade ? "Re-grade Project" : "Grade & Complete Project"}
+              {gradeModal.phase === "INTERNAL" ? "Grade Internal Assessment" :
+               gradeModal.phase === "MIDTERM"  ? "Grade Mid-term Evaluation" :
+               gradeModal.isRegrade            ? "Re-grade Final Assessment" :
+                                                 "Grade Final & Complete Project"}
             </h3>
             <p className={styles.modalSubtitle}>{gradeModal.title}</p>
 
@@ -454,11 +537,16 @@ const FYPProjects = () => {
             )}
 
             <div className={styles.membersSection}>
-              <p className={styles.sectionLabel}>Rubric-Based Evaluation</p>
+              <p className={styles.sectionLabel}>
+                {gradeModal.phase === "INTERNAL" ? "Internal Assessment Rubric" :
+                 gradeModal.phase === "MIDTERM"  ? "Mid-term Evaluation Rubric" :
+                                                   "Final Assessment Rubric"}
+              </p>
               {gradeModal.members.length === 0 ? (
                 <p className={styles.noMembersNote}>No team members found.</p>
               ) : (
                 gradeModal.members.map((m) => {
+                  const activeRubric = getRubricForPhase(gradeModal.phase);
                   const memberScore = calcMemberWeightedScore(m._id);
                   return (
                     <div key={m._id} className={styles.memberRubricBlock}>
@@ -480,7 +568,7 @@ const FYPProjects = () => {
                           </tr>
                         </thead>
                         <tbody>
-                          {DEFAULT_RUBRIC.map((c, i) => {
+                          {activeRubric.map((c, i) => {
                             const raw = rubricScores[m._id]?.[i];
                             const contrib =
                               raw !== "" && raw !== undefined && !isNaN(Number(raw))
@@ -538,11 +626,121 @@ const FYPProjects = () => {
                 onClick={handleSubmitGrades}
                 disabled={completing || !allFilled}
               >
-                {completing ? "Saving..." : gradeModal.isRegrade ? "Submit Re-grade" : "Mark as Completed"}
+                {completing ? "Saving..." :
+                 gradeModal.phase !== "FINAL" ? "Save Phase Grades" :
+                 gradeModal.isRegrade         ? "Submit Re-grade" :
+                                               "Mark as Completed"}
               </button>
               <button className={styles.cancelBtn} onClick={() => setGradeModal(null)}>
                 Cancel
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Phase Overview Modal */}
+      {phaseModal && (
+        <div className={styles.overlay}>
+          <div className={styles.modal}>
+            <h3 className={styles.modalTitle}>Evaluation Phases</h3>
+            <p className={styles.modalSubtitle}>{phaseModal.project.title}</p>
+
+            {["INTERNAL", "MIDTERM", "FINAL"].map((ph) => {
+              const cfg       = { INTERNAL: { label: "Supervisor Internal Assessment", weight: 20 }, MIDTERM: { label: "Mid-term Evaluation", weight: 20 }, FINAL: { label: "Final Assessment", weight: 60 } }[ph];
+              const phaseData = (phaseModal.project.evaluationPhases || []).find((p) => p.phase === ph);
+              const submitted = phaseData?.status === "SUBMITTED";
+              const canGrade  = ph === "FINAL"
+                ? phaseModal.project.status === "UNDER_REVIEW"
+                : true;
+
+              return (
+                <div key={ph} className={styles.phaseCard}>
+                  <div className={styles.phaseCardTop}>
+                    <div>
+                      <span className={styles.phaseLabel}>{cfg.label}</span>
+                      <span className={styles.phaseWeight}>{cfg.weight}%</span>
+                    </div>
+                    <span className={submitted ? styles.phaseSubmitted : styles.phasePending}>
+                      {submitted ? `${phaseData.evaluationMarks}/100` : "Pending"}
+                    </span>
+                  </div>
+                  {submitted && phaseData.submittedAt && (
+                    <p className={styles.phaseDate}>
+                      Submitted: {new Date(phaseData.submittedAt).toLocaleDateString()}
+                      {phaseData.remarks && ` — "${phaseData.remarks}"`}
+                    </p>
+                  )}
+                  {canGrade && (
+                    <button
+                      className={styles.phaseGradeBtn}
+                      onClick={() => openGradeModal(phaseModal.project, ph, ph === "FINAL" && phaseModal.project.gradesStatus === "FLAGGED")}
+                    >
+                      {submitted ? "Revise Marks" : "Grade Now"}
+                    </button>
+                  )}
+                  {ph === "FINAL" && !canGrade && (
+                    <p className={styles.phaseLocked}>Final grading available after student submits final report.</p>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Combined overall */}
+            {(phaseModal.project.evaluationPhases || []).some((p) => p.status === "SUBMITTED") && (
+              <div className={styles.phaseOverallRow}>
+                <span>Combined Average</span>
+                <strong>{phaseModal.project.evaluationMarks ?? 0}/100</strong>
+              </div>
+            )}
+
+            <div className={styles.modalActions}>
+              <button className={styles.cancelBtn} onClick={() => setPhaseModal(null)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Grade History Modal */}
+      {historyModal && (
+        <div className={styles.overlay}>
+          <div className={styles.modal}>
+            <h3 className={styles.modalTitle}>Grade History</h3>
+            <p className={styles.modalSubtitle}>{historyModal.project.title}</p>
+
+            {!(historyModal.project.gradeHistory?.length) ? (
+              <p className={styles.noMembersNote}>No grade history recorded yet.</p>
+            ) : (
+              <div className={styles.historyList}>
+                {[...(historyModal.project.gradeHistory || [])].reverse().map((h, i) => (
+                  <div key={i} className={styles.historyEntry}>
+                    <div className={styles.historyEntryTop}>
+                      <span className={styles.historyPhase}>
+                        {h.phase === "INTERNAL" ? "Internal Assessment" : h.phase === "MIDTERM" ? "Mid-term Evaluation" : "Final Assessment"}
+                      </span>
+                      <span className={h.action === "REVISED" ? styles.historyRevised : styles.historySubmitted}>
+                        {h.action}
+                      </span>
+                    </div>
+                    <p className={styles.historyMeta}>
+                      {new Date(h.timestamp).toLocaleString()} — Avg: <strong>{h.evaluationMarks}/100</strong>
+                    </p>
+                    {h.memberGrades?.length > 0 && (
+                      <div className={styles.historyMembers}>
+                        {h.memberGrades.map((g, j) => (
+                          <span key={j} className={styles.historyMemberChip}>{g.name}: {g.marks}</span>
+                        ))}
+                      </div>
+                    )}
+                    {h.remarks && <p className={styles.historyRemarks}>Remarks: {h.remarks}</p>}
+                    {h.revisionReason && <p className={styles.historyRevisionReason}>Reason: {h.revisionReason}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className={styles.modalActions}>
+              <button className={styles.cancelBtn} onClick={() => setHistoryModal(null)}>Close</button>
             </div>
           </div>
         </div>
@@ -685,48 +883,50 @@ const FYPProjects = () => {
                       )}
                     </td>
                     <td>
-                      {project.status === "UNDER_REVIEW" && (
-                        <button className={styles.completeBtn} onClick={() => openGradeModal(project, false)}>
-                          Grade & Complete
+                      <div className={styles.actionsCell}>
+                        {/* Phase grading overview — always available */}
+                        <button className={styles.phasesBtn} onClick={() => setPhaseModal({ project })}>
+                          Phases
                         </button>
-                      )}
-                      {project.status === "COMPLETED" && project.gradesStatus === "FLAGGED" && (
-                        <button className={styles.regradeBtn} onClick={() => openGradeModal(project, true)}>
-                          Re-grade
-                        </button>
-                      )}
-                      {project.status === "COMPLETED" && project.gradesStatus === "PENDING_RELEASE" && (
-                        <span className={styles.waitingLabel}>Awaiting Admin Review</span>
-                      )}
-                      {project.status === "COMPLETED" && project.gradesStatus === "RELEASED" && (
-                        <div className={styles.gradesCell}>
-                          <span className={styles.avgGradeLabel}>Avg: {project.evaluationMarks ?? "—"}/100</span>
-                          {project.memberGrades?.length > 0 && (
-                            <div className={styles.memberGradesList}>
-                              {project.memberGrades.map((g) => (
-                                <span key={String(g.userId)} className={styles.memberGradeChip}>
-                                  {g.name}: {g.marks}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => generateCompletionCertificate(project)}
-                            style={{
-                              display: "flex", alignItems: "center", gap: "5px", marginTop: "6px",
-                              background: "#ede9fe", color: "#6d28d9", border: "1px solid #ddd6fe",
-                              borderRadius: "6px", padding: "4px 9px", fontSize: "11px", fontWeight: "700",
-                              cursor: "pointer", width: "fit-content",
-                            }}
-                          >
-                            <FaAward /> Certificate
+
+                        {/* History — only when gradeHistory exists */}
+                        {(project.gradeHistory?.length > 0 || project.evaluationPhases?.some(p => p.status === "SUBMITTED")) && (
+                          <button className={styles.historyBtn} onClick={() => setHistoryModal({ project })}>
+                            History
                           </button>
-                        </div>
-                      )}
-                      {!["UNDER_REVIEW", "COMPLETED"].includes(project.status) && (
-                        <span className={styles.na}>—</span>
-                      )}
+                        )}
+
+                        {project.status === "UNDER_REVIEW" && (
+                          <button className={styles.completeBtn} onClick={() => openGradeModal(project, "FINAL", false)}>
+                            Grade Final
+                          </button>
+                        )}
+                        {project.status === "COMPLETED" && project.gradesStatus === "FLAGGED" && (
+                          <button className={styles.regradeBtn} onClick={() => openGradeModal(project, "FINAL", true)}>
+                            Re-grade
+                          </button>
+                        )}
+                        {project.status === "COMPLETED" && project.gradesStatus === "PENDING_RELEASE" && (
+                          <span className={styles.awaitingLabel}>Awaiting Review</span>
+                        )}
+                        {project.status === "COMPLETED" && project.gradesStatus === "RELEASED" && (
+                          <div className={styles.gradesCell}>
+                            <span className={styles.avgGradeLabel}>Avg: {project.evaluationMarks ?? "—"}/100</span>
+                            {project.memberGrades?.length > 0 && (
+                              <div className={styles.memberGradesList}>
+                                {project.memberGrades.map((g) => (
+                                  <span key={String(g.userId)} className={styles.memberGradeChip}>
+                                    {g.name}: {g.marks}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                            <button className={styles.certBtn} onClick={() => generateCompletionCertificate(project)}>
+                              Certificate
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );

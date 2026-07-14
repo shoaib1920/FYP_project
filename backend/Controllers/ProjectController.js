@@ -54,6 +54,42 @@ const emailTeamMembers = async (project, { subject, bodyHtml }) => {
   }
 };
 
+const PHASE_CONFIG = {
+  INTERNAL: { label: "Supervisor Internal Assessment", weight: 20 },
+  MIDTERM:  { label: "Mid-term Evaluation",            weight: 20 },
+  FINAL:    { label: "Final Assessment",               weight: 60 },
+};
+
+// Recalculate project-level evaluationMarks from submitted phases.
+// Falls back to direct evaluationMarks if no phases exist yet.
+function calcOverallFromPhases(project) {
+  const submitted = (project.evaluationPhases || []).filter((p) => p.status === "SUBMITTED");
+  if (!submitted.length) return project.evaluationMarks || 0;
+  const totalWeight = submitted.reduce((s, p) => s + (p.weight || 0), 0);
+  const weightedSum  = submitted.reduce((s, p) => s + (p.evaluationMarks || 0) * (p.weight || 0), 0);
+  return Math.round(weightedSum / Math.max(totalWeight, 1));
+}
+
+// Build per-member weighted marks from all submitted phases.
+function calcCombinedMemberGrades(project) {
+  const submitted = (project.evaluationPhases || []).filter((p) => p.status === "SUBMITTED");
+  if (!submitted.length) return project.memberGrades || [];
+  const totalWeight = submitted.reduce((s, p) => s + (p.weight || 0), 0);
+  const userMap = new Map();
+  submitted.forEach((phase) => {
+    (phase.memberGrades || []).forEach((mg) => {
+      const uid = String(mg.userId);
+      if (!userMap.has(uid)) userMap.set(uid, { userId: mg.userId, name: mg.name, sum: 0 });
+      userMap.get(uid).sum += (mg.marks || 0) * (phase.weight || 0);
+    });
+  });
+  return Array.from(userMap.values()).map((u) => ({
+    userId: u.userId,
+    name:   u.name,
+    marks:  Math.round(u.sum / Math.max(totalWeight, 1)),
+  }));
+}
+
 // GET /projects/:projectId
 exports.getProjectById = async (req, res) => {
   try {
@@ -311,6 +347,39 @@ exports.completeProject = async (req, res) => {
     project.completionDate = new Date();
     project.progress = 100;
 
+    // Record FINAL phase
+    const finalPhaseDoc = {
+      phase:           "FINAL",
+      label:           PHASE_CONFIG.FINAL.label,
+      weight:          PHASE_CONFIG.FINAL.weight,
+      status:          "SUBMITTED",
+      submittedAt:     new Date(),
+      evaluationMarks: project.evaluationMarks,
+      memberGrades:    project.memberGrades,
+      remarks:         project.remarks,
+    };
+    const finalIdx = (project.evaluationPhases || []).findIndex((p) => p.phase === "FINAL");
+    if (finalIdx >= 0) {
+      project.evaluationPhases[finalIdx] = finalPhaseDoc;
+    } else {
+      project.evaluationPhases.push(finalPhaseDoc);
+    }
+
+    // Grade history entry
+    project.gradeHistory.push({
+      phase:           "FINAL",
+      action:          "SUBMITTED",
+      actorId:         supervisorId,
+      actorName:       req.user.name || "Supervisor",
+      evaluationMarks: project.evaluationMarks,
+      memberGrades:    (project.memberGrades || []).map((g) => ({ userId: g.userId, name: g.name, marks: g.marks })),
+      remarks:         project.remarks || "",
+      timestamp:       new Date(),
+    });
+
+    // Recalculate overall from all phases
+    project.evaluationMarks = calcOverallFromPhases(project);
+
     await project.save();
 
     // Sync status in AssignedProject as well
@@ -519,8 +588,44 @@ exports.reGradeProject = async (req, res) => {
       project.memberGrades = memberGrades;
     }
 
+    const capturedFlagReason = project.flaggedReason || "";
     project.gradesStatus = "PENDING_RELEASE";
     project.flaggedReason = "";
+
+    // Update FINAL phase
+    const reFinalPhaseDoc = {
+      phase:           "FINAL",
+      label:           PHASE_CONFIG.FINAL.label,
+      weight:          PHASE_CONFIG.FINAL.weight,
+      status:          "SUBMITTED",
+      submittedAt:     new Date(),
+      evaluationMarks: project.evaluationMarks,
+      memberGrades:    project.memberGrades,
+      remarks:         project.remarks,
+    };
+    const reFinalIdx = (project.evaluationPhases || []).findIndex((p) => p.phase === "FINAL");
+    if (reFinalIdx >= 0) {
+      project.evaluationPhases[reFinalIdx] = reFinalPhaseDoc;
+    } else {
+      project.evaluationPhases.push(reFinalPhaseDoc);
+    }
+
+    // Grade history entry for revision
+    project.gradeHistory.push({
+      phase:           "FINAL",
+      action:          "REVISED",
+      actorId:         supervisorId,
+      actorName:       req.user.name || "Supervisor",
+      evaluationMarks: project.evaluationMarks,
+      memberGrades:    (project.memberGrades || []).map((g) => ({ userId: g.userId, name: g.name, marks: g.marks })),
+      remarks:         project.remarks || "",
+      revisionReason:  capturedFlagReason,
+      timestamp:       new Date(),
+    });
+
+    // Recalculate overall from all phases
+    project.evaluationMarks = calcOverallFromPhases(project);
+
     await project.save();
 
     await notifyTeamMembers(project, {
@@ -542,6 +647,86 @@ exports.reGradeProject = async (req, res) => {
     res.json({ success: true, project });
   } catch (err) {
     console.error("Error re-grading project:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// PUT /auth/projects/:projectId/grade-phase  (Supervisor)
+// Grades INTERNAL or MIDTERM phase — does NOT change project status
+exports.gradePhase = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const supervisorId  = req.user._id;
+    const { phase, memberGrades, remarks } = req.body;
+
+    if (!["INTERNAL", "MIDTERM"].includes(phase)) {
+      return res.status(400).json({ message: "phase must be INTERNAL or MIDTERM" });
+    }
+    if (!Array.isArray(memberGrades) || memberGrades.length === 0) {
+      return res.status(400).json({ message: "memberGrades required" });
+    }
+
+    const project = await Project.findById(projectId);
+    if (!project) return res.status(404).json({ message: "Project not found" });
+    if (String(project.supervisorId) !== String(supervisorId)) {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+
+    const cfg     = PHASE_CONFIG[phase];
+    const phaseAvg = Math.round(
+      memberGrades.reduce((s, g) => s + (g.marks || 0), 0) / memberGrades.length
+    );
+
+    // Record history before overwriting
+    const existingIdx = (project.evaluationPhases || []).findIndex((p) => p.phase === phase);
+    const isRevision  = existingIdx >= 0 && project.evaluationPhases[existingIdx].status === "SUBMITTED";
+
+    project.gradeHistory.push({
+      phase,
+      action:          isRevision ? "REVISED" : "SUBMITTED",
+      actorId:         supervisorId,
+      actorName:       req.user.name || "Supervisor",
+      evaluationMarks: phaseAvg,
+      memberGrades:    memberGrades.map((g) => ({ userId: g.userId, name: g.name, marks: g.marks })),
+      remarks:         remarks || "",
+      timestamp:       new Date(),
+    });
+
+    const phaseDoc = {
+      phase,
+      label:           cfg.label,
+      weight:          cfg.weight,
+      status:          "SUBMITTED",
+      submittedAt:     new Date(),
+      evaluationMarks: phaseAvg,
+      memberGrades,
+      remarks:         remarks || "",
+    };
+
+    if (existingIdx >= 0) {
+      project.evaluationPhases[existingIdx] = phaseDoc;
+    } else {
+      project.evaluationPhases.push(phaseDoc);
+    }
+
+    // Recalculate overall (only from submitted phases so far)
+    project.evaluationMarks = calcOverallFromPhases(project);
+
+    await project.save();
+
+    await logAction({
+      actorId:    supervisorId,
+      actorRole:  "supervisor",
+      actorName:  req.user.name || "Supervisor",
+      action:     `PHASE_${phase}_${isRevision ? "REVISED" : "GRADED"}`,
+      targetType: "Project",
+      targetId:   project._id,
+      details:    `${cfg.label} ${isRevision ? "revised" : "graded"} for "${project.title}": ${phaseAvg}/100`,
+    });
+
+    res.json({ success: true, project });
+  } catch (err) {
+    console.error("gradePhase error:", err);
     res.status(500).json({ message: "Server error" });
   }
 };

@@ -145,6 +145,54 @@ const projectSchema = new mongoose.Schema(
       default: "",
     },
 
+    // Weighted evaluation phases
+    evaluationPhases: [
+      {
+        phase:            { type: String, enum: ["INTERNAL", "MIDTERM", "FINAL"] },
+        label:            { type: String },
+        weight:           { type: Number },
+        status:           { type: String, enum: ["PENDING", "SUBMITTED"], default: "PENDING" },
+        submittedAt:      { type: Date },
+        evaluationMarks:  { type: Number, default: 0 },
+        memberGrades: [
+          {
+            userId:      { type: mongoose.Schema.Types.ObjectId, ref: "users" },
+            name:        { type: String },
+            marks:       { type: Number, min: 0, max: 100 },
+            rubricScores: [
+              {
+                criterionName: { type: String },
+                weight:        { type: Number },
+                score:         { type: Number, min: 0, max: 100 },
+              },
+            ],
+          },
+        ],
+        remarks: { type: String, default: "" },
+      },
+    ],
+
+    // Immutable grade history
+    gradeHistory: [
+      {
+        phase:          { type: String },
+        action:         { type: String },   // "SUBMITTED" or "REVISED"
+        actorId:        { type: mongoose.Schema.Types.ObjectId },
+        actorName:      { type: String },
+        timestamp:      { type: Date, default: Date.now },
+        evaluationMarks:{ type: Number },
+        memberGrades: [
+          {
+            userId: { type: mongoose.Schema.Types.ObjectId },
+            name:   { type: String },
+            marks:  { type: Number },
+          },
+        ],
+        remarks:        { type: String, default: "" },
+        revisionReason: { type: String, default: "" },
+      },
+    ],
+
     // Dates
     startDate: {
       type: Date,

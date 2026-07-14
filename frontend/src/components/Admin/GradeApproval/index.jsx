@@ -515,6 +515,20 @@ const ProjectCard = ({ project, activeTab, actionLoading, onRelease, onFlag, api
         {expanded ? "Hide" : "View"} Member Grades ({project.memberGrades?.length || 0} members)
       </button>
 
+      {/* Phase breakdown if available */}
+      {expanded && project.evaluationPhases?.filter(p => p.status === "SUBMITTED").length > 0 && (
+        <div className={styles.phaseSummary}>
+          <p className={styles.phaseSummaryTitle}>Phase Breakdown</p>
+          {project.evaluationPhases.filter(p => p.status === "SUBMITTED").map((ph, i) => (
+            <div key={i} className={styles.phaseSummaryRow}>
+              <span className={styles.phaseSummaryLabel}>{ph.label || ph.phase} ({ph.weight}%)</span>
+              <span className={styles.phaseSummaryMark}>{ph.evaluationMarks}/100</span>
+              <span className={styles.phaseSummaryContrib}>= {((ph.evaluationMarks * ph.weight) / 100).toFixed(1)} pts</span>
+            </div>
+          ))}
+        </div>
+      )}
+
       {expanded && (
         <div className={styles.gradesTable}>
           {!project.memberGrades?.length ? (
