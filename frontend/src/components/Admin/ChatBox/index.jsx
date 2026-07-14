@@ -13,7 +13,7 @@ function getSocket(token) {
   if (!adminSocketInstance || !adminSocketInstance.connected) {
     adminSocketInstance = io(API, {
       auth: { token },
-      transports: ["polling", "websocket"],
+      transports: ["polling"],
       reconnectionAttempts: 5,
     });
   }
@@ -112,15 +112,20 @@ const AdminChatBox = () => {
 
     sock.on("receive_message", (msg) => {
       setMessages((prev) => {
-        if (prev.find((m) => String(m._id) === String(msg._id))) return prev;
+        if (prev.some(
+          (m) =>
+            String(m._id) === String(msg._id) ||
+            (msg.tempId && m.tempId && String(m.tempId) === String(msg.tempId))
+        )) return prev;
         return [...prev, msg];
       });
     });
 
     sock.on("message_sent", (msg) => {
-      setMessages((prev) =>
-        prev.map((m) => (m.tempId && m.tempId === msg.tempId ? { ...msg } : m))
-      );
+      setMessages((prev) => {
+        if (prev.some((m) => !m.tempId && String(m._id) === String(msg._id))) return prev;
+        return prev.map((m) => (m.tempId && m.tempId === msg.tempId ? { ...msg } : m));
+      });
     });
 
     sock.on("message_status_update", ({ messageId, tempId, status }) => {
