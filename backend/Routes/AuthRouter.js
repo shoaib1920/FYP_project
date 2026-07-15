@@ -362,6 +362,7 @@ route.put("/projects/:projectId/final-report", authenticate, finalReportUpload.s
 route.put("/projects/:projectId/complete", authenticate, authorize("supervisor"), completeProject);
 route.put("/projects/:projectId/regrade", authenticate, authorize("supervisor"), reGradeProject);
 route.put("/projects/:projectId/grade-phase", authenticate, authorize("supervisor"), gradePhase);
+console.log("[AuthRouter] grade-phase route registered ✓");
 
 // 🎓 ADMIN GRADE MANAGEMENT ROUTES
 route.get("/admin/projects", authenticate, authorize("admin"), getAllProjectsForAdmin);

@@ -124,6 +124,7 @@ const FYPProjects = () => {
 
   const [phaseModal, setPhaseModal] = useState(null);   // { project } — phase overview
   const [historyModal, setHistoryModal] = useState(null); // { project } — grade history
+  const [submitError, setSubmitError] = useState("");
 
   const token = localStorage.getItem("token");
   const apiBase = process.env.REACT_APP_API_URL || "";
@@ -279,9 +280,18 @@ const FYPProjects = () => {
   };
 
   const setCriterionScore = (memberId, idx, val) => {
+    // Clamp value to 0–100; reject anything above 100
+    let clamped = val;
+    if (val !== "" && !isNaN(Number(val))) {
+      const n = Number(val);
+      if (n > 100) clamped = "100";
+      else if (n < 0) clamped = "0";
+      else clamped = String(n);
+    }
     setRubricScores((prev) => {
-      const scores = [...(prev[memberId] || DEFAULT_RUBRIC.map(() => ""))];
-      scores[idx] = val;
+      const rubric = gradeModal ? getRubricForPhase(gradeModal.phase) : DEFAULT_RUBRIC;
+      const scores = [...(prev[memberId] || rubric.map(() => ""))];
+      scores[idx] = clamped;
       return { ...prev, [memberId]: scores };
     });
   };
@@ -329,6 +339,7 @@ const FYPProjects = () => {
     const avgMarks = Math.round(gradesArray.reduce((s, g) => s + g.marks, 0) / gradesArray.length);
 
     setCompleting(true);
+    setSubmitError("");
     try {
       let endpoint, body, updatedProjectPatch;
 
@@ -389,7 +400,9 @@ const FYPProjects = () => {
         })
       );
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to submit grades.");
+      const status = err.response?.status ?? "Network";
+      const msg    = err.response?.data?.message || err.response?.data || err.message || "Failed to submit grades.";
+      setSubmitError(`[${status}] ${msg}`);
     } finally {
       setCompleting(false);
     }
@@ -620,6 +633,14 @@ const FYPProjects = () => {
               placeholder="Feedback for the team..."
             />
 
+            {submitError && (
+              <div className={styles.submitErrorBox}>
+                <strong>Error:</strong> {submitError}
+                <br />
+                <small>Check browser DevTools → Network tab for more details.</small>
+              </div>
+            )}
+
             <div className={styles.modalActions}>
               <button
                 className={styles.completeBtn}
@@ -631,7 +652,7 @@ const FYPProjects = () => {
                  gradeModal.isRegrade         ? "Submit Re-grade" :
                                                "Mark as Completed"}
               </button>
-              <button className={styles.cancelBtn} onClick={() => setGradeModal(null)}>
+              <button className={styles.cancelBtn} onClick={() => { setGradeModal(null); setSubmitError(""); }}>
                 Cancel
               </button>
             </div>

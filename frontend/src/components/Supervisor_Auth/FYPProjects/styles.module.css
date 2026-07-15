@@ -402,6 +402,17 @@
   font-size: 13px;
 }
 
+.submitErrorBox {
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: #b91c1c;
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+
 .completeBtn {
   background: #7c3aed;
   color: white;

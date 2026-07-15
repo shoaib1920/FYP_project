@@ -658,6 +658,7 @@ exports.reGradeProject = async (req, res) => {
 // PUT /auth/projects/:projectId/grade-phase  (Supervisor)
 // Grades INTERNAL or MIDTERM phase — does NOT change project status
 exports.gradePhase = async (req, res) => {
+  console.log(`[gradePhase] hit — projectId=${req.params.projectId} phase=${req.body?.phase} user=${req.user?._id}`);
   try {
     const { projectId } = req.params;
     const supervisorId  = req.user._id;
