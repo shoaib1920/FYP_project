@@ -334,6 +334,8 @@ const {
   getCompletedProjectsForAdmin,
   releaseGrades,
   flagGrades,
+  scheduleViva,
+  gradeViva,
 } = require("../Controllers/ProjectController");
 
 const finalReportStorage = multer.diskStorage({
@@ -366,6 +368,8 @@ route.get("/admin/projects", authenticate, authorize("admin"), getAllProjectsFor
 route.get("/admin/projects/grades", authenticate, authorize("admin"), getCompletedProjectsForAdmin);
 route.put("/admin/projects/:projectId/release-grades", authenticate, authorize("admin"), releaseGrades);
 route.put("/admin/projects/:projectId/flag-grades", authenticate, authorize("admin"), flagGrades);
+route.put("/admin/projects/:projectId/schedule-viva", authenticate, authorize("admin"), scheduleViva);
+route.put("/admin/projects/:projectId/grade-viva",    authenticate, authorize("admin"),    gradeViva);
 
 // ─────────────────────────────────────────────
 // 🧾 AUDIT LOG ROUTES (admin only)

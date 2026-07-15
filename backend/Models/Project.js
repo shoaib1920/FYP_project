@@ -193,6 +193,34 @@ const projectSchema = new mongoose.Schema(
       },
     ],
 
+    // Viva / Defense details
+    vivaDetails: {
+      status:        { type: String, enum: ["SCHEDULED", "GRADED"] },
+      scheduledAt:   { type: Date },
+      venue:         { type: String, default: "" },
+      examinerName:  { type: String, default: "" },
+      vivaMarks:     { type: Number, default: 0 },
+      memberVivaGrades: [
+        {
+          userId:      { type: mongoose.Schema.Types.ObjectId, ref: "users" },
+          name:        { type: String },
+          marks:       { type: Number, min: 0, max: 100 },
+          rubricScores: [
+            {
+              criterionName: { type: String },
+              weight:        { type: Number },
+              score:         { type: Number, min: 0, max: 100 },
+            },
+          ],
+        },
+      ],
+      gradedAt: { type: Date },
+      remarks:  { type: String, default: "" },
+    },
+
+    // Combined supervisor + viva final mark
+    overallFinalMarks: { type: Number, default: null },
+
     // Dates
     startDate: {
       type: Date,

@@ -1297,6 +1297,25 @@ const CreateTask = () => {
                                   {project.evaluationMarks ?? "—"}/100
                                 </span>
                               )}
+                              {project.vivaDetails?.status === "SCHEDULED" && (
+                                <div style={{
+                                  background: "#f5f3ff", border: "1px solid #ddd6fe",
+                                  borderRadius: "6px", padding: "5px 9px", marginTop: "4px",
+                                  fontSize: "11px", color: "#5b21b6", fontWeight: "600"
+                                }}>
+                                  Viva: {new Date(project.vivaDetails.scheduledAt).toLocaleDateString()}
+                                  {project.vivaDetails.venue ? ` @ ${project.vivaDetails.venue}` : ""}
+                                </div>
+                              )}
+                              {project.vivaDetails?.status === "GRADED" && (
+                                <div style={{
+                                  background: "#f0fdf4", border: "1px solid #bbf7d0",
+                                  borderRadius: "6px", padding: "5px 9px", marginTop: "4px",
+                                  fontSize: "11px", color: "#15803d", fontWeight: "700"
+                                }}>
+                                  Combined: {project.overallFinalMarks ?? project.evaluationMarks}/100
+                                </div>
+                              )}
                               <button
                                 type="button"
                                 onClick={() => generateCompletionCertificate(project)}

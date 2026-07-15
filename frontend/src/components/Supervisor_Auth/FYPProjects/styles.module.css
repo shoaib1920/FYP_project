@@ -1006,3 +1006,23 @@
   color: #b91c1c;
   margin: 4px 0 0;
 }
+
+.vivaInfoChip {
+  font-size: 11px;
+  background: #f5f3ff;
+  border: 1px solid #ddd6fe;
+  border-radius: 8px;
+  padding: 4px 9px;
+  color: #5b21b6;
+  font-weight: 600;
+}
+
+.vivaGradedChip {
+  font-size: 11px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  padding: 4px 9px;
+  color: #15803d;
+  font-weight: 700;
+}

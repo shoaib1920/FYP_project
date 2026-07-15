@@ -69,6 +69,13 @@ const GRADE_EXPORT_COLUMNS = [
   { key: "completedAt", label: "Completed" },
 ];
 
+const VIVA_RUBRIC = [
+  { name: "Presentation Quality",  weight: 25, description: "Clarity, structure and delivery of the presentation" },
+  { name: "Technical Knowledge",   weight: 30, description: "Depth of understanding demonstrated during Q&A" },
+  { name: "Project Demonstration", weight: 25, description: "Live demo quality, feature coverage and issue handling" },
+  { name: "Problem Solving Q&A",   weight: 20, description: "Ability to answer unexpected questions and think critically" },
+];
+
 const GradeApproval = () => {
   const [projects, setProjects] = useState([]);
   const [allProjects, setAllProjects] = useState([]); // every project, any status — denominator for department completion
@@ -79,6 +86,12 @@ const GradeApproval = () => {
   const [actionLoading, setActionLoading] = useState("");
   const [toast, setToast] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [vivaScheduleModal, setVivaScheduleModal] = useState(null); // { project }
+  const [vivaGradeModal, setVivaGradeModal]       = useState(null); // { project }
+  const [vivaForm, setVivaForm] = useState({ scheduledAt: "", venue: "", examinerName: "" });
+  const [vivaRubricScores, setVivaRubricScores]   = useState({}); // { [memberId]: [s0,s1,s2,s3] }
+  const [vivaRemarks, setVivaRemarks]             = useState("");
+  const [vivaLoading, setVivaLoading]             = useState(false);
 
   const token = localStorage.getItem("adminToken");
   const apiBase = process.env.REACT_APP_API_URL || "";
@@ -207,6 +220,99 @@ const GradeApproval = () => {
       alert(err.response?.data?.message || "Failed to flag project.");
     } finally {
       setActionLoading("");
+    }
+  };
+
+  const openVivaScheduleModal = (project) => {
+    const existing = project.vivaDetails;
+    setVivaForm({
+      scheduledAt:  existing?.scheduledAt ? new Date(existing.scheduledAt).toISOString().slice(0, 16) : "",
+      venue:        existing?.venue || "",
+      examinerName: existing?.examinerName || "",
+    });
+    setVivaScheduleModal({ project });
+  };
+
+  const handleScheduleViva = async () => {
+    if (!vivaForm.scheduledAt) { alert("Please select a date and time."); return; }
+    setVivaLoading(true);
+    try {
+      const res = await axios.put(
+        `${apiBase}/auth/admin/projects/${vivaScheduleModal.project._id}/schedule-viva`,
+        vivaForm,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setProjects((prev) => prev.map((p) => p._id === vivaScheduleModal.project._id ? { ...p, vivaDetails: res.data.project.vivaDetails } : p));
+      showToast(`Viva scheduled for "${vivaScheduleModal.project.title}". Team has been notified.`);
+      setVivaScheduleModal(null);
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to schedule viva.");
+    } finally {
+      setVivaLoading(false);
+    }
+  };
+
+  const openVivaGradeModal = (project) => {
+    const members = project.memberGrades?.length
+      ? project.memberGrades
+      : [{ userId: project.teamLeaderId?._id, name: project.teamLeaderId?.name || "Unknown" }];
+    const initial = {};
+    members.forEach((m) => {
+      const existing = project.vivaDetails?.memberVivaGrades?.find((v) => String(v.userId) === String(m.userId));
+      initial[String(m.userId)] = existing?.rubricScores?.length
+        ? existing.rubricScores.map((rs) => String(rs.score))
+        : VIVA_RUBRIC.map(() => "");
+    });
+    setVivaRubricScores(initial);
+    setVivaRemarks(project.vivaDetails?.remarks || "");
+    setVivaGradeModal({ project, members });
+  };
+
+  const setVivaCriterionScore = (memberId, idx, val) => {
+    setVivaRubricScores((prev) => ({
+      ...prev,
+      [memberId]: prev[memberId].map((v, i) => (i === idx ? val : v)),
+    }));
+  };
+
+  const calcVivaWeightedScore = (memberId) => {
+    const scores = vivaRubricScores[memberId] || [];
+    for (let i = 0; i < VIVA_RUBRIC.length; i++) {
+      if (scores[i] === "" || scores[i] === undefined) return null;
+      const n = Number(scores[i]);
+      if (isNaN(n) || n < 0 || n > 100) return null;
+    }
+    return Math.round(VIVA_RUBRIC.reduce((sum, c, i) => sum + (Number(scores[i]) * c.weight) / 100, 0));
+  };
+
+  const handleSubmitVivaGrades = async () => {
+    const { project, members } = vivaGradeModal;
+    for (const m of members) {
+      const s = calcVivaWeightedScore(String(m.userId));
+      if (s === null) { alert(`Please fill in all scores for ${m.name}.`); return; }
+    }
+    const gradesArray = members.map((m) => {
+      const scores = vivaRubricScores[String(m.userId)] || [];
+      const rubricArr = VIVA_RUBRIC.map((c, i) => ({ criterionName: c.name, weight: c.weight, score: Number(scores[i]) }));
+      const marks = Math.round(rubricArr.reduce((s, rs) => s + (rs.score * rs.weight) / 100, 0));
+      return { userId: m.userId, name: m.name, marks, rubricScores: rubricArr };
+    });
+    setVivaLoading(true);
+    try {
+      const res = await axios.put(
+        `${apiBase}/auth/admin/projects/${project._id}/grade-viva`,
+        { memberVivaGrades: gradesArray, remarks: vivaRemarks },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const updated = res.data.project;
+      setProjects((prev) => prev.map((p) => p._id === project._id ? { ...p, ...updated } : p));
+      const avg = updated.overallFinalMarks ?? updated.evaluationMarks;
+      showToast(`Viva grades recorded for "${project.title}". Combined avg: ${avg}/100.`);
+      setVivaGradeModal(null);
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to save viva grades.");
+    } finally {
+      setVivaLoading(false);
     }
   };
 
@@ -342,6 +448,130 @@ const GradeApproval = () => {
         </div>
       )}
 
+      {/* Viva Schedule Modal */}
+      {vivaScheduleModal && (
+        <div className={styles.overlay}>
+          <div className={styles.modal}>
+            <h3 className={styles.modalTitle}>Schedule Viva Defense</h3>
+            <p className={styles.modalSubtitle}>{vivaScheduleModal.project.title}</p>
+
+            <label className={styles.label}>Date &amp; Time *</label>
+            <input
+              type="datetime-local"
+              className={styles.input}
+              value={vivaForm.scheduledAt}
+              onChange={(e) => setVivaForm((f) => ({ ...f, scheduledAt: e.target.value }))}
+            />
+
+            <label className={styles.label}>Venue / Room</label>
+            <input
+              type="text"
+              className={styles.input}
+              placeholder="e.g. Seminar Hall A, Lab 201"
+              value={vivaForm.venue}
+              onChange={(e) => setVivaForm((f) => ({ ...f, venue: e.target.value }))}
+            />
+
+            <label className={styles.label}>Examiner / Panel</label>
+            <input
+              type="text"
+              className={styles.input}
+              placeholder="e.g. Dr. Ahmed, External Panel"
+              value={vivaForm.examinerName}
+              onChange={(e) => setVivaForm((f) => ({ ...f, examinerName: e.target.value }))}
+            />
+
+            <div className={styles.modalActions}>
+              <button className={styles.releaseBtn} onClick={handleScheduleViva} disabled={vivaLoading}>
+                {vivaLoading ? "Scheduling..." : "Confirm Schedule"}
+              </button>
+              <button className={styles.cancelBtn} onClick={() => setVivaScheduleModal(null)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Viva Grade Modal */}
+      {vivaGradeModal && (
+        <div className={styles.overlay}>
+          <div className={`${styles.modal} ${styles.vivaGradeModal}`}>
+            <h3 className={styles.modalTitle}>Enter Viva Marks</h3>
+            <p className={styles.modalSubtitle}>{vivaGradeModal.project.title}</p>
+            <p className={styles.vivaCombineNote}>
+              Combined final = Supervisor 60% + Viva 40%
+            </p>
+
+            {vivaGradeModal.members.map((m) => {
+              const memberIdStr = String(m.userId);
+              const weighted = calcVivaWeightedScore(memberIdStr);
+              return (
+                <div key={memberIdStr} className={styles.memberRubricBlock}>
+                  <div className={styles.memberRubricHeader}>
+                    <span>{m.name}</span>
+                    {weighted !== null && (
+                      <span className={styles.memberWeightedScore}>Viva: {weighted}/100</span>
+                    )}
+                  </div>
+                  <table className={styles.rubricTable}>
+                    <thead>
+                      <tr>
+                        <th className={styles.rubricCriterionCell}>Criterion</th>
+                        <th className={styles.rubricWeightCell}>Wt%</th>
+                        <th className={styles.rubricScoreCell}>Score /100</th>
+                        <th className={styles.rubricContribCell}>Pts</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {VIVA_RUBRIC.map((c, idx) => {
+                        const val   = (vivaRubricScores[memberIdStr] || [])[idx] ?? "";
+                        const num   = Number(val);
+                        const contrib = val !== "" && !isNaN(num) ? ((num * c.weight) / 100).toFixed(1) : "—";
+                        return (
+                          <tr key={idx} className={styles.rubricRow}>
+                            <td className={styles.rubricCriterionCell}>
+                              <span className={styles.criterionName}>{c.name}</span>
+                              <span className={styles.criterionDesc}>{c.description}</span>
+                            </td>
+                            <td className={styles.rubricWeightCell}>{c.weight}%</td>
+                            <td className={styles.rubricScoreCell}>
+                              <input
+                                type="number"
+                                min={0} max={100}
+                                className={styles.criterionInput}
+                                value={val}
+                                onChange={(e) => setVivaCriterionScore(memberIdStr, idx, e.target.value)}
+                                placeholder="0–100"
+                              />
+                            </td>
+                            <td className={styles.rubricContribCell}>{contrib}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })}
+
+            <label className={styles.label}>Viva Remarks</label>
+            <textarea
+              className={styles.textarea}
+              rows={2}
+              value={vivaRemarks}
+              onChange={(e) => setVivaRemarks(e.target.value)}
+              placeholder="Optional notes from the panel..."
+            />
+
+            <div className={styles.modalActions}>
+              <button className={styles.releaseBtn} onClick={handleSubmitVivaGrades} disabled={vivaLoading}>
+                {vivaLoading ? "Saving..." : "Save Viva Marks"}
+              </button>
+              <button className={styles.cancelBtn} onClick={() => setVivaGradeModal(null)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Tabs */}
       <div className={styles.tabs}>
         {TABS.map((tab) => (
@@ -457,6 +687,8 @@ const GradeApproval = () => {
               onRelease={handleRelease}
               onFlag={(p) => { setFlagModal({ projectId: p._id, title: p.title }); setFlagReason(""); }}
               apiBase={apiBase}
+              onScheduleViva={openVivaScheduleModal}
+              onGradeViva={openVivaGradeModal}
             />
           ))}
         </div>
@@ -465,7 +697,7 @@ const GradeApproval = () => {
   );
 };
 
-const ProjectCard = ({ project, activeTab, actionLoading, onRelease, onFlag, apiBase }) => {
+const ProjectCard = ({ project, activeTab, actionLoading, onRelease, onFlag, apiBase, onScheduleViva, onGradeViva }) => {
   const [expanded, setExpanded] = useState(false);
 
   const avgMarks = project.evaluationMarks ?? (
@@ -587,6 +819,58 @@ const ProjectCard = ({ project, activeTab, actionLoading, onRelease, onFlag, api
           <strong>Supervisor remarks:</strong> {project.remarks}
         </p>
       )}
+
+      {/* Viva Defense Section */}
+      <div className={styles.vivaSection}>
+        {!project.vivaDetails?.status && activeTab === "RELEASED" && (
+          <button className={styles.vivaScheduleBtn} onClick={() => onScheduleViva(project)}>
+            Schedule Viva Defense
+          </button>
+        )}
+        {project.vivaDetails?.status === "SCHEDULED" && (
+          <div className={styles.vivaScheduledBox}>
+            <div className={styles.vivaScheduledHeader}>
+              <span className={styles.vivaScheduledLabel}>Viva Scheduled</span>
+              <span className={styles.vivaScheduledDate}>
+                {new Date(project.vivaDetails.scheduledAt).toLocaleString()}
+              </span>
+            </div>
+            {project.vivaDetails.venue && <p className={styles.vivaMeta}>Venue: {project.vivaDetails.venue}</p>}
+            {project.vivaDetails.examinerName && <p className={styles.vivaMeta}>Examiner: {project.vivaDetails.examinerName}</p>}
+            <div className={styles.vivaActions}>
+              <button className={styles.vivaGradeBtn} onClick={() => onGradeViva(project)}>
+                Enter Viva Marks
+              </button>
+              <button className={styles.vivaRescheduleBtn} onClick={() => onScheduleViva(project)}>
+                Reschedule
+              </button>
+            </div>
+          </div>
+        )}
+        {project.vivaDetails?.status === "GRADED" && (
+          <div className={styles.vivaGradedBox}>
+            <div className={styles.vivaGradedHeader}>
+              <span className={styles.vivaGradedLabel}>Viva Graded</span>
+              <span className={styles.vivaGradedAvg}>Viva Avg: {project.vivaDetails.vivaMarks}/100</span>
+            </div>
+            <div className={styles.vivaCombinedRow}>
+              <span>Supervisor: <strong>{project.evaluationPhases?.find(p => p.phase === "FINAL")?.evaluationMarks ?? "—"}/100</strong> × 60%</span>
+              <span>Viva: <strong>{project.vivaDetails.vivaMarks}/100</strong> × 40%</span>
+              <span className={styles.vivaCombinedFinal}>Combined: <strong>{project.overallFinalMarks ?? project.evaluationMarks}/100</strong></span>
+            </div>
+            {project.vivaDetails.memberVivaGrades?.length > 0 && (
+              <div className={styles.vivaMemberList}>
+                {project.vivaDetails.memberVivaGrades.map((v, i) => (
+                  <span key={i} className={styles.vivaMemberChip}>{v.name}: {v.marks}</span>
+                ))}
+              </div>
+            )}
+            <button className={styles.vivaRescheduleBtn} onClick={() => onGradeViva(project)}>
+              Revise Viva Marks
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* Actions */}
       {activeTab === "PENDING_RELEASE" && (

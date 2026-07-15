@@ -70,6 +70,10 @@ function calcOverallFromPhases(project) {
   return Math.round(weightedSum / Math.max(totalWeight, 1));
 }
 
+function calcOverallFinal(supervisorMarks, vivaMarks) {
+  return Math.round(supervisorMarks * 0.6 + vivaMarks * 0.4);
+}
+
 // Build per-member weighted marks from all submitted phases.
 function calcCombinedMemberGrades(project) {
   const submitted = (project.evaluationPhases || []).filter((p) => p.status === "SUBMITTED");
@@ -727,6 +731,155 @@ exports.gradePhase = async (req, res) => {
     res.json({ success: true, project });
   } catch (err) {
     console.error("gradePhase error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// PUT /auth/admin/projects/:projectId/schedule-viva  (Admin)
+exports.scheduleViva = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { scheduledAt, venue, examinerName } = req.body;
+
+    if (!scheduledAt) return res.status(400).json({ message: "scheduledAt date is required" });
+
+    const project = await Project.findById(projectId)
+      .populate("teamId", "members createdBy")
+      .populate("teamLeaderId", "name");
+    if (!project) return res.status(404).json({ message: "Project not found" });
+    if (project.status !== "COMPLETED" || project.gradesStatus !== "RELEASED") {
+      return res.status(400).json({ message: "Viva can only be scheduled for projects with released grades" });
+    }
+
+    project.vivaDetails = {
+      ...((project.vivaDetails || {})),
+      status:       "SCHEDULED",
+      scheduledAt:  new Date(scheduledAt),
+      venue:        venue || "",
+      examinerName: examinerName || "",
+    };
+
+    await project.save();
+
+    // Notify team members and supervisor
+    const recipientIds = new Set();
+    if (project.teamLeaderId) recipientIds.add(String(project.teamLeaderId._id || project.teamLeaderId));
+    (project.memberGrades || []).forEach((mg) => { if (mg.userId) recipientIds.add(String(mg.userId)); });
+    const vivaDate = new Date(scheduledAt).toLocaleString();
+    const notifMsg = `Your viva defense for "${project.title}" is scheduled on ${vivaDate}${venue ? ` at ${venue}` : ""}${examinerName ? `. Examiner: ${examinerName}` : ""}.`;
+
+    await Promise.all([...recipientIds].map((userId) =>
+      createNotification({
+        userId,
+        title: "Viva Defense Scheduled",
+        message: notifMsg,
+        relatedType: "project",
+        relatedId: project._id,
+      })
+    ));
+    await createNotification({
+      userId: project.supervisorId,
+      title: "Viva Defense Scheduled",
+      message: `Viva for project "${project.title}" scheduled on ${vivaDate}${venue ? ` at ${venue}` : ""}.`,
+      relatedType: "project",
+      relatedId: project._id,
+    });
+
+    await logAction({
+      actorId:   req.user._id,
+      actorRole: "admin",
+      action:    "VIVA_SCHEDULED",
+      targetType:"Project",
+      targetId:  project._id,
+      details:   `Viva scheduled for "${project.title}" on ${vivaDate}`,
+    });
+
+    res.json({ success: true, project });
+  } catch (err) {
+    console.error("scheduleViva error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// PUT /auth/admin/projects/:projectId/grade-viva  (Admin)
+exports.gradeViva = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { memberVivaGrades, remarks } = req.body;
+
+    if (!Array.isArray(memberVivaGrades) || memberVivaGrades.length === 0) {
+      return res.status(400).json({ message: "memberVivaGrades required" });
+    }
+
+    const project = await Project.findById(projectId);
+    if (!project) return res.status(404).json({ message: "Project not found" });
+    if (!project.vivaDetails?.status) {
+      return res.status(400).json({ message: "Viva must be scheduled before grading" });
+    }
+
+    const vivaAvg = Math.round(
+      memberVivaGrades.reduce((s, g) => s + (g.marks || 0), 0) / memberVivaGrades.length
+    );
+    const supervisorAvg = project.evaluationMarks || 0;
+
+    project.vivaDetails.status          = "GRADED";
+    project.vivaDetails.vivaMarks       = vivaAvg;
+    project.vivaDetails.memberVivaGrades= memberVivaGrades;
+    project.vivaDetails.gradedAt        = new Date();
+    project.vivaDetails.remarks         = remarks || "";
+
+    // Recalculate combined marks per member
+    const updatedMemberGrades = (project.memberGrades || []).map((mg) => {
+      const vivaEntry = memberVivaGrades.find((v) => String(v.userId) === String(mg.userId));
+      if (!vivaEntry) return mg;
+      const combined = calcOverallFinal(mg.marks || 0, vivaEntry.marks || 0);
+      return { ...mg.toObject(), marks: combined };
+    });
+    project.memberGrades = updatedMemberGrades;
+
+    // Overall combined
+    project.overallFinalMarks  = calcOverallFinal(supervisorAvg, vivaAvg);
+    project.evaluationMarks    = project.overallFinalMarks;
+
+    // Append to grade history
+    project.gradeHistory.push({
+      phase:           "VIVA",
+      action:          "SUBMITTED",
+      actorId:         req.user._id,
+      actorName:       req.user.name || "Admin",
+      evaluationMarks: vivaAvg,
+      memberGrades:    memberVivaGrades.map((g) => ({ userId: g.userId, name: g.name, marks: g.marks })),
+      remarks:         remarks || "",
+      timestamp:       new Date(),
+    });
+
+    await project.save();
+
+    // Notify team
+    const recipientIds = new Set();
+    (project.memberGrades || []).forEach((mg) => { if (mg.userId) recipientIds.add(String(mg.userId)); });
+    await Promise.all([...recipientIds].map((userId) =>
+      createNotification({
+        userId,
+        title: "Viva Results Recorded",
+        message: `Viva marks for "${project.title}" have been recorded. Your combined final mark has been updated.`,
+        relatedType: "project",
+        relatedId: project._id,
+      })
+    ));
+
+    await logAction({
+      actorId:   req.user._id,
+      actorRole: "admin",
+      action:    "VIVA_GRADED",
+      targetType:"Project",
+      targetId:  project._id,
+      details:   `Viva graded for "${project.title}". Viva avg: ${vivaAvg}/100. Combined avg: ${project.overallFinalMarks}/100`,
+    });
+
+    res.json({ success: true, project });
+  } catch (err) {
+    console.error("gradeViva error:", err);
     res.status(500).json({ message: "Server error" });
   }
 };

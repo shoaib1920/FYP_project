@@ -926,6 +926,18 @@ const FYPProjects = () => {
                             </button>
                           </div>
                         )}
+                        {/* Viva info on supervisor side */}
+                        {project.vivaDetails?.status === "SCHEDULED" && (
+                          <div className={styles.vivaInfoChip}>
+                            Viva: {new Date(project.vivaDetails.scheduledAt).toLocaleDateString()}
+                            {project.vivaDetails.venue ? ` @ ${project.vivaDetails.venue}` : ""}
+                          </div>
+                        )}
+                        {project.vivaDetails?.status === "GRADED" && (
+                          <div className={styles.vivaGradedChip}>
+                            Viva done · Combined: {project.overallFinalMarks ?? project.evaluationMarks}/100
+                          </div>
+                        )}
                       </div>
                     </td>
                   </tr>
