@@ -76,10 +76,28 @@
         }
     };
 
-    // ✅ Get Leaderboard
+    // ✅ Get Leaderboard — scoped to the requesting student's own team/group only
     const getLeaderboard = async (req, res) => {
         try {
-            const leaderboard = await UserProjectSummary.find().sort({ completedProjects: -1 }).limit(5);
+            const { userId } = req.query;
+
+            if (!userId) {
+                return res.json([]);
+            }
+
+            const teams = await Team.find({ members: userId }, "members").lean();
+            const groupMemberIds = teams.reduce((ids, team) => {
+                team.members.forEach((member) => ids.add(String(member)));
+                return ids;
+            }, new Set());
+
+            if (groupMemberIds.size === 0) {
+                return res.json([]);
+            }
+
+            const leaderboard = await UserProjectSummary.find({ userId: { $in: Array.from(groupMemberIds) } })
+                .sort({ completedProjects: -1 })
+                .limit(10);
             res.json(leaderboard);
         } catch (error) {
             res.status(500).json({ message: "Error fetching leaderboard", error });

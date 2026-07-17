@@ -29,7 +29,6 @@ const Dashboard = ({ setActiveModule }) => {
   const [progressLabels, setProgressLabels] = useState([]);
   const [progressCompletedData, setProgressCompletedData] = useState([]);
   const [progressPendingData, setProgressPendingData] = useState([]);
-  const [users, setUsers] = useState([]);
   const [leaderboard, setLeaderboard] = useState([]);
   const [recentTasks, setRecentTasks] = useState([]);
   const [showTeamModal, setShowTeamModal] = useState(false);
@@ -38,7 +37,7 @@ const Dashboard = ({ setActiveModule }) => {
   const [availableStudents, setAvailableStudents] = useState([]);
   const [allTeams, setAllTeams] = useState([]);
   const [yourTeams, setYourTeams] = useState([]);
-  const [pendingInvites, setPendingInvites] = useState([]);
+  const [otherTeams, setOtherTeams] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("myTeams");
   const [showManageTeamsModal, setShowManageTeamsModal] = useState(false);
@@ -56,35 +55,12 @@ const Dashboard = ({ setActiveModule }) => {
   const hasTeamMembership = yourTeams.length > 0;
   const canCreateTeam = !hasTeamMembership || isLeader;
 
-  const teamMemberIdsForFiltering = yourTeams.flatMap((team) =>
-    (team.members || []).map((m) => String(m._id))
-  );
-
-  const yourTeamIds = yourTeams.map((team) => String(team._id));
-  const otherTeams = allTeams.filter((team) => !yourTeamIds.includes(String(team._id)));
-
-  const filteredLeaderboard = leaderboard.filter((entry) => {
-    const usr = users.find((u) => String(u._id) === String(entry.userId) || String(u.id) === String(entry.userId));
-    const sameDept = usr && String(usr.studentJoinCode).toUpperCase() === String(studentJoinCode).toUpperCase();
-    const inTeam = teamMemberIdsForFiltering.includes(String(entry.userId));
-    return sameDept || inTeam;
-  });
-
   const filteredUsers = availableStudents.filter(
     (user) =>
       (user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.registration_id?.toLowerCase().includes(searchTerm.toLowerCase())) &&
       user._id !== userId
   );
-
-  const fetchUsers = async () => {
-    try {
-      const response = await axios.get(`${process.env.REACT_APP_API_URL}/auth/users`);
-      setUsers(response.data);
-    } catch (error) {
-      console.error("Error fetching users:", error);
-    }
-  };
 
   const fetchTeams = async () => {
     try {
@@ -106,23 +82,13 @@ const Dashboard = ({ setActiveModule }) => {
           registration_id: student.studentId,
         }));
       setAvailableStudents(available);
+      const your = teams.filter((team) => team.members.some((member) => member._id === userId));
+      const others = teams.filter((team) => !team.members.some((member) => member._id === userId));
       setAllTeams(teams);
+      setYourTeams(your);
+      setOtherTeams(others);
     } catch (error) {
       console.error("Error fetching teams:", error);
-    }
-  };
-
-  // Scoped to the logged-in user: teams they belong to + invites awaiting their response.
-  const fetchMyTeams = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      const response = await axios.get(`${process.env.REACT_APP_API_URL}/auth/my-teams`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setYourTeams(response.data.teams || []);
-      setPendingInvites(response.data.invites || []);
-    } catch (error) {
-      console.error("Error fetching my teams:", error);
     }
   };
 
@@ -174,7 +140,9 @@ const Dashboard = ({ setActiveModule }) => {
         console.error("Error fetching task progress:", err);
       }
 
-      const leaderboardResponse = await axios.get(`${process.env.REACT_APP_API_URL}/auth/dashboard/leaderboard`);
+      const leaderboardResponse = await axios.get(
+        `${process.env.REACT_APP_API_URL}/auth/dashboard/leaderboard?userId=${userId}`
+      );
       setLeaderboard(leaderboardResponse.data);
 
       const recentTasksResponse = await axios.get(
@@ -188,61 +156,37 @@ const Dashboard = ({ setActiveModule }) => {
 
   useEffect(() => {
     const init = async () => {
-      await Promise.allSettled([fetchUsers(), fetchDashboardData(), fetchTeams(), fetchMyTeams()]);
+      await Promise.allSettled([fetchDashboardData(), fetchTeams()]);
       setLoading(false);
     };
     init();
   }, []);
 
   const handleCreateTeam = async () => {
-    if (selectedUsers.length === 0) {
-      alert("Invite at least one teammate to your team.");
-      return;
-    }
     try {
-      const token = localStorage.getItem("token");
+      const allMemberIds = [userId, ...selectedUsers.map((user) => user.id)];
+      const allMemberNames = [userName, ...selectedUsers.map((user) => user.name)];
       const payload = {
         subject: teamSubject,
-        memberIds: selectedUsers.map((user) => user.id),
-        memberNames: selectedUsers.map((user) => user.name),
+        memberIds: allMemberIds,
+        memberNames: allMemberNames,
         department: departmentName,
         creatorJoinCode: studentJoinCode,
+        createdBy: userId,
         creatorName: userName,
       };
-      const response = await axios.post(
-        `${process.env.REACT_APP_API_URL}/auth/create-team`,
-        payload,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const response = await axios.post(`${process.env.REACT_APP_API_URL}/auth/create-team`, payload);
       if (response.data.success) {
-        alert("Team created! Invites have been sent to the selected students.");
+        alert("Team created successfully!");
         setShowTeamModal(false);
         setTeamSubject("");
         setSelectedUsers([]);
         const updatedUser = { ...loggedInUser, designation: "TeamLeader" };
         localStorage.setItem("user", JSON.stringify(updatedUser));
-        fetchMyTeams();
+        fetchTeams();
       }
     } catch (error) {
       console.error("Error creating team:", error);
-      alert(error.response?.data?.message || "Error creating team");
-    }
-  };
-
-  const handleRespondToInvite = async (teamId, action) => {
-    try {
-      const token = localStorage.getItem("token");
-      const response = await axios.put(
-        `${process.env.REACT_APP_API_URL}/auth/teams/${teamId}/invites/respond`,
-        { action },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      if (response.data.success) {
-        fetchMyTeams();
-      }
-    } catch (error) {
-      console.error("Error responding to invite:", error);
-      alert(error.response?.data?.message || "Error responding to invite");
     }
   };
 
@@ -409,40 +353,6 @@ const Dashboard = ({ setActiveModule }) => {
         </div>
       )}
 
-      {/* ── Pending Team Invites ── */}
-      {!loading && pendingInvites.length > 0 && (
-        <div className={styles.getStarted}>
-          <div className={styles.getStartedHeader}>
-            <FaUsers className={styles.gsIcon} />
-            <div>
-              <h3 className={styles.gsTitle}>Team Invitations</h3>
-              <p className={styles.gsSub}>
-                You've been invited to join {pendingInvites.length === 1 ? "a team" : `${pendingInvites.length} teams`}
-              </p>
-            </div>
-          </div>
-          <div className={styles.stepsTrack}>
-            {pendingInvites.map((invite) => (
-              <div key={invite.teamId} className={`${styles.step} ${styles.stepActive}`}>
-                <div className={styles.stepIconWrap}><FaUsers /></div>
-                <div className={styles.stepBody}>
-                  <span className={styles.stepLabel}>{invite.subject}</span>
-                  <div>Invited by {invite.creatorName}</div>
-                </div>
-                <button className={styles.stepBtn} onClick={() => handleRespondToInvite(invite.teamId, "accept")}>Accept</button>
-                <button
-                  className={styles.stepBtn}
-                  style={{ background: "#6b7280" }}
-                  onClick={() => handleRespondToInvite(invite.teamId, "decline")}
-                >
-                  Decline
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* ── Create Team Modal ── */}
       {showTeamModal && (
         <div className={styles.modalOverlay}>
@@ -540,7 +450,7 @@ const Dashboard = ({ setActiveModule }) => {
       {/* ── Leaderboard ── */}
       <div className={styles.leaderboard}>
         <h2>Top Performers</h2>
-        {filteredLeaderboard.length === 0 ? (
+        {leaderboard.length === 0 ? (
           <div className={styles.emptyState}>
             <FaTrophy className={styles.emptyIcon} />
             <p className={styles.emptyTitle}>Leaderboard is empty</p>
@@ -552,7 +462,7 @@ const Dashboard = ({ setActiveModule }) => {
               <tr><th>Rank</th><th>Name</th><th>Tasks Completed</th></tr>
             </thead>
             <tbody>
-              {filteredLeaderboard.map((user, index) => (
+              {leaderboard.map((user, index) => (
                 <tr key={user.userId} className={index === 0 ? styles.rankGold : index === 1 ? styles.rankSilver : index === 2 ? styles.rankBronze : ""}>
                   <td className={styles.rankCell}>
                     {index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `#${index + 1}`}
