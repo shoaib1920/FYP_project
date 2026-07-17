@@ -60,7 +60,7 @@ const {
 } = require("../Controllers/FeedbackController");
 const { supervisorSignup, supervisorLogin } = require("../Controllers/SupervisorAuthController");
 const { createProject, getAllProjects,assignProject,getSupervisorProjectStats ,AssignedProjectList,getAllSupervisors  ,submitFinalProject, getAllSupervisorsForAdmin, updateSupervisorStatus, updateSupervisorDepartment } = require("../Controllers/SupervisorProjectController");
-const { createTeam, getAllTeams } = require("../Controllers/TeamController");
+const { createTeam, getAllTeams, getMyTeams, respondToInvite } = require("../Controllers/TeamController");
 const {
   createDepartment,
   getAllDepartments,
@@ -198,7 +198,9 @@ route.get('/assigned-projects/stats/:supervisorId', getSupervisorProjectStats);
 // Create a Project
 route.post("/create-project", createProject);
 
-route.post('/create-team', createTeam); // Create a team\
+route.post('/create-team', authenticate, createTeam); // Create a team — creator comes from the JWT, not the request body
+route.get('/my-teams', authenticate, getMyTeams); // Teams I'm in + invites awaiting my response
+route.put('/teams/:teamId/invites/respond', authenticate, respondToInvite); // Accept or decline a team invite
 
 // Get all Projects
 route.get("/projects", getAllProjects);

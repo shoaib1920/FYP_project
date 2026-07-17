@@ -38,7 +38,7 @@ const Dashboard = ({ setActiveModule }) => {
   const [availableStudents, setAvailableStudents] = useState([]);
   const [allTeams, setAllTeams] = useState([]);
   const [yourTeams, setYourTeams] = useState([]);
-  const [otherTeams, setOtherTeams] = useState([]);
+  const [pendingInvites, setPendingInvites] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("myTeams");
   const [showManageTeamsModal, setShowManageTeamsModal] = useState(false);
@@ -59,6 +59,9 @@ const Dashboard = ({ setActiveModule }) => {
   const teamMemberIdsForFiltering = yourTeams.flatMap((team) =>
     (team.members || []).map((m) => String(m._id))
   );
+
+  const yourTeamIds = yourTeams.map((team) => String(team._id));
+  const otherTeams = allTeams.filter((team) => !yourTeamIds.includes(String(team._id)));
 
   const filteredLeaderboard = leaderboard.filter((entry) => {
     const usr = users.find((u) => String(u._id) === String(entry.userId) || String(u.id) === String(entry.userId));
@@ -103,13 +106,23 @@ const Dashboard = ({ setActiveModule }) => {
           registration_id: student.studentId,
         }));
       setAvailableStudents(available);
-      const your = teams.filter((team) => team.members.some((member) => member._id === userId));
-      const others = teams.filter((team) => !team.members.some((member) => member._id === userId));
       setAllTeams(teams);
-      setYourTeams(your);
-      setOtherTeams(others);
     } catch (error) {
       console.error("Error fetching teams:", error);
+    }
+  };
+
+  // Scoped to the logged-in user: teams they belong to + invites awaiting their response.
+  const fetchMyTeams = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await axios.get(`${process.env.REACT_APP_API_URL}/auth/my-teams`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setYourTeams(response.data.teams || []);
+      setPendingInvites(response.data.invites || []);
+    } catch (error) {
+      console.error("Error fetching my teams:", error);
     }
   };
 
@@ -175,37 +188,61 @@ const Dashboard = ({ setActiveModule }) => {
 
   useEffect(() => {
     const init = async () => {
-      await Promise.allSettled([fetchUsers(), fetchDashboardData(), fetchTeams()]);
+      await Promise.allSettled([fetchUsers(), fetchDashboardData(), fetchTeams(), fetchMyTeams()]);
       setLoading(false);
     };
     init();
   }, []);
 
   const handleCreateTeam = async () => {
+    if (selectedUsers.length === 0) {
+      alert("Invite at least one teammate to your team.");
+      return;
+    }
     try {
-      const allMemberIds = [userId, ...selectedUsers.map((user) => user.id)];
-      const allMemberNames = [userName, ...selectedUsers.map((user) => user.name)];
+      const token = localStorage.getItem("token");
       const payload = {
         subject: teamSubject,
-        memberIds: allMemberIds,
-        memberNames: allMemberNames,
+        memberIds: selectedUsers.map((user) => user.id),
+        memberNames: selectedUsers.map((user) => user.name),
         department: departmentName,
         creatorJoinCode: studentJoinCode,
-        createdBy: userId,
         creatorName: userName,
       };
-      const response = await axios.post(`${process.env.REACT_APP_API_URL}/auth/create-team`, payload);
+      const response = await axios.post(
+        `${process.env.REACT_APP_API_URL}/auth/create-team`,
+        payload,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
       if (response.data.success) {
-        alert("Team created successfully!");
+        alert("Team created! Invites have been sent to the selected students.");
         setShowTeamModal(false);
         setTeamSubject("");
         setSelectedUsers([]);
         const updatedUser = { ...loggedInUser, designation: "TeamLeader" };
         localStorage.setItem("user", JSON.stringify(updatedUser));
-        fetchTeams();
+        fetchMyTeams();
       }
     } catch (error) {
       console.error("Error creating team:", error);
+      alert(error.response?.data?.message || "Error creating team");
+    }
+  };
+
+  const handleRespondToInvite = async (teamId, action) => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await axios.put(
+        `${process.env.REACT_APP_API_URL}/auth/teams/${teamId}/invites/respond`,
+        { action },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (response.data.success) {
+        fetchMyTeams();
+      }
+    } catch (error) {
+      console.error("Error responding to invite:", error);
+      alert(error.response?.data?.message || "Error responding to invite");
     }
   };
 
@@ -366,6 +403,40 @@ const Dashboard = ({ setActiveModule }) => {
                 {step.action && (
                   <button className={styles.stepBtn} onClick={step.action}>{step.actionLabel} →</button>
                 )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Pending Team Invites ── */}
+      {!loading && pendingInvites.length > 0 && (
+        <div className={styles.getStarted}>
+          <div className={styles.getStartedHeader}>
+            <FaUsers className={styles.gsIcon} />
+            <div>
+              <h3 className={styles.gsTitle}>Team Invitations</h3>
+              <p className={styles.gsSub}>
+                You've been invited to join {pendingInvites.length === 1 ? "a team" : `${pendingInvites.length} teams`}
+              </p>
+            </div>
+          </div>
+          <div className={styles.stepsTrack}>
+            {pendingInvites.map((invite) => (
+              <div key={invite.teamId} className={`${styles.step} ${styles.stepActive}`}>
+                <div className={styles.stepIconWrap}><FaUsers /></div>
+                <div className={styles.stepBody}>
+                  <span className={styles.stepLabel}>{invite.subject}</span>
+                  <div>Invited by {invite.creatorName}</div>
+                </div>
+                <button className={styles.stepBtn} onClick={() => handleRespondToInvite(invite.teamId, "accept")}>Accept</button>
+                <button
+                  className={styles.stepBtn}
+                  style={{ background: "#6b7280" }}
+                  onClick={() => handleRespondToInvite(invite.teamId, "decline")}
+                >
+                  Decline
+                </button>
               </div>
             ))}
           </div>

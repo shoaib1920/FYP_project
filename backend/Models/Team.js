@@ -9,6 +9,15 @@ const teamSchema = new mongoose.Schema(
     creatorJoinCode: { type: String, required: true },
     memberNames: [{ type: String }],
      department:{ type: String, required: true },
+    // Invited students who haven't accepted/declined yet — see respondToInvite.
+    // A student only moves into `members` once they accept.
+    pendingInvites: [
+      {
+        student: { type: mongoose.Schema.Types.ObjectId, ref: "users" },
+        name: { type: String },
+        invitedAt: { type: Date, default: Date.now },
+      },
+    ],
   },
   { timestamps: true }
 );
