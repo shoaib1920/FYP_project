@@ -70,7 +70,7 @@ exports.createTeam = async (req, res) => {
     });
   } catch (error) {
     console.error("Error creating team:", error);
-    res.status(500).json({ message: "Server Error" });
+    res.status(500).json({ message: error.message || "Server Error" });
   }
 };
 
@@ -115,7 +115,7 @@ exports.getMyTeams = async (req, res) => {
     res.status(200).json({ success: true, teams, invites });
   } catch (error) {
     console.error("Error fetching my teams:", error);
-    res.status(500).json({ success: false, message: "Server Error" });
+    res.status(500).json({ success: false, message: error.message || "Server Error" });
   }
 };
 
@@ -184,6 +184,6 @@ exports.respondToInvite = async (req, res) => {
     res.status(200).json({ success: true, message: "You've joined the team", team });
   } catch (error) {
     console.error("Error responding to invite:", error);
-    res.status(500).json({ message: "Server Error" });
+    res.status(500).json({ message: error.message || "Server Error" });
   }
 };
