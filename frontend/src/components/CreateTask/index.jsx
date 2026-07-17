@@ -19,6 +19,7 @@ import {
   FaPlayCircle,
   FaEdit,
   FaAward,
+  FaTimes,
 } from "react-icons/fa";
 
 const CreateTask = () => {
@@ -732,7 +733,7 @@ const CreateTask = () => {
       {linksModalProject && (
         <div className={styles.modalOverlay}>
           <div className={styles.modalContent}>
-            <span className={styles.closeButton} onClick={() => setLinksModalProject(null)}>❌</span>
+            <span className={styles.closeButton} onClick={() => setLinksModalProject(null)}><FaTimes /></span>
             <h2 className={styles.card_heading}>Project Links</h2>
             <p style={{ color: "#555", marginTop: "8px" }}>
               {linksModalProject.title}
@@ -799,7 +800,7 @@ const CreateTask = () => {
       {showReportModal && (
         <div className={styles.modalOverlay}>
           <div className={styles.modalContent}>
-            <span className={styles.closeButton} onClick={() => setShowReportModal(false)}>❌</span>
+            <span className={styles.closeButton} onClick={() => setShowReportModal(false)}><FaTimes /></span>
             <h2 className={styles.card_heading}>Submit Final Report</h2>
             <p style={{ color: "#555", marginTop: "8px" }}>
               Upload your final FYP report as a PDF (max 20MB). Once submitted, your supervisor will review it.
@@ -836,7 +837,7 @@ const CreateTask = () => {
       {progressModalProject && (
         <div className={styles.modalOverlay}>
           <div className={styles.modalContent} style={{ maxWidth: "640px" }}>
-            <span className={styles.closeButton} onClick={() => setProgressModalProject(null)}>❌</span>
+            <span className={styles.closeButton} onClick={() => setProgressModalProject(null)}><FaTimes /></span>
             <h2 className={styles.card_heading}>Weekly Progress Updates</h2>
             <p style={{ color: "#555", marginTop: "8px" }}>{progressModalProject.title}</p>
 
@@ -921,7 +922,7 @@ const CreateTask = () => {
       {reviewNotesModalProject && (
         <div className={styles.modalOverlay}>
           <div className={styles.modalContent} style={{ maxWidth: "680px" }}>
-            <span className={styles.closeButton} onClick={() => setReviewNotesModalProject(null)}>❌</span>
+            <span className={styles.closeButton} onClick={() => setReviewNotesModalProject(null)}><FaTimes /></span>
             <h2 className={styles.card_heading}>Live Review Notes</h2>
             <p style={{ color: "#555", marginTop: "8px" }}>{reviewNotesModalProject.title}</p>
 
@@ -1028,7 +1029,7 @@ const CreateTask = () => {
         <div className={styles.modalOverlay}>
           <div className={styles.modalContent}>
             <span className={styles.closeButton} onClick={handleCloseModal}>
-              ❌
+              <FaTimes />
             </span>
             <h2 className={styles.card_heading}>
               {editingTaskId ? "🔄 Update Task" : "🆕 Create New Task"}

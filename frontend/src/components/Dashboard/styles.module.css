@@ -710,6 +710,14 @@
 	font-size: 18px;
 	color: #94a3b8;
 	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: color 0.15s;
+  }
+
+  .closeButton:hover {
+	color: #475569;
   }
 
 
@@ -761,7 +769,10 @@
 	height: 30px;
 	font-size: 14px;
 	cursor: pointer;
-	transition: background 0.2s;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: background 0.2s, color 0.2s;
   }
 
   .teammodalContent .closeButton:hover {

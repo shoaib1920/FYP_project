@@ -17,7 +17,7 @@ import {
 } from "chart.js";
 import {
   FaRocket, FaUsers, FaChartBar, FaTrophy,
-  FaClipboardList, FaCheckCircle, FaLock, FaFileAlt,
+  FaClipboardList, FaCheckCircle, FaLock, FaFileAlt, FaTimes,
 } from "react-icons/fa";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Filler, Title, Tooltip, Legend);
@@ -359,7 +359,7 @@ const Dashboard = ({ setActiveModule }) => {
           <div className={styles.modalCard}>
             <div className={styles.modalHeader}>
               <h2>Create New Team</h2>
-              <button className={styles.closeButton} onClick={() => setShowTeamModal(false)}>❌</button>
+              <button className={styles.closeButton} onClick={() => setShowTeamModal(false)}><FaTimes /></button>
             </div>
             <div className={styles.modalBody}>
               <label className={styles.modalLabel}>Subject:</label>
@@ -502,7 +502,7 @@ const Dashboard = ({ setActiveModule }) => {
       {showManageTeamsModal && (
         <div className={styles.teammodalOverlay}>
           <div className={styles.teammodalContent}>
-            <button className={styles.closeButton} onClick={() => setShowManageTeamsModal(false)}>❌</button>
+            <button className={styles.closeButton} onClick={() => setShowManageTeamsModal(false)}><FaTimes /></button>
             <div className={styles.tabButtons}>
               <button className={`${styles.tabButton} ${activeTab === "myTeams" ? styles.active : ""}`} onClick={() => setActiveTab("myTeams")}>My Teams</button>
               <button className={`${styles.tabButton} ${activeTab === "otherTeams" ? styles.active : ""}`} onClick={() => setActiveTab("otherTeams")}>Other Teams</button>
