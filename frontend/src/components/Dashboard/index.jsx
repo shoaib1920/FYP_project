@@ -37,7 +37,7 @@ const Dashboard = ({ setActiveModule }) => {
   const [availableStudents, setAvailableStudents] = useState([]);
   const [allTeams, setAllTeams] = useState([]);
   const [yourTeams, setYourTeams] = useState([]);
-  const [otherTeams, setOtherTeams] = useState([]);
+  const [pendingInvites, setPendingInvites] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("myTeams");
   const [showManageTeamsModal, setShowManageTeamsModal] = useState(false);
@@ -54,6 +54,15 @@ const Dashboard = ({ setActiveModule }) => {
   const isLeader = yourTeams.some((team) => String(team.createdBy) === String(userId));
   const hasTeamMembership = yourTeams.length > 0;
   const canCreateTeam = !hasTeamMembership || isLeader;
+
+  // Invites still unanswered on a team I lead — proposal submission is blocked until these clear.
+  const myTeamPendingInvites = yourTeams
+    .filter((team) => String(team.createdBy) === String(userId))
+    .flatMap((team) => team.pendingInvites || []);
+  const teamReadyForProposal = hasTeamMembership && myTeamPendingInvites.length === 0;
+
+  const yourTeamIds = yourTeams.map((team) => String(team._id));
+  const otherTeams = allTeams.filter((team) => !yourTeamIds.includes(String(team._id)));
 
   const filteredUsers = availableStudents.filter(
     (user) =>
@@ -82,13 +91,23 @@ const Dashboard = ({ setActiveModule }) => {
           registration_id: student.studentId,
         }));
       setAvailableStudents(available);
-      const your = teams.filter((team) => team.members.some((member) => member._id === userId));
-      const others = teams.filter((team) => !team.members.some((member) => member._id === userId));
       setAllTeams(teams);
-      setYourTeams(your);
-      setOtherTeams(others);
     } catch (error) {
       console.error("Error fetching teams:", error);
+    }
+  };
+
+  // Scoped to the logged-in user: teams they belong to + invites awaiting their response.
+  const fetchMyTeams = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await axios.get(`${process.env.REACT_APP_API_URL}/auth/my-teams`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setYourTeams(response.data.teams || []);
+      setPendingInvites(response.data.invites || []);
+    } catch (error) {
+      console.error("Error fetching my teams:", error);
     }
   };
 
@@ -156,37 +175,61 @@ const Dashboard = ({ setActiveModule }) => {
 
   useEffect(() => {
     const init = async () => {
-      await Promise.allSettled([fetchDashboardData(), fetchTeams()]);
+      await Promise.allSettled([fetchDashboardData(), fetchTeams(), fetchMyTeams()]);
       setLoading(false);
     };
     init();
   }, []);
 
   const handleCreateTeam = async () => {
+    if (selectedUsers.length === 0) {
+      alert("Invite at least one teammate to your team.");
+      return;
+    }
     try {
-      const allMemberIds = [userId, ...selectedUsers.map((user) => user.id)];
-      const allMemberNames = [userName, ...selectedUsers.map((user) => user.name)];
+      const token = localStorage.getItem("token");
       const payload = {
         subject: teamSubject,
-        memberIds: allMemberIds,
-        memberNames: allMemberNames,
+        memberIds: selectedUsers.map((user) => user.id),
+        memberNames: selectedUsers.map((user) => user.name),
         department: departmentName,
         creatorJoinCode: studentJoinCode,
-        createdBy: userId,
         creatorName: userName,
       };
-      const response = await axios.post(`${process.env.REACT_APP_API_URL}/auth/create-team`, payload);
+      const response = await axios.post(
+        `${process.env.REACT_APP_API_URL}/auth/create-team`,
+        payload,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
       if (response.data.success) {
-        alert("Team created successfully!");
+        alert("Team created! Invites have been sent to the selected students — they'll need to accept before joining.");
         setShowTeamModal(false);
         setTeamSubject("");
         setSelectedUsers([]);
         const updatedUser = { ...loggedInUser, designation: "TeamLeader" };
         localStorage.setItem("user", JSON.stringify(updatedUser));
-        fetchTeams();
+        fetchMyTeams();
       }
     } catch (error) {
       console.error("Error creating team:", error);
+      alert(error.response?.data?.message || "Error creating team");
+    }
+  };
+
+  const handleRespondToInvite = async (teamId, action) => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await axios.put(
+        `${process.env.REACT_APP_API_URL}/auth/teams/${teamId}/invites/respond`,
+        { action },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (response.data.success) {
+        fetchMyTeams();
+      }
+    } catch (error) {
+      console.error("Error responding to invite:", error);
+      alert(error.response?.data?.message || "Error responding to invite");
     }
   };
 
@@ -281,10 +324,14 @@ const Dashboard = ({ setActiveModule }) => {
     },
     {
       icon: <FaFileAlt />,
-      label: "Submit your FYP proposal",
+      label: !hasTeamMembership
+        ? "Submit your FYP proposal"
+        : teamReadyForProposal
+        ? "Submit your FYP proposal"
+        : `Submit your FYP proposal (waiting on ${myTeamPendingInvites.length} teammate${myTeamPendingInvites.length === 1 ? "" : "s"})`,
       done: false,
-      locked: !hasTeamMembership,
-      action: hasTeamMembership ? () => setActiveModule("StudentProposal") : null,
+      locked: !teamReadyForProposal,
+      action: teamReadyForProposal ? () => setActiveModule("StudentProposal") : null,
       actionLabel: "Go to Proposal",
     },
     { icon: <FaClipboardList />, label: "Work on assigned tasks", done: completedTasks > 0, locked: !hasTeamMembership },
@@ -347,6 +394,66 @@ const Dashboard = ({ setActiveModule }) => {
                 {step.action && (
                   <button className={styles.stepBtn} onClick={step.action}>{step.actionLabel} →</button>
                 )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Pending Team Invites (received by me) ── */}
+      {!loading && pendingInvites.length > 0 && (
+        <div className={styles.getStarted}>
+          <div className={styles.getStartedHeader}>
+            <FaUsers className={styles.gsIcon} />
+            <div>
+              <h3 className={styles.gsTitle}>Team Invitations</h3>
+              <p className={styles.gsSub}>
+                You've been invited to join {pendingInvites.length === 1 ? "a team" : `${pendingInvites.length} teams`}
+              </p>
+            </div>
+          </div>
+          <div className={styles.stepsTrack}>
+            {pendingInvites.map((invite) => (
+              <div key={invite.teamId} className={`${styles.step} ${styles.stepActive}`}>
+                <div className={styles.stepIconWrap}><FaUsers /></div>
+                <div className={styles.stepBody}>
+                  <span className={styles.stepLabel}>{invite.subject}</span>
+                  <div>Invited by {invite.creatorName}</div>
+                </div>
+                <button className={styles.stepBtn} onClick={() => handleRespondToInvite(invite.teamId, "accept")}>Accept</button>
+                <button
+                  className={styles.stepBtn}
+                  style={{ background: "#6b7280" }}
+                  onClick={() => handleRespondToInvite(invite.teamId, "decline")}
+                >
+                  Decline
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Outstanding invites on a team I lead (blocks proposal submission) ── */}
+      {!loading && myTeamPendingInvites.length > 0 && (
+        <div className={styles.getStarted}>
+          <div className={styles.getStartedHeader}>
+            <FaLock className={styles.gsIcon} />
+            <div>
+              <h3 className={styles.gsTitle}>Team Not Ready Yet</h3>
+              <p className={styles.gsSub}>
+                Waiting on {myTeamPendingInvites.length === 1 ? "a response" : `${myTeamPendingInvites.length} responses`} before you can submit a proposal
+              </p>
+            </div>
+          </div>
+          <div className={styles.stepsTrack}>
+            {myTeamPendingInvites.map((inv) => (
+              <div key={String(inv.student)} className={`${styles.step} ${styles.stepLocked}`}>
+                <div className={styles.stepIconWrap}><FaLock /></div>
+                <div className={styles.stepBody}>
+                  <span className={styles.stepLabel}>{inv.name}</span>
+                  <div>Hasn't responded to the invite yet</div>
+                </div>
               </div>
             ))}
           </div>

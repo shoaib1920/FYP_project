@@ -10,7 +10,8 @@ const teamSchema = new mongoose.Schema(
     memberNames: [{ type: String }],
      department:{ type: String, required: true },
     // Invited students who haven't accepted/declined yet — see respondToInvite.
-    // A student only moves into `members` once they accept.
+    // A student only moves into `members` once they accept. A proposal can't
+    // be submitted for this team while any invite here is still unanswered.
     pendingInvites: [
       {
         student: { type: mongoose.Schema.Types.ObjectId, ref: "users" },

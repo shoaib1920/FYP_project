@@ -42,8 +42,8 @@ exports.createTeam = async (req, res) => {
       subject,
       members: [createdBy],
       memberNames: [creatorName || creator.name],
-      department,
-      creatorJoinCode,
+      department: department || "",
+      creatorJoinCode: creatorJoinCode || "",
       createdBy,
       creatorName: creatorName || creator.name,
       pendingInvites: invitees.map((u) => ({ student: u._id, name: u.name, invitedAt: new Date() })),
@@ -82,7 +82,7 @@ exports.getAllTeams = async (req, res) => {
     res.status(200).json({ teams: teams || [] });
   } catch (error) {
     console.error("Error fetching teams:", error);
-    res.status(500).json({ message: "Server Error" });
+    res.status(500).json({ message: error.message || "Server Error" });
   }
 };
 

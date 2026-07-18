@@ -38,6 +38,11 @@ const StudentProposal = () => {
   const [checkingQuality, setCheckingQuality] = useState(false);
   const [historyProposal, setHistoryProposal] = useState(null);
 
+  const selectedTeamPendingInvites = useMemo(() => {
+    const team = teams.find((t) => t._id === formData.teamId);
+    return team?.pendingInvites || [];
+  }, [teams, formData.teamId]);
+
   const token = localStorage.getItem("token");
   
   // Debug: Check if API URL is configured
@@ -196,6 +201,13 @@ const StudentProposal = () => {
 
     if (!formData.teamId || !formData.title || !formData.abstract || !formData.objectives || !formData.technologies) {
       setSubmitError("Please fill all required fields");
+      return;
+    }
+
+    if (selectedTeamPendingInvites.length > 0) {
+      setSubmitError(
+        `Team is not ready yet — still waiting on a response from: ${selectedTeamPendingInvites.map((inv) => inv.name).join(", ")}.`
+      );
       return;
     }
 
@@ -563,9 +575,15 @@ const StudentProposal = () => {
                 {teams.map((team) => (
                   <option key={team._id} value={team._id}>
                     {team.subject}
+                    {team.pendingInvites?.length > 0 ? ` (${team.pendingInvites.length} invite${team.pendingInvites.length === 1 ? "" : "s"} pending)` : ""}
                   </option>
                 ))}
               </select>
+              {selectedTeamPendingInvites.length > 0 && (
+                <p className={styles.submitErrorMsg}>
+                  ⏳ Not ready yet — still waiting on {selectedTeamPendingInvites.map((inv) => inv.name).join(", ")} to accept or decline their invite. Everyone must respond before you can submit.
+                </p>
+              )}
             </div>
 
             <div className={styles.formGroup}>
@@ -722,9 +740,13 @@ const StudentProposal = () => {
               <button
                 type="submit"
                 className={styles.primaryButton}
-                disabled={loading}
+                disabled={loading || selectedTeamPendingInvites.length > 0}
               >
-                {loading ? "⏳ Submitting..." : selectedProposal ? "📤 Resubmit Proposal" : "📤 Submit Proposal"}
+                {loading
+                  ? "⏳ Submitting..."
+                  : selectedTeamPendingInvites.length > 0
+                  ? "⏳ Waiting on teammates"
+                  : selectedProposal ? "📤 Resubmit Proposal" : "📤 Submit Proposal"}
               </button>
             </div>
           </form>

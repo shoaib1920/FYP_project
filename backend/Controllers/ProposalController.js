@@ -75,6 +75,13 @@ console.log("here>> after missing test");
       return res.status(403).json({ message: 'Only the team leader can submit a proposal' });
     }
 console.log("here after tam check ");
+    if (team.pendingInvites && team.pendingInvites.length > 0) {
+      const pendingNames = team.pendingInvites.map((inv) => inv.name).join(', ');
+      return res.status(400).json({
+        message: `Team is not ready yet — still waiting on a response from: ${pendingNames}. Every invited member must accept or decline before you can submit a proposal.`,
+      });
+    }
+
     const requiredMembers = team.requiredMembers || 2;
     if (!team.members || team.members.length < requiredMembers) {
       return res.status(400).json({
