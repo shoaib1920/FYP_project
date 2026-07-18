@@ -177,6 +177,14 @@
   font-weight: 700;
   color: #1f2937;
   margin-bottom: 18px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.table_heading svg {
+  color: #2563eb;
+  font-size: 15px;
 }
 
 .task_form label {
@@ -327,20 +335,28 @@
 
 
 .button {
-    background-color: #3498db;
+    background: linear-gradient(135deg, #2563eb, #1e40af);
     color: white;
     padding: 12px;
     border: none;
     width: 100%;
-    font-size: 18px;
+    font-size: 15px;
+    font-weight: 700;
     cursor: pointer;
     margin-top: 10px;
-    border-radius: 5px;
-    transition: background 0.3s;
+    border-radius: 8px;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    box-shadow: 0 3px 10px rgba(37, 99, 235, 0.25);
 }
 
-.button:hover {
-    background-color: #2980b9;
+.button:hover:not(:disabled) {
+    transform: translateY(-2px);
+}
+
+.button:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+    transform: none;
 }
 
 .editButton,
@@ -354,6 +370,38 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.25s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.editButton:disabled,
+.deleteButton:disabled,
+.assignButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.editButton {
+  background: #eff6ff;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+}
+
+.editButton:hover {
+  background: #dbeafe;
+}
+
+.deleteButton {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+.deleteButton:hover {
+  background: #fee2e2;
 }
 .task_table {
   width: 100%;
@@ -476,9 +524,17 @@
 	box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
 }
 
-.addTaskBtn:hover {
+.addTaskBtn:hover:not(:disabled) {
 	transform: translateY(-2px);
 	box-shadow: 0 6px 16px rgba(37, 99, 235, 0.4);
+}
+
+.addTaskBtn:disabled,
+.assignTaskBtn:disabled {
+	opacity: 0.55;
+	cursor: not-allowed;
+	transform: none;
+	box-shadow: none;
 }
 
 .assignTaskBtn {
@@ -498,4 +554,12 @@
 	font-size: 18px;
 	font-weight: 700;
 	color: #111827;
+	display: flex;
+	align-items: center;
+	gap: 9px;
+}
+
+.card_heading svg {
+	color: #2563eb;
+	font-size: 16px;
 }

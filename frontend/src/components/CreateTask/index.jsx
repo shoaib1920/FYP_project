@@ -20,6 +20,9 @@ import {
   FaEdit,
   FaAward,
   FaTimes,
+  FaEye,
+  FaTrash,
+  FaThumbtack,
 } from "react-icons/fa";
 
 const CreateTask = () => {
@@ -716,7 +719,12 @@ const CreateTask = () => {
 
       {/* Action Buttons */}
       <div className={styles.actionRow}>
-        <button onClick={handleOpenModal} className={styles.addTaskBtn}>
+        <button
+          onClick={handleOpenModal}
+          className={styles.addTaskBtn}
+          disabled={!isTeamLeader}
+          title={!isTeamLeader ? "Only the team leader can create tasks" : undefined}
+        >
           <FaPlus /> Add Task
         </button>
 
@@ -779,9 +787,9 @@ const CreateTask = () => {
                 <button
                   type="button"
                   onClick={() => setPreviewUrl(linksForm.deploymentLink.trim())}
-                  style={{ marginTop: "8px", background: "none", border: "1px solid #2563eb", color: "#2563eb", borderRadius: "6px", padding: "6px 12px", cursor: "pointer", fontSize: "13px", fontWeight: "600" }}
+                  style={{ marginTop: "8px", display: "inline-flex", alignItems: "center", gap: "6px", background: "none", border: "1px solid #2563eb", color: "#2563eb", borderRadius: "6px", padding: "6px 12px", cursor: "pointer", fontSize: "13px", fontWeight: "600" }}
                 >
-                  👁 Preview before saving
+                  <FaEye /> Preview before saving
                 </button>
               )}
             </div>
@@ -1019,7 +1027,7 @@ const CreateTask = () => {
                           padding: "8px 14px", fontSize: "12.5px", fontWeight: "700", cursor: "pointer",
                         }}
                       >
-                        ✅ {resolvingNoteId === rn._id ? "Marking..." : "Mark as Resolved"}
+                        <FaCheckCircle /> {resolvingNoteId === rn._id ? "Marking..." : "Mark as Resolved"}
                       </button>
                     )}
                   </div>
@@ -1038,7 +1046,7 @@ const CreateTask = () => {
               <FaTimes />
             </span>
             <h2 className={styles.card_heading}>
-              {editingTaskId ? "🔄 Update Task" : "🆕 Create New Task"}
+              {editingTaskId ? <><FaEdit /> Update Task</> : <><FaPlus /> Create New Task</>}
             </h2>
             <form
               className={styles.task_form}
@@ -1129,11 +1137,7 @@ const CreateTask = () => {
                 className={styles.button}
                 disabled={loading}
               >
-                {loading
-                  ? "⏳ Processing..."
-                  : editingTaskId
-                  ? "🔄 Update Task"
-                  : "✅ Create Task"}
+                {loading ? "Processing..." : editingTaskId ? "Update Task" : "Create Task"}
               </button>
             </form>
           </div>
@@ -1143,7 +1147,7 @@ const CreateTask = () => {
       {/* Project List Table */}
       <div className={styles.card}>
         <h2 className={styles.table_heading}>
-          My Projects
+          <FaProjectDiagram /> My Projects
         </h2>
         <table className={styles.task_table}>
           <thead>
@@ -1391,7 +1395,7 @@ const CreateTask = () => {
 
       {/* Task List Table */}
       <div className={styles.card}>
-        <h2 className={styles.table_heading}>📋 Task List</h2>
+        <h2 className={styles.table_heading}><FaClipboardList /> Task List</h2>
         <table className={styles.task_table}>
           <thead>
             <tr>
@@ -1434,14 +1438,14 @@ const CreateTask = () => {
                           setShowModal(true);
                         }}
                       >
-                        ✏️ Edit
+                        <FaEdit /> Edit
                       </button>
                       <button
                         className={styles.deleteButton}
                         onClick={() => handleDelete(task._id)}
                         disabled={deletingTaskId === task._id}
                       >
-                        {deletingTaskId === task._id ? "⏳ Deleting..." : "🗑 Delete"}
+                        <FaTrash /> {deletingTaskId === task._id ? "Deleting..." : "Delete"}
                       </button>
                      {task?.isAssigned ? (
   <div className={styles.assignPlaceholder}></div>
@@ -1450,7 +1454,7 @@ const CreateTask = () => {
     className={styles.assignButton}
     onClick={() => handleAssign(task)}
   >
-    📌 Assign
+    <FaThumbtack /> Assign
   </button>
 )}
                     </div>
