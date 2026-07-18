@@ -5,8 +5,28 @@ const Users = require("../Models/Users");
 const AcademicTerm = require("../Models/AcademicTerm");
 const Team = require("../Models/Team");
 const MeetingLog = require("../Models/MeetingLog");
+const Admin = require("../Models/Admin/AdminAuth");
 const sendEmail = require("../utils/emailService");
 const { logAction } = require("./AuditLogController");
+const fs = require("fs");
+const pdfParse = require("pdf-parse");
+const { analyzeFinalReportQuality } = require("../utils/geminiService");
+
+// Extracts text from a locally-stored report PDF and runs it through the AI
+// quality check — best-effort, must never throw or block report submission.
+const runReportQualityCheck = async (localFilePath) => {
+  try {
+    const buffer = fs.readFileSync(localFilePath);
+    const parsed = await pdfParse(buffer);
+    const text = (parsed.text || "").trim();
+    if (!text) return null; // scanned/image-only PDF, nothing to analyze
+    const result = await analyzeFinalReportQuality(text);
+    return { ...result, checkedAt: new Date() };
+  } catch (err) {
+    console.error("Final report AI quality check failed:", err.message);
+    return null;
+  }
+};
 
 const createNotification = async ({ userId, title, message, relatedType, relatedId }) => {
   try {
@@ -277,6 +297,12 @@ exports.submitFinalReport = async (req, res) => {
     project.status = "UNDER_REVIEW";
 
     await project.save();
+
+    const qualityCheck = await runReportQualityCheck(req.file.path);
+    if (qualityCheck) {
+      project.reportQualityCheck = qualityCheck;
+      await project.save();
+    }
 
     await createNotification({
       userId: project.supervisorId,
@@ -566,6 +592,126 @@ exports.flagGrades = async (req, res) => {
   }
 };
 
+// PUT /projects/:projectId/request-appeal — team leader appeals an already-
+// RELEASED grade. This is the only path to revisit a grade after release
+// (flagGrades only works pre-release); accepting the appeal reopens grading
+// via the existing FLAGGED status/re-grade flow.
+exports.requestGradeAppeal = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const studentId = req.user._id;
+    const { reason } = req.body;
+
+    if (!reason || !reason.trim()) {
+      return res.status(400).json({ message: "Please explain why you're requesting a grade review" });
+    }
+
+    const project = await Project.findById(projectId);
+    if (!project) return res.status(404).json({ message: "Project not found" });
+    if (String(project.teamLeaderId) !== String(studentId)) {
+      return res.status(403).json({ message: "Only the team leader can request a grade appeal" });
+    }
+    if (project.gradesStatus !== "RELEASED") {
+      return res.status(400).json({ message: "Grades must be released before you can appeal them" });
+    }
+    if (project.gradeAppeal?.status === "REQUESTED") {
+      return res.status(400).json({ message: "You already have a pending appeal for this project" });
+    }
+
+    const student = await Users.findById(studentId).select("name");
+
+    project.gradeAppeal = {
+      status: "REQUESTED",
+      reason: reason.trim(),
+      requestedBy: studentId,
+      requestedByName: student?.name || "Team leader",
+      requestedAt: new Date(),
+      adminResponse: "",
+      respondedAt: null,
+    };
+    await project.save();
+
+    const admins = await Admin.find().select("_id");
+    await Promise.all(admins.map((a) =>
+      createNotification({
+        userId: a._id,
+        title: "Grade Appeal Requested",
+        message: `${student?.name || "A student"} requested a grade review for "${project.title}". Reason: ${reason.trim()}`,
+        relatedType: "project",
+        relatedId: project._id,
+      })
+    ));
+
+    res.json({ success: true, message: "Your appeal has been sent to the admin", gradeAppeal: project.gradeAppeal });
+  } catch (err) {
+    console.error("requestGradeAppeal error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// PUT /admin/projects/:projectId/resolve-appeal — admin accepts (reopens
+// grading via FLAGGED) or rejects (grade stands) a pending appeal.
+exports.resolveGradeAppeal = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { action, adminResponse } = req.body; // "ACCEPT" | "REJECT"
+
+    if (!["ACCEPT", "REJECT"].includes(action)) {
+      return res.status(400).json({ message: "action must be 'ACCEPT' or 'REJECT'" });
+    }
+
+    const project = await Project.findById(projectId);
+    if (!project) return res.status(404).json({ message: "Project not found" });
+    if (project.gradeAppeal?.status !== "REQUESTED") {
+      return res.status(400).json({ message: "No pending appeal found for this project" });
+    }
+
+    project.gradeAppeal.status = action === "ACCEPT" ? "ACCEPTED" : "REJECTED";
+    project.gradeAppeal.adminResponse = adminResponse || "";
+    project.gradeAppeal.respondedAt = new Date();
+
+    if (action === "ACCEPT") {
+      project.gradesStatus = "FLAGGED";
+      project.flaggedReason = `Grade appeal accepted: ${project.gradeAppeal.reason}`;
+    }
+    await project.save();
+
+    await createNotification({
+      userId: project.teamLeaderId,
+      title: action === "ACCEPT" ? "Grade Appeal Accepted" : "Grade Appeal Rejected",
+      message: action === "ACCEPT"
+        ? `Your appeal for "${project.title}" was accepted. Your supervisor will re-grade the project.${adminResponse ? ` Admin note: ${adminResponse}` : ""}`
+        : `Your appeal for "${project.title}" was reviewed and the grade stands.${adminResponse ? ` Admin note: ${adminResponse}` : ""}`,
+      relatedType: "project",
+      relatedId: project._id,
+    });
+
+    if (action === "ACCEPT") {
+      await createNotification({
+        userId: project.supervisorId,
+        title: "Grade Appeal Accepted — Re-grade Needed",
+        message: `An admin accepted a grade appeal for "${project.title}". Please review and re-grade.`,
+        relatedType: "project",
+        relatedId: project._id,
+      });
+    }
+
+    await logAction({
+      actorId: req.user._id,
+      actorRole: "admin",
+      action: action === "ACCEPT" ? "GRADE_APPEAL_ACCEPTED" : "GRADE_APPEAL_REJECTED",
+      targetType: "Project",
+      targetId: project._id,
+      details: `${action === "ACCEPT" ? "Accepted" : "Rejected"} grade appeal for "${project.title}"`,
+    });
+
+    res.json({ success: true, project });
+  } catch (err) {
+    console.error("resolveGradeAppeal error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 // PUT /projects/:projectId/regrade  — supervisor re-grades a flagged project
 exports.reGradeProject = async (req, res) => {
   try {
@@ -659,6 +805,39 @@ exports.reGradeProject = async (req, res) => {
 
 // PUT /auth/projects/:projectId/grade-phase  (Supervisor)
 // Grades INTERNAL or MIDTERM phase — does NOT change project status
+// POST /projects/:projectId/analyze-report — supervisor re-runs the AI
+// quality check on demand (e.g. the automatic one failed, or they want a
+// fresh read). Does not require UNDER_REVIEW status so it still works if
+// re-grading later.
+exports.analyzeFinalReport = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const supervisorId = req.user._id;
+
+    const project = await Project.findById(projectId);
+    if (!project) return res.status(404).json({ message: "Project not found" });
+    if (String(project.supervisorId) !== String(supervisorId)) {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+    if (!project.finalReportUrl) {
+      return res.status(400).json({ message: "No final report has been submitted for this project yet" });
+    }
+
+    const qualityCheck = await runReportQualityCheck(project.finalReportUrl);
+    if (!qualityCheck) {
+      return res.status(500).json({ message: "AI quality check failed — the report file may be missing, image-only, or the AI service is unavailable." });
+    }
+
+    project.reportQualityCheck = qualityCheck;
+    await project.save();
+
+    res.json({ success: true, reportQualityCheck: qualityCheck });
+  } catch (err) {
+    console.error("analyzeFinalReport error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 // PUT /projects/:projectId/grade-draft — save partial, in-progress rubric
 // scores without submitting/finalizing anything. No status change, no
 // notifications — purely a scratchpad so a supervisor can grade a few

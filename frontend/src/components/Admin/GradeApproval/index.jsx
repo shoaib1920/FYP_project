@@ -17,6 +17,7 @@ import {
   FaVideo,
   FaUserTie,
   FaPlus,
+  FaBalanceScale,
 } from "react-icons/fa";
 import { exportToCSV, exportToPDF } from "../../../utils/exportUtils";
 
@@ -99,6 +100,9 @@ const GradeApproval = () => {
   const [vivaRubricScores, setVivaRubricScores]   = useState({}); // { [memberId]: [s0,s1,s2,s3] }
   const [vivaRemarks, setVivaRemarks]             = useState("");
   const [vivaLoading, setVivaLoading]             = useState(false);
+  const [appealModal, setAppealModal] = useState(null); // { project }
+  const [appealResponse, setAppealResponse] = useState("");
+  const [resolvingAppeal, setResolvingAppeal] = useState(false);
 
   const token = localStorage.getItem("adminToken");
   const apiBase = process.env.REACT_APP_API_URL || "";
@@ -227,6 +231,29 @@ const GradeApproval = () => {
       alert(err.response?.data?.message || "Failed to flag project.");
     } finally {
       setActionLoading("");
+    }
+  };
+
+  const handleResolveAppeal = async (action) => {
+    setResolvingAppeal(true);
+    try {
+      const res = await axios.put(
+        `${apiBase}/auth/admin/projects/${appealModal.project._id}/resolve-appeal`,
+        { action, adminResponse: appealResponse.trim() },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setProjects((prev) => prev.map((p) => (p._id === appealModal.project._id ? { ...p, ...res.data.project } : p)));
+      showToast(
+        action === "ACCEPT"
+          ? `Appeal accepted — "${appealModal.project.title}" reopened for re-grading.`
+          : `Appeal rejected — grade for "${appealModal.project.title}" stands.`
+      );
+      setAppealModal(null);
+      setAppealResponse("");
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to resolve appeal.");
+    } finally {
+      setResolvingAppeal(false);
     }
   };
 
@@ -467,6 +494,54 @@ const GradeApproval = () => {
                 className={styles.cancelBtn}
                 onClick={() => { setFlagModal(null); setFlagReason(""); }}
               >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Resolve Grade Appeal Modal */}
+      {appealModal && (
+        <div className={styles.overlay}>
+          <div className={styles.modal}>
+            <h3 className={styles.modalTitle}><FaBalanceScale style={{ marginRight: "8px" }} />Grade Appeal</h3>
+            <p className={styles.modalSubtitle}>{appealModal.project.title}</p>
+
+            <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: "8px", padding: "10px 12px", marginBottom: "14px" }}>
+              <p style={{ fontSize: "12.5px", color: "#92400e", margin: 0 }}>
+                <strong>{appealModal.project.gradeAppeal.requestedByName}</strong> requested this review:
+              </p>
+              <p style={{ fontSize: "13px", color: "#78350f", margin: "6px 0 0" }}>
+                "{appealModal.project.gradeAppeal.reason}"
+              </p>
+            </div>
+
+            <label className={styles.label}>Your response (optional, sent to the student)</label>
+            <textarea
+              className={styles.textarea}
+              rows={3}
+              value={appealResponse}
+              onChange={(e) => setAppealResponse(e.target.value)}
+              placeholder="Explain your decision..."
+            />
+
+            <div className={styles.modalActions}>
+              <button
+                className={styles.releaseBtn}
+                onClick={() => handleResolveAppeal("ACCEPT")}
+                disabled={resolvingAppeal}
+              >
+                {resolvingAppeal ? "Saving..." : "Accept — Reopen for Re-grading"}
+              </button>
+              <button
+                className={styles.flagBtn}
+                onClick={() => handleResolveAppeal("REJECT")}
+                disabled={resolvingAppeal}
+              >
+                {resolvingAppeal ? "Saving..." : "Reject — Grade Stands"}
+              </button>
+              <button className={styles.cancelBtn} onClick={() => { setAppealModal(null); setAppealResponse(""); }}>
                 Cancel
               </button>
             </div>
@@ -786,6 +861,7 @@ const GradeApproval = () => {
               apiBase={apiBase}
               onScheduleViva={openVivaScheduleModal}
               onGradeViva={openVivaGradeModal}
+              onOpenAppeal={(p) => setAppealModal({ project: p })}
             />
           ))}
         </div>
@@ -794,7 +870,7 @@ const GradeApproval = () => {
   );
 };
 
-const ProjectCard = ({ project, activeTab, actionLoading, onRelease, onFlag, apiBase, onScheduleViva, onGradeViva }) => {
+const ProjectCard = ({ project, activeTab, actionLoading, onRelease, onFlag, apiBase, onScheduleViva, onGradeViva, onOpenAppeal }) => {
   const [expanded, setExpanded] = useState(false);
 
   const avgMarks = project.evaluationMarks ?? (
@@ -989,9 +1065,26 @@ const ProjectCard = ({ project, activeTab, actionLoading, onRelease, onFlag, api
         </div>
       )}
 
-      {activeTab === "RELEASED" && (
+      {activeTab === "RELEASED" && project.gradeAppeal?.status === "REQUESTED" && (
+        <div className={styles.appealBox}>
+          <div className={styles.appealHeader}>
+            <FaBalanceScale /> Grade Appeal Requested
+          </div>
+          <p className={styles.appealReason}>
+            {project.gradeAppeal.requestedByName}: "{project.gradeAppeal.reason}"
+          </p>
+          <button className={styles.appealReviewBtn} onClick={() => onOpenAppeal(project)}>
+            Review Appeal
+          </button>
+        </div>
+      )}
+
+      {activeTab === "RELEASED" && project.gradeAppeal?.status !== "REQUESTED" && (
         <div className={styles.releasedBadge}>
           Grades Released
+          {project.gradeAppeal?.status === "REJECTED" && (
+            <span className={styles.appealHistoryNote}> · Prior appeal rejected</span>
+          )}
         </div>
       )}
 

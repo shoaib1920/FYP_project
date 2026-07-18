@@ -110,6 +110,17 @@ const projectSchema = new mongoose.Schema(
       default: "",
     },
 
+    // AI content-quality signal on the final report (same OpenRouter model
+    // used for the proposal quality check), shown to the supervisor as a
+    // second opinion before they grade — not a plagiarism-database match.
+    reportQualityCheck: {
+      score: { type: Number, default: null },
+      issues: { type: [String], default: [] },
+      suggestions: { type: [String], default: [] },
+      originalityConcerns: { type: [String], default: [] },
+      checkedAt: { type: Date, default: null },
+    },
+
     evaluationMarks: {
       type: Number,
       default: 0,
@@ -139,6 +150,20 @@ const projectSchema = new mongoose.Schema(
 
     adminRemarks: { type: String, default: "" },
     flaggedReason: { type: String, default: "" },
+
+    // Student-initiated appeal on an already-RELEASED grade — the only path
+    // to revisit a grade after release, since flagGrades only works pre-
+    // release. Accepting an appeal reopens grading via the existing
+    // FLAGGED status/re-grade flow rather than a separate mechanism.
+    gradeAppeal: {
+      status:          { type: String, enum: ["NONE", "REQUESTED", "ACCEPTED", "REJECTED"], default: "NONE" },
+      reason:          { type: String, default: "" },
+      requestedBy:     { type: mongoose.Schema.Types.ObjectId, ref: "users", default: null },
+      requestedByName: { type: String, default: "" },
+      requestedAt:     { type: Date, default: null },
+      adminResponse:   { type: String, default: "" },
+      respondedAt:     { type: Date, default: null },
+    },
 
     remarks: {
       type: String,

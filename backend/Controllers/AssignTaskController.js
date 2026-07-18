@@ -80,6 +80,10 @@ exports.getProjectsByStudent = async (req, res) => {
   try {
     const userId = req.params.userId;
 
+    if (String(userId) !== String(req.user._id)) {
+      return res.status(403).json({ message: "Not authorized to view another student's projects" });
+    }
+
     // Find all teams where this user is a member OR the creator
     const userTeams = await Teams.find(
       { $or: [{ members: userId }, { createdBy: userId }] },

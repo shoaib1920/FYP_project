@@ -127,4 +127,69 @@ Technologies: ${proposal.technologies}`;
   }
 }
 
-module.exports = { getAIReply, analyzeProposalQuality };
+const REPORT_QUALITY_CHECK_PROMPT = `You are reviewing the final submitted report of a Final Year Project (FYP), BEFORE the supervisor grades it — you are giving them a second opinion to assist grading, not making the grading decision yourself.
+
+Assess it on: structural completeness (does it read like it has an introduction, methodology/implementation, results/evaluation, and conclusion — even if section headings differ), depth vs superficiality (is content specific to this project or generic/templated boilerplate that could apply to any project), internal consistency (does the writing style/quality stay consistent throughout, which can hint at copy-pasted sections), and overall academic writing quality.
+
+You are NOT a plagiarism-detection database and have no access to other documents to compare against — do not claim to have found a match elsewhere. Only flag ORIGINALITY CONCERNS you can actually observe from THIS text alone: abrupt style/tone shifts between sections, generic filler language, sections that don't connect to the rest of the report, or content that reads as copied from documentation/tutorials rather than describing the student's own work.
+
+Respond with ONLY a JSON object (no markdown fences, no extra text) in exactly this shape:
+{
+  "score": <integer 0-100, overall report quality>,
+  "issues": [<short strings, each one concrete problem found — empty array if none>],
+  "suggestions": [<short strings, each one concrete actionable improvement for the supervisor to consider — empty array if none>],
+  "originalityConcerns": [<short strings, each a specific observed originality/consistency red flag as described above — empty array if none found>]
+}`;
+
+/**
+ * Sends extracted final-report text to OpenRouter for a structured quality
+ * assessment — same model/service as the proposal quality check, with a
+ * report-specific prompt. This is an AI content-quality signal for the
+ * supervisor, not a plagiarism-database match.
+ * @param {string} reportText - extracted plain text from the report PDF
+ * @returns {Promise<{score:number, issues:string[], suggestions:string[], originalityConcerns:string[]}>}
+ */
+async function analyzeFinalReportQuality(reportText) {
+  const apiKey = getApiKey();
+  // Cap input to stay within the free model's context/cost budget — a
+  // report can run to dozens of pages, so this is a representative sample
+  // (opening chapters), not the full document.
+  const MAX_CHARS = 12000;
+  const truncated = reportText.length > MAX_CHARS;
+  const userText = `${truncated ? "[Note: report truncated to the first ~12,000 characters for review]\n\n" : ""}${reportText.slice(0, MAX_CHARS)}`;
+
+  let response;
+  try {
+    response = await axios.post(
+      OPENROUTER_BASE,
+      {
+        model: QUALITY_MODEL,
+        messages: [
+          { role: "system", content: REPORT_QUALITY_CHECK_PROMPT },
+          { role: "user", content: userText },
+        ],
+        temperature: 0.3,
+        max_tokens: 640,
+      },
+      { headers: buildHeaders(apiKey), timeout: 45000 }
+    );
+  } catch (err) {
+    handleAxiosError(err);
+  }
+
+  const raw = response.data?.choices?.[0]?.message?.content || "";
+  try {
+    const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/i, "").trim();
+    const parsed = JSON.parse(cleaned);
+    return {
+      score: Number.isFinite(parsed.score) ? Math.max(0, Math.min(100, Math.round(parsed.score))) : 50,
+      issues: Array.isArray(parsed.issues) ? parsed.issues.slice(0, 8) : [],
+      suggestions: Array.isArray(parsed.suggestions) ? parsed.suggestions.slice(0, 8) : [],
+      originalityConcerns: Array.isArray(parsed.originalityConcerns) ? parsed.originalityConcerns.slice(0, 8) : [],
+    };
+  } catch {
+    return { score: 50, issues: [], suggestions: [], originalityConcerns: [] };
+  }
+}
+
+module.exports = { getAIReply, analyzeProposalQuality, analyzeFinalReportQuality };

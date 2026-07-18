@@ -107,6 +107,7 @@ const FYPProjects = () => {
   const [evalRemarks, setEvalRemarks] = useState("");
   const [completing, setCompleting] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
+  const [reanalyzing, setReanalyzing] = useState(false);
   const [draftLoaded, setDraftLoaded] = useState(false);
   const [toast, setToast] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -381,6 +382,7 @@ const FYPProjects = () => {
       phase,
       isRegrade,
       flaggedReason: project.flaggedReason,
+      reportQualityCheck: project.reportQualityCheck || null,
     });
     setEvalRemarks(useDraft ? (draft.remarks || "") : (isRegrade || phase !== "FINAL" ? (project.remarks || "") : ""));
     setDraftLoaded(useDraft);
@@ -404,6 +406,24 @@ const FYPProjects = () => {
       alert(err.response?.data?.message || "Failed to save draft.");
     } finally {
       setSavingDraft(false);
+    }
+  };
+
+  const handleReanalyzeReport = async () => {
+    const { projectId } = gradeModal;
+    setReanalyzing(true);
+    try {
+      const res = await axios.post(
+        `${apiBase}/auth/projects/${projectId}/analyze-report`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setGradeModal((g) => ({ ...g, reportQualityCheck: res.data.reportQualityCheck }));
+      setProjects((prev) => prev.map((p) => (p._id === projectId ? { ...p, reportQualityCheck: res.data.reportQualityCheck } : p)));
+    } catch (err) {
+      alert(err.response?.data?.message || "AI re-check failed.");
+    } finally {
+      setReanalyzing(false);
     }
   };
 
@@ -674,6 +694,58 @@ const FYPProjects = () => {
             {gradeModal.isRegrade && gradeModal.flaggedReason && (
               <div className={styles.flagNote}>
                 <strong>Admin flagged reason:</strong> {gradeModal.flaggedReason}
+              </div>
+            )}
+
+            {gradeModal.phase === "FINAL" && (
+              <div style={{ background: "#f5f3ff", border: "1px solid #ddd6fe", borderRadius: "10px", padding: "12px 14px", margin: "14px 0" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <strong style={{ fontSize: "12.5px", color: "#5b21b6" }}>AI Report Quality Check</strong>
+                  <button
+                    type="button"
+                    onClick={handleReanalyzeReport}
+                    disabled={reanalyzing}
+                    style={{ background: "transparent", border: "1px solid #ddd6fe", color: "#5b21b6", borderRadius: "6px", padding: "3px 9px", fontSize: "11px", fontWeight: "600", cursor: "pointer" }}
+                  >
+                    {reanalyzing ? "Analyzing..." : gradeModal.reportQualityCheck ? "Re-analyze" : "Analyze Report"}
+                  </button>
+                </div>
+                {gradeModal.reportQualityCheck ? (
+                  <>
+                    <p style={{ fontSize: "12px", color: "#4c1d95", margin: "8px 0 2px" }}>
+                      Score: <strong>{gradeModal.reportQualityCheck.score}/100</strong>
+                      {" "}— an AI-generated content-quality signal, not a plagiarism-database match. Use as a second opinion, not the final word.
+                    </p>
+                    {gradeModal.reportQualityCheck.issues?.length > 0 && (
+                      <div style={{ marginTop: "6px" }}>
+                        <strong style={{ fontSize: "11.5px", color: "#5b21b6" }}>Issues:</strong>
+                        <ul style={{ margin: "3px 0 0", paddingLeft: "18px", fontSize: "12px", color: "#4c1d95" }}>
+                          {gradeModal.reportQualityCheck.issues.map((s, i) => <li key={i}>{s}</li>)}
+                        </ul>
+                      </div>
+                    )}
+                    {gradeModal.reportQualityCheck.originalityConcerns?.length > 0 && (
+                      <div style={{ marginTop: "6px" }}>
+                        <strong style={{ fontSize: "11.5px", color: "#b91c1c" }}>Originality Concerns:</strong>
+                        <ul style={{ margin: "3px 0 0", paddingLeft: "18px", fontSize: "12px", color: "#991b1b" }}>
+                          {gradeModal.reportQualityCheck.originalityConcerns.map((s, i) => <li key={i}>{s}</li>)}
+                        </ul>
+                      </div>
+                    )}
+                    {gradeModal.reportQualityCheck.suggestions?.length > 0 && (
+                      <div style={{ marginTop: "6px" }}>
+                        <strong style={{ fontSize: "11.5px", color: "#5b21b6" }}>Suggestions:</strong>
+                        <ul style={{ margin: "3px 0 0", paddingLeft: "18px", fontSize: "12px", color: "#4c1d95" }}>
+                          {gradeModal.reportQualityCheck.suggestions.map((s, i) => <li key={i}>{s}</li>)}
+                        </ul>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <p style={{ fontSize: "12px", color: "#6b21a8", marginTop: "6px" }}>
+                    No AI check has run for this report yet. Click "Analyze Report" to get a second opinion before grading.
+                  </p>
+                )}
               </div>
             )}
 
@@ -1052,9 +1124,20 @@ const FYPProjects = () => {
                     </td>
                     <td>
                       {project.finalReportUrl ? (
-                        <a href={resolveFileUrl(project.finalReportUrl)} target="_blank" rel="noopener noreferrer" className={styles.viewLink}>
-                          View PDF
-                        </a>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "4px", alignItems: "flex-start" }}>
+                          <a href={resolveFileUrl(project.finalReportUrl)} target="_blank" rel="noopener noreferrer" className={styles.viewLink}>
+                            View PDF
+                          </a>
+                          {project.reportQualityCheck?.score != null && (
+                            <span style={{
+                              fontSize: "10.5px", fontWeight: "700", padding: "2px 7px", borderRadius: "999px",
+                              background: project.reportQualityCheck.score >= 70 ? "#dcfce7" : project.reportQualityCheck.score >= 40 ? "#fef3c7" : "#fee2e2",
+                              color: project.reportQualityCheck.score >= 70 ? "#15803d" : project.reportQualityCheck.score >= 40 ? "#92400e" : "#b91c1c",
+                            }}>
+                              AI Check: {project.reportQualityCheck.score}/100
+                            </span>
+                          )}
+                        </div>
                       ) : (
                         <span className={styles.na}>Not submitted</span>
                       )}

@@ -221,7 +221,7 @@ route.post("/sub-project", subProject);
 
   route.get("/teams", getAllTeams);
 
-  route.get('/student-project/:userId', getProjectsByStudent); // ✅ Corrected route to get projects by student ID
+  route.get('/student-project/:userId', authenticate, getProjectsByStudent); // Student's own projects only
 
 
 // Route to get all supervisors
@@ -344,6 +344,9 @@ const {
   gradeViva,
   getMyViva,
   getSupervisorSchedule,
+  analyzeFinalReport,
+  requestGradeAppeal,
+  resolveGradeAppeal,
 } = require("../Controllers/ProjectController");
 
 const finalReportStorage = multer.diskStorage({
@@ -369,8 +372,10 @@ route.get("/projects/:projectId", authenticate, getProjectById);
 route.put("/projects/:projectId/details", authenticate, updateProjectDetails);
 route.put("/projects/:projectId/progress", authenticate, updateProjectProgress);
 route.put("/projects/:projectId/final-report", authenticate, finalReportUpload.single("finalReport"), submitFinalReport);
+route.post("/projects/:projectId/analyze-report", authenticate, authorize("supervisor"), analyzeFinalReport); // On-demand AI re-check of the final report
 route.put("/projects/:projectId/complete", authenticate, authorize("supervisor"), completeProject);
 route.put("/projects/:projectId/regrade", authenticate, authorize("supervisor"), reGradeProject);
+route.put("/projects/:projectId/request-appeal", authenticate, requestGradeAppeal); // Team leader appeals a released grade
 route.put("/projects/:projectId/grade-phase", authenticate, authorize("supervisor"), gradePhase);
 route.put("/projects/:projectId/grade-draft", authenticate, authorize("supervisor"), saveGradeDraft);
 
@@ -379,6 +384,7 @@ route.get("/admin/projects", authenticate, authorize("admin"), getAllProjectsFor
 route.get("/admin/projects/grades", authenticate, authorize("admin"), getCompletedProjectsForAdmin);
 route.put("/admin/projects/:projectId/release-grades", authenticate, authorize("admin"), releaseGrades);
 route.put("/admin/projects/:projectId/flag-grades", authenticate, authorize("admin"), flagGrades);
+route.put("/admin/projects/:projectId/resolve-appeal", authenticate, authorize("admin"), resolveGradeAppeal);
 route.put("/admin/projects/:projectId/schedule-viva", authenticate, authorize("admin"), scheduleViva);
 route.put("/admin/projects/:projectId/grade-viva",    authenticate, authorize("admin"),    gradeViva);
 

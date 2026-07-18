@@ -93,7 +93,7 @@ export default function TemplateManager() {
     const load = async () => {
       try {
         const projRes = await axios
-          .get(`${apiBase}/auth/student-project/${userId}`)
+          .get(`${apiBase}/auth/student-project/${userId}`, authHdr)
           .catch(() => ({ data: [] }));
         const myProjects = Array.isArray(projRes.data) ? projRes.data : [];
         setProjects(myProjects);

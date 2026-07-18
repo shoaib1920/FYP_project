@@ -26,6 +26,9 @@ import {
   FaThumbtack,
   FaHandshake,
   FaCalendarAlt,
+  FaSearch,
+  FaBalanceScale,
+  FaCommentAlt,
 } from "react-icons/fa";
 
 const CreateTask = () => {
@@ -77,6 +80,10 @@ const CreateTask = () => {
   const [meetings, setMeetings] = useState([]);
   const [meetingsLoading, setMeetingsLoading] = useState(false);
 
+  const [gradeModalProject, setGradeModalProject] = useState(null);
+  const [appealReason, setAppealReason] = useState("");
+  const [submittingAppeal, setSubmittingAppeal] = useState(false);
+
   const token = localStorage.getItem("token");
   const loggedInUser = JSON.parse(localStorage.getItem("user"));
   const userId = loggedInUser.id; // ✅ Get user ID
@@ -103,7 +110,9 @@ const CreateTask = () => {
        
         const [tasksRes, projectsRes, assignedRes, allAssignedRes] = await Promise.all([
           axios.get(`${process.env.REACT_APP_API_URL}/auth/tasks`),
-          axios.get(`${process.env.REACT_APP_API_URL}/auth/student-project/${userId}`).catch(() => ({ data: [] })),
+          axios.get(`${process.env.REACT_APP_API_URL}/auth/student-project/${userId}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }).catch(() => ({ data: [] })),
           axios.get(`${process.env.REACT_APP_API_URL}/auth/Myassigned-tasks?userId=${userId}`),
           axios.get(`${process.env.REACT_APP_API_URL}/auth/Otherassigned-tasks?userId=${userId}`),
         ]);
@@ -535,6 +544,33 @@ const CreateTask = () => {
   const handleOpenMeetingsModal = (project) => {
     setMeetingsModalProject(project);
     fetchMeetings(project._id);
+  };
+
+  const handleOpenGradeModal = (project) => {
+    setGradeModalProject(project);
+    setAppealReason("");
+  };
+
+  const handleRequestAppeal = async () => {
+    if (!appealReason.trim()) {
+      alert("Please explain why you're requesting a grade review.");
+      return;
+    }
+    setSubmittingAppeal(true);
+    try {
+      const res = await axios.put(
+        `${process.env.REACT_APP_API_URL}/auth/projects/${gradeModalProject._id}/request-appeal`,
+        { reason: appealReason.trim() },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setGradeModalProject((p) => ({ ...p, gradeAppeal: res.data.gradeAppeal }));
+      setGroupProjects((prev) => prev.map((p) => (p._id === gradeModalProject._id ? { ...p, gradeAppeal: res.data.gradeAppeal } : p)));
+      setAppealReason("");
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to submit appeal.");
+    } finally {
+      setSubmittingAppeal(false);
+    }
   };
 
   const handleResolveNote = async (noteId) => {
@@ -1016,6 +1052,158 @@ const CreateTask = () => {
         </div>
       )}
 
+      {/* Grade Details Modal (breakdown + appeal) */}
+      {gradeModalProject && (() => {
+        const project = gradeModalProject;
+        const phaseOrder = ["INTERNAL", "MIDTERM", "FINAL"];
+        const phaseLabels = { INTERNAL: "Supervisor Internal Assessment", MIDTERM: "Mid-term Evaluation", FINAL: "Final Assessment" };
+        const phases = (project.evaluationPhases || [])
+          .filter((p) => p.status === "SUBMITTED")
+          .sort((a, b) => phaseOrder.indexOf(a.phase) - phaseOrder.indexOf(b.phase));
+        const myVivaGrade = project.vivaDetails?.memberVivaGrades?.find((g) => String(g.userId) === String(userId));
+        const appeal = project.gradeAppeal;
+
+        const renderRubric = (rubricScores) => (
+          <div style={{ marginTop: "6px", display: "flex", flexDirection: "column", gap: "3px" }}>
+            {(rubricScores || []).map((rs, i) => (
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#4b5563" }}>
+                <span>{rs.criterionName} <span style={{ color: "#9ca3af" }}>({rs.weight}%)</span></span>
+                <span style={{ fontWeight: "600" }}>{rs.score}/100</span>
+              </div>
+            ))}
+          </div>
+        );
+
+        return (
+          <div className={styles.modalOverlay}>
+            <div className={styles.modalContent} style={{ maxWidth: "620px" }}>
+              <span className={styles.closeButton} onClick={() => setGradeModalProject(null)}><FaTimes /></span>
+              <h2 className={styles.card_heading}><FaSearch /> Grade Breakdown</h2>
+              <p style={{ color: "#555", marginTop: "8px" }}>{project.title}</p>
+
+              <div style={{ marginTop: "16px", maxHeight: "420px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "12px" }}>
+                {phases.length === 0 ? (
+                  <p style={{ color: "#9ca3af", fontSize: "13px" }}>No phase-by-phase breakdown recorded for this project.</p>
+                ) : (
+                  phases.map((phase) => {
+                    const myGrade = phase.memberGrades?.find((g) => String(g.userId) === String(userId));
+                    return (
+                      <div key={phase.phase} style={{ background: "#f8fafc", borderRadius: "10px", padding: "12px 14px", border: "1px solid #e5e7eb" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <strong style={{ fontSize: "13px", color: "#111827" }}>{phaseLabels[phase.phase] || phase.phase}</strong>
+                          <span style={{ fontSize: "11px", color: "#6b7280" }}>Weight: {phase.weight}%</span>
+                        </div>
+                        {myGrade ? (
+                          <>
+                            <div style={{ marginTop: "4px", fontSize: "16px", fontWeight: "700", color: "#1e40af" }}>
+                              {myGrade.marks}<span style={{ fontWeight: "400", fontSize: "11px", color: "#6b7280" }}>/100</span>
+                            </div>
+                            {renderRubric(myGrade.rubricScores)}
+                          </>
+                        ) : (
+                          <p style={{ fontSize: "12px", color: "#9ca3af", marginTop: "4px" }}>No individual mark recorded for you in this phase.</p>
+                        )}
+                        {phase.remarks && (
+                          <div style={{ marginTop: "8px", background: "#eff6ff", borderLeft: "3px solid #2563eb", borderRadius: "6px", padding: "8px 10px" }}>
+                            <strong style={{ fontSize: "11.5px", color: "#1e40af" }}>Supervisor remarks:</strong>
+                            <p style={{ fontSize: "12px", color: "#1e3a8a", margin: "2px 0 0" }}>{phase.remarks}</p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+
+                {project.vivaDetails?.status === "GRADED" && (
+                  <div style={{ background: "#f5f3ff", borderRadius: "10px", padding: "12px 14px", border: "1px solid #ddd6fe" }}>
+                    <strong style={{ fontSize: "13px", color: "#5b21b6" }}>Viva Defense</strong>
+                    {myVivaGrade ? (
+                      <>
+                        <div style={{ marginTop: "4px", fontSize: "16px", fontWeight: "700", color: "#5b21b6" }}>
+                          {myVivaGrade.marks}<span style={{ fontWeight: "400", fontSize: "11px", color: "#6b7280" }}>/100</span>
+                        </div>
+                        {renderRubric(myVivaGrade.rubricScores)}
+                      </>
+                    ) : (
+                      <p style={{ fontSize: "12px", color: "#9ca3af", marginTop: "4px" }}>No individual viva mark recorded for you.</p>
+                    )}
+                    {project.vivaDetails.remarks && (
+                      <div style={{ marginTop: "8px", background: "#fff", borderLeft: "3px solid #5b21b6", borderRadius: "6px", padding: "8px 10px" }}>
+                        <strong style={{ fontSize: "11.5px", color: "#5b21b6" }}>Viva remarks:</strong>
+                        <p style={{ fontSize: "12px", color: "#374151", margin: "2px 0 0" }}>{project.vivaDetails.remarks}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div style={{ background: "#f0fdf4", borderRadius: "10px", padding: "12px 14px", border: "1px solid #bbf7d0" }}>
+                  <strong style={{ fontSize: "13px", color: "#15803d" }}>Overall Combined Mark</strong>
+                  <div style={{ marginTop: "4px", fontSize: "18px", fontWeight: "700", color: "#15803d" }}>
+                    {(project.overallFinalMarks ?? project.evaluationMarks) ?? "—"}<span style={{ fontWeight: "400", fontSize: "11px", color: "#6b7280" }}>/100</span>
+                  </div>
+                  {project.vivaDetails?.status === "GRADED" && (
+                    <p style={{ fontSize: "11px", color: "#166534", margin: "4px 0 0" }}>
+                      Supervisor assessment (60%) + Viva (40%)
+                    </p>
+                  )}
+                </div>
+
+                {project.remarks && (
+                  <div style={{ background: "#f8fafc", borderRadius: "10px", padding: "12px 14px", border: "1px solid #e5e7eb" }}>
+                    <strong style={{ fontSize: "12px", color: "#374151", display: "flex", alignItems: "center", gap: "6px" }}><FaCommentAlt style={{ fontSize: "11px" }} /> Overall Supervisor Remarks</strong>
+                    <p style={{ fontSize: "12.5px", color: "#4b5563", margin: "4px 0 0" }}>{project.remarks}</p>
+                  </div>
+                )}
+
+                {/* Grade appeal */}
+                <div style={{ background: "#fffbeb", borderRadius: "10px", padding: "12px 14px", border: "1px solid #fde68a" }}>
+                  <strong style={{ fontSize: "13px", color: "#92400e", display: "flex", alignItems: "center", gap: "6px" }}>
+                    <FaBalanceScale style={{ fontSize: "12px" }} /> Grade Review
+                  </strong>
+
+                  {!appeal || appeal.status === "NONE" || appeal.status === "REJECTED" ? (
+                    <div style={{ marginTop: "8px" }}>
+                      {appeal?.status === "REJECTED" && (
+                        <p style={{ fontSize: "12px", color: "#92400e", marginBottom: "6px" }}>
+                          Your previous appeal was reviewed and the grade stood.
+                          {appeal.adminResponse ? ` Admin note: ${appeal.adminResponse}` : ""}
+                          {" "}You may request another review if you have new grounds.
+                        </p>
+                      )}
+                      <textarea
+                        value={appealReason}
+                        onChange={(e) => setAppealReason(e.target.value)}
+                        placeholder="Explain why you believe this grade should be reviewed..."
+                        style={{ width: "100%", minHeight: "50px", padding: "8px 10px", border: "1px solid #fde68a", borderRadius: "8px", fontSize: "13px", fontFamily: "inherit", boxSizing: "border-box" }}
+                      />
+                      <button
+                        onClick={handleRequestAppeal}
+                        disabled={submittingAppeal}
+                        style={{
+                          marginTop: "8px", background: "#b45309", color: "white", border: "none", borderRadius: "8px",
+                          padding: "8px 14px", fontSize: "12.5px", fontWeight: "700", cursor: "pointer",
+                        }}
+                      >
+                        {submittingAppeal ? "Submitting..." : "Request Grade Review"}
+                      </button>
+                    </div>
+                  ) : appeal.status === "REQUESTED" ? (
+                    <p style={{ fontSize: "12.5px", color: "#92400e", marginTop: "6px" }}>
+                      Your review request is pending admin decision. Reason given: "{appeal.reason}"
+                    </p>
+                  ) : (
+                    <p style={{ fontSize: "12.5px", color: "#15803d", marginTop: "6px" }}>
+                      Your appeal was accepted — your supervisor will re-grade this project.
+                      {appeal.adminResponse ? ` Admin note: ${appeal.adminResponse}` : ""}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Live Review Notes Modal */}
       {reviewNotesModalProject && (
         <div className={styles.modalOverlay}>
@@ -1426,18 +1614,32 @@ const CreateTask = () => {
                                   Combined: {project.overallFinalMarks ?? project.evaluationMarks}/100
                                 </div>
                               )}
-                              <button
-                                type="button"
-                                onClick={() => generateCompletionCertificate(project)}
-                                style={{
-                                  display: "flex", alignItems: "center", gap: "5px",
-                                  background: "#ede9fe", color: "#6d28d9", border: "1px solid #ddd6fe",
-                                  borderRadius: "6px", padding: "4px 9px", fontSize: "11px", fontWeight: "700",
-                                  cursor: "pointer",
-                                }}
-                              >
-                                <FaAward /> Certificate
-                              </button>
+                              <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenGradeModal(project)}
+                                  style={{
+                                    display: "flex", alignItems: "center", gap: "5px",
+                                    background: "#eff6ff", color: "#1e40af", border: "1px solid #bfdbfe",
+                                    borderRadius: "6px", padding: "4px 9px", fontSize: "11px", fontWeight: "700",
+                                    cursor: "pointer",
+                                  }}
+                                >
+                                  <FaSearch /> Details
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => generateCompletionCertificate(project)}
+                                  style={{
+                                    display: "flex", alignItems: "center", gap: "5px",
+                                    background: "#ede9fe", color: "#6d28d9", border: "1px solid #ddd6fe",
+                                    borderRadius: "6px", padding: "4px 9px", fontSize: "11px", fontWeight: "700",
+                                    cursor: "pointer",
+                                  }}
+                                >
+                                  <FaAward /> Certificate
+                                </button>
+                              </div>
                             </div>
                           );
                         }

@@ -635,6 +635,46 @@
   margin-top: 4px;
 }
 
+.appealHistoryNote {
+  font-weight: 500;
+  font-size: 11.5px;
+  opacity: 0.8;
+}
+
+.appealBox {
+  margin-top: 4px;
+  padding: 12px 14px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 10px;
+}
+
+.appealHeader {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #92400e;
+}
+
+.appealReason {
+  font-size: 12.5px;
+  color: #78350f;
+  margin: 6px 0 10px;
+}
+
+.appealReviewBtn {
+  background: #b45309;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 7px 14px;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
 .flaggedBadge {
   display: inline-block;
   padding: 8px 18px;
