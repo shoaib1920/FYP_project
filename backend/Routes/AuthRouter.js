@@ -60,7 +60,7 @@ const {
 } = require("../Controllers/FeedbackController");
 const { supervisorSignup, supervisorLogin } = require("../Controllers/SupervisorAuthController");
 const { createProject, getAllProjects,assignProject,getSupervisorProjectStats ,AssignedProjectList,getAllSupervisors  ,submitFinalProject, getAllSupervisorsForAdmin, updateSupervisorStatus, updateSupervisorDepartment } = require("../Controllers/SupervisorProjectController");
-const { createTeam, getAllTeams, getMyTeams, respondToInvite } = require("../Controllers/TeamController");
+const { createTeam, getAllTeams, getMyTeams, respondToInvite, inviteMoreMembers, cancelInvite, removeMember } = require("../Controllers/TeamController");
 const {
   createDepartment,
   getAllDepartments,
@@ -201,6 +201,9 @@ route.post("/create-project", createProject);
 route.post('/create-team', authenticate, createTeam); // Create a team — creator comes from the JWT, not the request body
 route.get('/my-teams', authenticate, getMyTeams); // Teams I'm in + invites awaiting my response
 route.put('/teams/:teamId/invites/respond', authenticate, respondToInvite); // Accept or decline a team invite
+route.post('/teams/:teamId/invites', authenticate, inviteMoreMembers); // Leader invites more students to an existing team
+route.delete('/teams/:teamId/invites/:studentId', authenticate, cancelInvite); // Leader cancels a not-yet-answered invite
+route.delete('/teams/:teamId/members/:memberId', authenticate, removeMember); // Leader removes an already-joined member
 
 // Get all Projects
 route.get("/projects", getAllProjects);

@@ -46,6 +46,12 @@ const Dashboard = ({ setActiveModule }) => {
   const [loading, setLoading] = useState(true);
   const [creatingTeam, setCreatingTeam] = useState(false);
   const [respondingInvite, setRespondingInvite] = useState(null); // `${teamId}_${action}`
+  const [removingMemberId, setRemovingMemberId] = useState(null);
+  const [cancelingInviteId, setCancelingInviteId] = useState(null);
+  const [addMemberOpenFor, setAddMemberOpenFor] = useState(null); // teamId currently showing the "invite more" form
+  const [addMemberSearchTerm, setAddMemberSearchTerm] = useState("");
+  const [addMemberSelected, setAddMemberSelected] = useState([]);
+  const [invitingMore, setInvitingMore] = useState(false);
 
   const loggedInUser = JSON.parse(localStorage.getItem("user"));
   const userId = loggedInUser.id;
@@ -57,11 +63,16 @@ const Dashboard = ({ setActiveModule }) => {
   const hasTeamMembership = yourTeams.length > 0;
   const canCreateTeam = !hasTeamMembership || isLeader;
 
+  const myTeam = yourTeams.find((team) => String(team.createdBy) === String(userId)) || yourTeams[0] || null;
+  // A team with only the leader in it hasn't really "formed" yet, even though
+  // the record exists to track pending invites — don't present it as joined.
+  const teamIsFormed = hasTeamMembership && !!myTeam && (myTeam.members || []).length > 1;
+
   // Invites still unanswered on a team I lead — proposal submission is blocked until these clear.
   const myTeamPendingInvites = yourTeams
     .filter((team) => String(team.createdBy) === String(userId))
     .flatMap((team) => team.pendingInvites || []);
-  const teamReadyForProposal = hasTeamMembership && myTeamPendingInvites.length === 0;
+  const teamReadyForProposal = teamIsFormed && myTeamPendingInvites.length === 0;
 
   const yourTeamIds = yourTeams.map((team) => String(team._id));
   const otherTeams = allTeams.filter((team) => !yourTeamIds.includes(String(team._id)));
@@ -70,6 +81,13 @@ const Dashboard = ({ setActiveModule }) => {
     (user) =>
       (user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.registration_id?.toLowerCase().includes(searchTerm.toLowerCase())) &&
+      user._id !== userId
+  );
+
+  const addMemberFilteredUsers = availableStudents.filter(
+    (user) =>
+      (user.name.toLowerCase().includes(addMemberSearchTerm.toLowerCase()) ||
+        user.registration_id?.toLowerCase().includes(addMemberSearchTerm.toLowerCase())) &&
       user._id !== userId
   );
 
@@ -241,6 +259,72 @@ const Dashboard = ({ setActiveModule }) => {
     }
   };
 
+  const handleRemoveMember = async (teamId, memberId) => {
+    if (!window.confirm("Remove this member from the team?")) return;
+    setRemovingMemberId(memberId);
+    try {
+      const token = localStorage.getItem("token");
+      const response = await axios.delete(
+        `${process.env.REACT_APP_API_URL}/auth/teams/${teamId}/members/${memberId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (response.data.success) {
+        fetchMyTeams();
+      }
+    } catch (error) {
+      console.error("Error removing member:", error);
+      alert(error.response?.data?.message || "Error removing member");
+    } finally {
+      setRemovingMemberId(null);
+    }
+  };
+
+  const handleCancelInvite = async (teamId, studentId) => {
+    setCancelingInviteId(studentId);
+    try {
+      const token = localStorage.getItem("token");
+      const response = await axios.delete(
+        `${process.env.REACT_APP_API_URL}/auth/teams/${teamId}/invites/${studentId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (response.data.success) {
+        fetchMyTeams();
+      }
+    } catch (error) {
+      console.error("Error cancelling invite:", error);
+      alert(error.response?.data?.message || "Error cancelling invite");
+    } finally {
+      setCancelingInviteId(null);
+    }
+  };
+
+  const handleInviteMore = async (teamId) => {
+    if (addMemberSelected.length === 0) {
+      alert("Pick at least one student to invite.");
+      return;
+    }
+    setInvitingMore(true);
+    try {
+      const token = localStorage.getItem("token");
+      const response = await axios.post(
+        `${process.env.REACT_APP_API_URL}/auth/teams/${teamId}/invites`,
+        { memberIds: addMemberSelected.map((u) => u.id) },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (response.data.success) {
+        setAddMemberSelected([]);
+        setAddMemberSearchTerm("");
+        setAddMemberOpenFor(null);
+        fetchMyTeams();
+      }
+    } catch (error) {
+      console.error("Error inviting more members:", error);
+      alert(error.response?.data?.message || "Error inviting more members");
+    } finally {
+      setInvitingMore(false);
+    }
+  };
+
   const totalTasks = taskSummary.totalTasks ?? taskSummary.total ?? 0;
   const completedTasks = taskSummary.completedTasks ?? taskSummary.completed ?? 0;
   const pendingTasks = taskSummary.pendingTasks ?? taskSummary.pending ?? 0;
@@ -325,8 +409,12 @@ const Dashboard = ({ setActiveModule }) => {
     { icon: <FaCheckCircle />, label: "Email verified & account created", done: true },
     {
       icon: <FaUsers />,
-      label: hasTeamMembership ? `Team joined: ${yourTeams[0]?.subject || "your team"}` : "Create or join a team",
-      done: hasTeamMembership,
+      label: teamIsFormed
+        ? `Team joined: ${myTeam?.subject || "your team"}`
+        : hasTeamMembership
+        ? `Waiting for teammates to accept your invite${myTeamPendingInvites.length === 1 ? "" : "s"}...`
+        : "Create or join a team",
+      done: teamIsFormed,
       action: !hasTeamMembership ? () => setShowTeamModal(true) : null,
       actionLabel: "Create Team",
     },
@@ -382,8 +470,8 @@ const Dashboard = ({ setActiveModule }) => {
         </div>
       </div>
 
-      {/* ── Getting Started (fresh student) ── */}
-      {!loading && !hasTeamMembership && (
+      {/* ── Getting Started (fresh student, or team still forming) ── */}
+      {!loading && !teamIsFormed && (
         <div className={styles.getStarted}>
           <div className={styles.getStartedHeader}>
             <FaRocket className={styles.gsIcon} />
@@ -634,7 +722,9 @@ const Dashboard = ({ setActiveModule }) => {
             <div className={styles.teammodalBody}>
               {(activeTab === "myTeams" ? yourTeams : otherTeams).length > 0 ? (
                 <div className={styles.teamList}>
-                  {(activeTab === "myTeams" ? yourTeams : otherTeams).map((team) => (
+                  {(activeTab === "myTeams" ? yourTeams : otherTeams).map((team) => {
+                    const iAmLeaderOfThis = activeTab === "myTeams" && String(team.createdBy) === String(userId);
+                    return (
                     <div key={team._id} className={styles.teamCard}>
                       <h3>{team.subject}</h3>
                       <p><strong>Members ({team.members.length}):</strong></p>
@@ -643,11 +733,109 @@ const Dashboard = ({ setActiveModule }) => {
                           <div key={member._id} className={styles.memberItem}>
                             <span className={styles.memberIcon}>👤</span>
                             <span className={styles.memberName}>{member.name}</span>
+                            {iAmLeaderOfThis && String(member._id) !== String(team.createdBy) && (
+                              <button
+                                type="button"
+                                className={styles.removeMemberBtn}
+                                onClick={() => handleRemoveMember(team._id, member._id)}
+                                disabled={removingMemberId === member._id}
+                              >
+                                {removingMemberId === member._id ? "Removing..." : "✕ Remove"}
+                              </button>
+                            )}
                           </div>
                         ))}
                       </div>
+
+                      {iAmLeaderOfThis && (team.pendingInvites || []).length > 0 && (
+                        <>
+                          <p><strong>Pending invites ({team.pendingInvites.length}):</strong></p>
+                          <div className={styles.memberList}>
+                            {team.pendingInvites.map((inv) => (
+                              <div key={String(inv.student)} className={styles.memberItem}>
+                                <span className={styles.memberIcon}>⏳</span>
+                                <span className={styles.memberName}>{inv.name}</span>
+                                <button
+                                  type="button"
+                                  className={styles.removeMemberBtn}
+                                  onClick={() => handleCancelInvite(team._id, inv.student)}
+                                  disabled={cancelingInviteId === String(inv.student)}
+                                >
+                                  {cancelingInviteId === String(inv.student) ? "Cancelling..." : "✕ Cancel"}
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </>
+                      )}
+
+                      {iAmLeaderOfThis && (
+                        addMemberOpenFor === team._id ? (
+                          <div className={styles.modalBody}>
+                            <label className={styles.modalLabel}>Search students to invite:</label>
+                            <input
+                              type="text"
+                              placeholder="Search student by name or id..."
+                              value={addMemberSearchTerm}
+                              onChange={(e) => setAddMemberSearchTerm(e.target.value)}
+                              className={styles.modalInput}
+                            />
+                            <div className={styles.searchResults}>
+                              {addMemberSearchTerm && addMemberFilteredUsers.length > 0 ? (
+                                addMemberFilteredUsers.map((user) => (
+                                  <div key={user._id} className={styles.searchItem} onClick={() => {
+                                    if (!addMemberSelected.some((s) => s.id === user._id)) {
+                                      setAddMemberSelected((prev) => [...prev, { id: user._id, name: user.name }]);
+                                    }
+                                    setAddMemberSearchTerm("");
+                                  }}>
+                                    <strong>{user.name}</strong><br /><small>{user.registration_id}</small>
+                                  </div>
+                                ))
+                              ) : (addMemberSearchTerm && <div className={styles.noResults}>No student found with this name or registration ID.</div>)}
+                            </div>
+                            {addMemberSelected.length > 0 && (
+                              <div className={styles.selectedUsers}>
+                                {addMemberSelected.map((user) => (
+                                  <span key={user.id} className={styles.selectedUserBadge}>
+                                    {user.name}
+                                    <button type="button" onClick={() => setAddMemberSelected(addMemberSelected.filter((u) => u.id !== user.id))}>✖</button>
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                            <div className={styles.modalFooter}>
+                              <button
+                                type="button"
+                                className={styles.cancelButton}
+                                onClick={() => { setAddMemberOpenFor(null); setAddMemberSelected([]); setAddMemberSearchTerm(""); }}
+                                disabled={invitingMore}
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                type="button"
+                                className={styles.createButton}
+                                onClick={() => handleInviteMore(team._id)}
+                                disabled={invitingMore}
+                              >
+                                {invitingMore ? "Sending..." : "Send Invites"}
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            className={styles.stepBtn}
+                            onClick={() => setAddMemberOpenFor(team._id)}
+                          >
+                            + Invite More Members
+                          </button>
+                        )
+                      )}
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <p>No teams found.</p>

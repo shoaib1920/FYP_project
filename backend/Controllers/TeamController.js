@@ -119,6 +119,173 @@ exports.getMyTeams = async (req, res) => {
   }
 };
 
+// If a team is left with no accepted members besides the leader and no
+// invites still pending, it never really formed — delete it so the leader
+// isn't stuck (createTeam blocks anyone already listed as a member
+// elsewhere). Returns true if the team was disbanded.
+const disbandIfDeadOnArrival = async (team, reasonMessage) => {
+  const isDeadOnArrival = team.members.length <= 1 && team.pendingInvites.length === 0;
+  if (!isDeadOnArrival) return false;
+
+  await Team.findByIdAndDelete(team._id);
+  await Users.findByIdAndUpdate(team.createdBy, { designation: "Student" });
+
+  await Notification.create({
+    userId: team.createdBy,
+    title: "Team Disbanded",
+    message: reasonMessage,
+    relatedType: "TeamInvite",
+    relatedId: team._id,
+  });
+
+  return true;
+};
+
+// Leader invites additional students to an existing team (e.g. to replace
+// someone who declined, or to top up after losing a member).
+exports.inviteMoreMembers = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { teamId } = req.params;
+    const { memberIds } = req.body;
+
+    if (!memberIds || memberIds.length === 0) {
+      return res.status(400).json({ message: "At least one student to invite is required" });
+    }
+
+    const team = await Team.findById(teamId);
+    if (!team) return res.status(404).json({ message: "Team not found" });
+
+    if (String(team.createdBy) !== String(userId)) {
+      return res.status(403).json({ message: "Only the team leader can invite more members" });
+    }
+
+    const invitees = await Users.find({ _id: { $in: memberIds } });
+    if (invitees.length !== memberIds.length) {
+      return res.status(400).json({ message: "Some invited users are not valid students" });
+    }
+
+    const alreadyInvolved = new Set([
+      ...team.members.map(String),
+      ...team.pendingInvites.map((inv) => String(inv.student)),
+    ]);
+    const duplicate = invitees.find((u) => alreadyInvolved.has(String(u._id)));
+    if (duplicate) {
+      return res.status(409).json({ message: `${duplicate.name} is already on this team or already invited.` });
+    }
+
+    const busyTeams = await Team.find({ members: { $in: memberIds } }).select("members");
+    if (busyTeams.length > 0) {
+      const busyIds = new Set(busyTeams.flatMap((t) => t.members.map(String)));
+      const busyNames = invitees.filter((u) => busyIds.has(String(u._id))).map((u) => u.name);
+      return res.status(409).json({
+        message: `These students are already on a team and can't be invited: ${busyNames.join(", ")}`,
+      });
+    }
+
+    team.pendingInvites.push(
+      ...invitees.map((u) => ({ student: u._id, name: u.name, invitedAt: new Date() }))
+    );
+    await team.save();
+
+    await Notification.insertMany(
+      invitees.map((u) => ({
+        userId: u._id,
+        title: "Team Invite",
+        message: `${team.creatorName} invited you to join the team "${team.subject}".`,
+        relatedType: "TeamInvite",
+        relatedId: team._id,
+      }))
+    );
+
+    res.status(200).json({ success: true, message: "Invites sent", team });
+  } catch (error) {
+    console.error("Error inviting more members:", error);
+    res.status(500).json({ message: error.message || "Server Error" });
+  }
+};
+
+// Leader revokes a not-yet-answered invite
+exports.cancelInvite = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { teamId, studentId } = req.params;
+
+    const team = await Team.findById(teamId);
+    if (!team) return res.status(404).json({ message: "Team not found" });
+
+    if (String(team.createdBy) !== String(userId)) {
+      return res.status(403).json({ message: "Only the team leader can cancel an invite" });
+    }
+
+    const invite = team.pendingInvites.find((inv) => String(inv.student) === String(studentId));
+    if (!invite) {
+      return res.status(404).json({ message: "No pending invite found for that student" });
+    }
+
+    team.pendingInvites = team.pendingInvites.filter((inv) => String(inv.student) !== String(studentId));
+
+    const disbanded = await disbandIfDeadOnArrival(
+      team,
+      `You cancelled the invite to ${invite.name} on "${team.subject}", and no one else accepted — the team has been disbanded so you can start a new one.`
+    );
+    if (!disbanded) await team.save();
+
+    res.status(200).json({ success: true, message: "Invite cancelled", teamDisbanded: disbanded });
+  } catch (error) {
+    console.error("Error cancelling invite:", error);
+    res.status(500).json({ message: error.message || "Server Error" });
+  }
+};
+
+// Leader removes an already-joined member (e.g. the member wants to switch
+// teams, or the leader wants to make room for someone else).
+exports.removeMember = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { teamId, memberId } = req.params;
+
+    const team = await Team.findById(teamId);
+    if (!team) return res.status(404).json({ message: "Team not found" });
+
+    if (String(team.createdBy) !== String(userId)) {
+      return res.status(403).json({ message: "Only the team leader can remove a member" });
+    }
+
+    if (String(memberId) === String(team.createdBy)) {
+      return res.status(400).json({ message: "The team leader can't be removed. Disband the team instead." });
+    }
+
+    const memberIndex = team.members.findIndex((m) => String(m) === String(memberId));
+    if (memberIndex === -1) {
+      return res.status(404).json({ message: "That student isn't a member of this team" });
+    }
+
+    const removedName = team.memberNames[memberIndex] || "A member";
+    team.members.splice(memberIndex, 1);
+    team.memberNames.splice(memberIndex, 1);
+
+    const disbanded = await disbandIfDeadOnArrival(
+      team,
+      `You removed ${removedName} from "${team.subject}", leaving no other members — the team has been disbanded so you can start a new one.`
+    );
+    if (!disbanded) await team.save();
+
+    await Notification.create({
+      userId: memberId,
+      title: "Removed From Team",
+      message: `You've been removed from the team "${team.subject}" and are free to join another team.`,
+      relatedType: "TeamInvite",
+      relatedId: team._id,
+    });
+
+    res.status(200).json({ success: true, message: "Member removed", teamDisbanded: disbanded });
+  } catch (error) {
+    console.error("Error removing member:", error);
+    res.status(500).json({ message: error.message || "Server Error" });
+  }
+};
+
 // Accept or decline a pending team invite
 exports.respondToInvite = async (req, res) => {
   try {
@@ -141,24 +308,11 @@ exports.respondToInvite = async (req, res) => {
     if (action === "decline") {
       team.pendingInvites = team.pendingInvites.filter((inv) => String(inv.student) !== String(userId));
 
-      // If that was the last hope for this team — no accepted members besides
-      // the leader, and nobody else still pending — the team never really
-      // formed. Disband it so the leader isn't stuck unable to create a new
-      // one (createTeam blocks anyone already listed as a member elsewhere).
-      const isDeadOnArrival = team.members.length <= 1 && team.pendingInvites.length === 0;
-
-      if (isDeadOnArrival) {
-        await Team.findByIdAndDelete(team._id);
-        await Users.findByIdAndUpdate(team.createdBy, { designation: "Student" });
-
-        await Notification.create({
-          userId: team.createdBy,
-          title: "Team Disbanded",
-          message: `${invite.name} declined your invite to "${team.subject}", and no one else accepted — the team has been disbanded so you can start a new one.`,
-          relatedType: "TeamInvite",
-          relatedId: team._id,
-        });
-
+      const disbanded = await disbandIfDeadOnArrival(
+        team,
+        `${invite.name} declined your invite to "${team.subject}", and no one else accepted — the team has been disbanded so you can start a new one.`
+      );
+      if (disbanded) {
         return res.status(200).json({ success: true, message: "Invite declined", teamDisbanded: true });
       }
 

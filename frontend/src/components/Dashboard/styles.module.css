@@ -880,3 +880,26 @@
   .memberName {
 	font-weight: 600;
   }
+
+  .removeMemberBtn {
+	margin-left: auto;
+	background: transparent;
+	border: 1px solid #fecaca;
+	color: #b91c1c;
+	border-radius: 6px;
+	padding: 3px 9px;
+	font-size: 11.5px;
+	font-weight: 600;
+	cursor: pointer;
+	white-space: nowrap;
+	transition: background 0.15s;
+  }
+
+  .removeMemberBtn:hover {
+	background: #fee2e2;
+  }
+
+  .removeMemberBtn:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+  }
