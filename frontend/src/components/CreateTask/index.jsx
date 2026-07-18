@@ -24,6 +24,8 @@ import {
   FaEye,
   FaTrash,
   FaThumbtack,
+  FaHandshake,
+  FaCalendarAlt,
 } from "react-icons/fa";
 
 const CreateTask = () => {
@@ -70,6 +72,10 @@ const CreateTask = () => {
   const [reviewNotes, setReviewNotes] = useState([]);
   const [reviewNotesLoading, setReviewNotesLoading] = useState(false);
   const [resolvingNoteId, setResolvingNoteId] = useState(null);
+
+  const [meetingsModalProject, setMeetingsModalProject] = useState(null);
+  const [meetings, setMeetings] = useState([]);
+  const [meetingsLoading, setMeetingsLoading] = useState(false);
 
   const token = localStorage.getItem("token");
   const loggedInUser = JSON.parse(localStorage.getItem("user"));
@@ -510,6 +516,27 @@ const CreateTask = () => {
     fetchReviewNotes(project._id);
   };
 
+  const fetchMeetings = async (projectId) => {
+    setMeetingsLoading(true);
+    try {
+      const res = await axios.get(
+        `${process.env.REACT_APP_API_URL}/auth/meetings/${projectId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setMeetings(res.data.meetings || []);
+    } catch (err) {
+      console.error("Error fetching meetings:", err);
+      setMeetings([]);
+    } finally {
+      setMeetingsLoading(false);
+    }
+  };
+
+  const handleOpenMeetingsModal = (project) => {
+    setMeetingsModalProject(project);
+    fetchMeetings(project._id);
+  };
+
   const handleResolveNote = async (noteId) => {
     if (!isTeamLeader) {
       setMessage("Only the team leader can mark a review note as resolved.");
@@ -934,6 +961,61 @@ const CreateTask = () => {
         </div>
       )}
 
+      {/* Supervision Meetings Modal (read-only for students) */}
+      {meetingsModalProject && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modalContent}>
+            <span className={styles.closeButton} onClick={() => setMeetingsModalProject(null)}><FaTimes /></span>
+            <h2 className={styles.card_heading}><FaHandshake /> Supervision Meetings</h2>
+            <p style={{ color: "#555", marginTop: "8px" }}>{meetingsModalProject.title}</p>
+
+            <div style={{ marginTop: "16px", maxHeight: "440px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "12px" }}>
+              {meetingsLoading ? (
+                <p style={{ color: "#9ca3af", fontSize: "13px" }}>Loading meetings...</p>
+              ) : meetings.length === 0 ? (
+                <p style={{ color: "#9ca3af", fontSize: "13px" }}>Your supervisor hasn't scheduled any meetings yet.</p>
+              ) : (
+                meetings.map((m) => (
+                  <div key={m._id} style={{
+                    background: m.status === "CANCELLED" ? "#f9fafb" : "#f8fafc",
+                    opacity: m.status === "CANCELLED" ? 0.65 : 1,
+                    borderRadius: "10px", padding: "12px 14px", border: "1px solid #e5e7eb",
+                  }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                      <strong style={{ fontSize: "13.5px", color: "#111827", display: "flex", alignItems: "center", gap: "6px" }}>
+                        <FaCalendarAlt style={{ fontSize: "12px", color: "#6b7280" }} />
+                        {new Date(m.scheduledAt).toLocaleString()}
+                      </strong>
+                      <span style={{
+                        fontSize: "11px", fontWeight: "700", padding: "2px 8px", borderRadius: "999px",
+                        background: m.status === "COMPLETED" ? "#dcfce7" : m.status === "CANCELLED" ? "#fee2e2" : "#fef3c7",
+                        color: m.status === "COMPLETED" ? "#15803d" : m.status === "CANCELLED" ? "#b91c1c" : "#92400e",
+                      }}>
+                        {m.status === "COMPLETED" ? "Completed" : m.status === "CANCELLED" ? "Cancelled" : "Scheduled"}
+                      </span>
+                    </div>
+                    {m.agenda && (
+                      <p style={{ fontSize: "13px", color: "#374151", margin: "4px 0" }}><strong>Agenda:</strong> {m.agenda}</p>
+                    )}
+                    {m.status === "COMPLETED" && m.minutesOfMeeting && (
+                      <div style={{ marginTop: "8px", background: "#eff6ff", borderLeft: "3px solid #2563eb", borderRadius: "6px", padding: "8px 10px" }}>
+                        <strong style={{ fontSize: "12px", color: "#1e40af" }}>Minutes:</strong>
+                        <p style={{ fontSize: "12.5px", color: "#1e3a8a", margin: "2px 0 0", whiteSpace: "pre-wrap" }}>{m.minutesOfMeeting}</p>
+                        {m.nextMeetingDate && (
+                          <p style={{ fontSize: "11.5px", color: "#1e40af", margin: "6px 0 0" }}>
+                            Next meeting: {new Date(m.nextMeetingDate).toLocaleDateString()}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Live Review Notes Modal */}
       {reviewNotesModalProject && (
         <div className={styles.modalOverlay}>
@@ -1163,6 +1245,7 @@ const CreateTask = () => {
               <th>Status</th>
               <th>Links</th>
               <th>Weekly Updates</th>
+              <th>Meetings</th>
               <th>Live Review</th>
               <th>Your Grade</th>
               <th>Actions</th>
@@ -1171,7 +1254,7 @@ const CreateTask = () => {
           <tbody>
             {groupProjects.length === 0 ? (
               <tr>
-                <td colSpan="12" style={{ textAlign: "center", color: "#888" }}>
+                <td colSpan="13" style={{ textAlign: "center", color: "#888" }}>
                   No projects found.
                 </td>
               </tr>
@@ -1278,6 +1361,20 @@ const CreateTask = () => {
                         }}
                       >
                         <FaCalendarWeek /> Weekly Updates
+                      </button>
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenMeetingsModal(project)}
+                        style={{
+                          display: "flex", alignItems: "center", gap: "6px",
+                          background: "#f5f3ff", color: "#5b21b6", border: "1px solid #ddd6fe",
+                          borderRadius: "8px", padding: "6px 12px", fontSize: "12.5px", fontWeight: "600",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <FaHandshake /> Meetings
                       </button>
                     </td>
                     <td>

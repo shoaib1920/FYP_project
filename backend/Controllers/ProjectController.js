@@ -4,6 +4,7 @@ const AssignedProject = require("../Models/SupervisorModels/AssignedProject");
 const Users = require("../Models/Users");
 const AcademicTerm = require("../Models/AcademicTerm");
 const Team = require("../Models/Team");
+const MeetingLog = require("../Models/MeetingLog");
 const sendEmail = require("../utils/emailService");
 const { logAction } = require("./AuditLogController");
 
@@ -658,8 +659,40 @@ exports.reGradeProject = async (req, res) => {
 
 // PUT /auth/projects/:projectId/grade-phase  (Supervisor)
 // Grades INTERNAL or MIDTERM phase — does NOT change project status
+// PUT /projects/:projectId/grade-draft — save partial, in-progress rubric
+// scores without submitting/finalizing anything. No status change, no
+// notifications — purely a scratchpad so a supervisor can grade a few
+// members now and finish the rest later without losing work.
+exports.saveGradeDraft = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const supervisorId = req.user._id;
+    const { phase, rubricScores, remarks } = req.body;
+
+    if (!phase) return res.status(400).json({ message: "phase is required" });
+
+    const project = await Project.findById(projectId);
+    if (!project) return res.status(404).json({ message: "Project not found" });
+    if (String(project.supervisorId) !== String(supervisorId)) {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+
+    project.gradingDraft = {
+      phase,
+      rubricScores: rubricScores || {},
+      remarks: remarks || "",
+      savedAt: new Date(),
+    };
+    await project.save();
+
+    res.json({ success: true, gradingDraft: project.gradingDraft });
+  } catch (err) {
+    console.error("saveGradeDraft error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 exports.gradePhase = async (req, res) => {
-  console.log(`[gradePhase] hit — projectId=${req.params.projectId} phase=${req.body?.phase} user=${req.user?._id}`);
   try {
     const { projectId } = req.params;
     const supervisorId  = req.user._id;
@@ -959,6 +992,57 @@ exports.getMyViva = async (req, res) => {
     });
   } catch (err) {
     console.error("getMyViva error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// GET /supervisor/schedule — a consolidated, chronological list of the
+// logged-in supervisor's upcoming vivas and meetings across ALL their
+// projects, instead of only being visible as a per-project inline chip.
+exports.getSupervisorSchedule = async (req, res) => {
+  try {
+    const supervisorId = req.user._id;
+    const now = new Date();
+
+    const [projectsWithViva, upcomingMeetings] = await Promise.all([
+      Project.find({
+        supervisorId,
+        "vivaDetails.status": "SCHEDULED",
+        "vivaDetails.scheduledAt": { $gte: now },
+      })
+        .select("title vivaDetails teamId")
+        .populate("teamId", "subject"),
+      MeetingLog.find({ supervisorId, status: "SCHEDULED", scheduledAt: { $gte: now } })
+        .populate("projectId", "title")
+        .sort({ scheduledAt: 1 }),
+    ]);
+
+    const items = [
+      ...projectsWithViva.map((p) => ({
+        type: "VIVA",
+        date: p.vivaDetails.scheduledAt,
+        projectId: p._id,
+        projectTitle: p.title,
+        teamName: p.teamId?.subject || "",
+        mode: p.vivaDetails.mode,
+        venue: p.vivaDetails.venue,
+        meetingLink: p.vivaDetails.meetingLink,
+        durationMinutes: p.vivaDetails.durationMinutes,
+        examiners: p.vivaDetails.examiners || [],
+      })),
+      ...upcomingMeetings.map((m) => ({
+        type: "MEETING",
+        date: m.scheduledAt,
+        projectId: m.projectId?._id,
+        projectTitle: m.projectId?.title || "",
+        agenda: m.agenda,
+        meetingId: m._id,
+      })),
+    ].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    res.json({ success: true, items });
+  } catch (err) {
+    console.error("getSupervisorSchedule error:", err);
     res.status(500).json({ message: "Server error" });
   }
 };

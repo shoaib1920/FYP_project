@@ -237,6 +237,17 @@ const projectSchema = new mongoose.Schema(
     // Combined supervisor + viva final mark
     overallFinalMarks: { type: Number, default: null },
 
+    // In-progress grading a supervisor hasn't submitted yet — lets them save
+    // partial rubric scores and come back later instead of losing everything
+    // by closing the modal. Cleared implicitly once that phase is submitted
+    // for real (the submitted phase data then takes priority when reopened).
+    gradingDraft: {
+      phase:        { type: String, default: null },
+      rubricScores: { type: mongoose.Schema.Types.Mixed, default: null },
+      remarks:      { type: String, default: "" },
+      savedAt:      { type: Date, default: null },
+    },
+
     // Dates
     startDate: {
       type: Date,

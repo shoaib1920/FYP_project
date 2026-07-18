@@ -15,6 +15,7 @@ import {
   FaComments,
 } from "react-icons/fa";
 import Notifications from "../../Notifications";
+import UpcomingSchedule from "../UpcomingSchedule";
 
 const STATUS_LABELS = {
   ACTIVE: "Active",
@@ -209,6 +210,8 @@ const SupervisorDashboard = ({ setActiveModule }) => {
       </div>
 
       {error && <div className={styles.errorBanner}>{error}</div>}
+
+      <UpcomingSchedule />
 
       {loading ? (
         <Loader text="Loading dashboard..." />

@@ -211,7 +211,7 @@ route.get("/projects", getAllProjects);
 route.post('/admin_signup', admin_signup);
 route.post('/admin_login', admin_login);
 // GET /api/admins
-route.get("/admins", getAllAdmins);
+route.get("/admins", authenticate, getAllAdmins); // any logged-in role (used for chat contact lists), never anonymous
 
 
 // Assign Project
@@ -335,6 +335,7 @@ const {
   completeProject,
   reGradeProject,
   gradePhase,
+  saveGradeDraft,
   getAllProjectsForAdmin,
   getCompletedProjectsForAdmin,
   releaseGrades,
@@ -342,6 +343,7 @@ const {
   scheduleViva,
   gradeViva,
   getMyViva,
+  getSupervisorSchedule,
 } = require("../Controllers/ProjectController");
 
 const finalReportStorage = multer.diskStorage({
@@ -360,6 +362,7 @@ const finalReportUpload = multer({
 });
 
 route.get("/my-viva", authenticate, getMyViva); // The logged-in student's own upcoming/recent viva, if any
+route.get("/supervisor/schedule", authenticate, authorize("supervisor"), getSupervisorSchedule); // Consolidated upcoming vivas + meetings
 route.get("/projects/team/:teamId", authenticate, getProjectsByTeam);
 route.get("/projects/supervisor", authenticate, getProjectsBySupervisor);
 route.get("/projects/:projectId", authenticate, getProjectById);
@@ -369,7 +372,7 @@ route.put("/projects/:projectId/final-report", authenticate, finalReportUpload.s
 route.put("/projects/:projectId/complete", authenticate, authorize("supervisor"), completeProject);
 route.put("/projects/:projectId/regrade", authenticate, authorize("supervisor"), reGradeProject);
 route.put("/projects/:projectId/grade-phase", authenticate, authorize("supervisor"), gradePhase);
-console.log("[AuthRouter] grade-phase route registered ✓");
+route.put("/projects/:projectId/grade-draft", authenticate, authorize("supervisor"), saveGradeDraft);
 
 // 🎓 ADMIN GRADE MANAGEMENT ROUTES
 route.get("/admin/projects", authenticate, authorize("admin"), getAllProjectsForAdmin);
@@ -443,10 +446,10 @@ const {
   updateMeetingStatus,
 } = require("../Controllers/MeetingLogController");
 
-route.post("/meetings", authenticate, scheduleMeeting);
-route.get("/meetings/:projectId", authenticate, getProjectMeetings);
-route.put("/meetings/:meetingId/minutes", authenticate, updateMeetingMinutes);
-route.put("/meetings/:meetingId/status", authenticate, updateMeetingStatus);
+route.post("/meetings", authenticate, authorize("supervisor"), scheduleMeeting);
+route.get("/meetings/:projectId", authenticate, getProjectMeetings); // students + supervisor both read this
+route.put("/meetings/:meetingId/minutes", authenticate, authorize("supervisor"), updateMeetingMinutes);
+route.put("/meetings/:meetingId/status", authenticate, authorize("supervisor"), updateMeetingStatus);
 
 // ─────────────────────────────────────────────
 // 🗓️ ACADEMIC CALENDAR / DEADLINES

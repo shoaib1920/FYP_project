@@ -5,11 +5,22 @@ const User = require("../Models/Users"); // or Supervisor/Admin model
 const Project =  require("../Models/SupervisorModels/Project");
 const AssignedProject = require("../Models/SupervisorModels/AssignedProject");
 const { sendVerificationEmail } = require("./EmailVerificationController");
-const JWT_SECRET = 'your_secret_key_here';
 
 exports.admin_signup = async (req, res) => {
-  const { name, email, password } = req.body;
+  const { name, email, password, signupCode } = req.body;
   try {
+    // Admin accounts are the most privileged in the system — signup must be
+    // gated behind a secret only the institution's deployer/IT owner knows,
+    // never open to whoever finds the signup page. Fail closed: if the
+    // server has no code configured, refuse every signup rather than
+    // silently allowing unrestricted registration.
+    if (!process.env.ADMIN_SIGNUP_CODE) {
+      return res.status(500).json({ message: "Admin signup is not configured. Contact the system administrator." });
+    }
+    if (!signupCode || signupCode !== process.env.ADMIN_SIGNUP_CODE) {
+      return res.status(403).json({ message: "Invalid admin signup code." });
+    }
+
     const existing = await Admin.findOne({ email });
     if (existing) return res.status(400).json({ message: "Admin already exists" });
 
@@ -65,7 +76,9 @@ exports.admin_login = async (req, res) => {
 
 exports.getAllAdmins = async (req, res) => {
   try {
-    const admins = await Admin.find();      // no need for { designation: "Admin" }
+    // Only what chat/contact-list UIs actually need — never leak password
+    // hashes or reset/verification tokens, even to authenticated callers.
+    const admins = await Admin.find().select("name email designation");
     res.status(200).json({ admins });
   } catch (error) {
     console.error("Error fetching admins:", error);

@@ -18,6 +18,8 @@ import {
   FaMarker,
   FaHistory,
   FaAward,
+  FaHandshake,
+  FaCalendarAlt,
 } from "react-icons/fa";
 import LivePreview from "../../LivePreview";
 import LiveReviewModal from "../../LiveReviewModal";
@@ -104,6 +106,8 @@ const FYPProjects = () => {
   const [rubricScores, setRubricScores] = useState({}); // { [memberId]: [score0, score1, ...] }
   const [evalRemarks, setEvalRemarks] = useState("");
   const [completing, setCompleting] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
+  const [draftLoaded, setDraftLoaded] = useState(false);
   const [toast, setToast] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
@@ -125,6 +129,15 @@ const FYPProjects = () => {
   const [phaseModal, setPhaseModal] = useState(null);   // { project } — phase overview
   const [historyModal, setHistoryModal] = useState(null); // { project } — grade history
   const [submitError, setSubmitError] = useState("");
+
+  const [meetingsModalProject, setMeetingsModalProject] = useState(null);
+  const [meetings, setMeetings] = useState([]);
+  const [meetingsLoading, setMeetingsLoading] = useState(false);
+  const [newMeeting, setNewMeeting] = useState({ scheduledAt: "", agenda: "", nextMeetingDate: "" });
+  const [schedulingMeeting, setSchedulingMeeting] = useState(false);
+  const [minutesDrafts, setMinutesDrafts] = useState({});
+  const [savingMinutesId, setSavingMinutesId] = useState(null);
+  const [updatingMeetingStatusId, setUpdatingMeetingStatusId] = useState(null);
 
   const token = localStorage.getItem("token");
   const apiBase = process.env.REACT_APP_API_URL || "";
@@ -189,6 +202,93 @@ const FYPProjects = () => {
     fetchReviewHistory(project._id);
   };
 
+  const fetchMeetings = async (projectId) => {
+    setMeetingsLoading(true);
+    try {
+      const res = await axios.get(
+        `${apiBase}/auth/meetings/${projectId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setMeetings(res.data.meetings || []);
+    } catch (err) {
+      console.error("Error fetching meetings:", err);
+      setMeetings([]);
+    } finally {
+      setMeetingsLoading(false);
+    }
+  };
+
+  const handleOpenMeetingsModal = (project) => {
+    setMeetingsModalProject(project);
+    setNewMeeting({ scheduledAt: "", agenda: "", nextMeetingDate: "" });
+    fetchMeetings(project._id);
+  };
+
+  const handleScheduleMeeting = async () => {
+    if (!newMeeting.scheduledAt) {
+      alert("Please pick a date and time for the meeting.");
+      return;
+    }
+    setSchedulingMeeting(true);
+    try {
+      await axios.post(
+        `${apiBase}/auth/meetings`,
+        {
+          projectId: meetingsModalProject._id,
+          scheduledAt: newMeeting.scheduledAt,
+          agenda: newMeeting.agenda,
+          nextMeetingDate: newMeeting.nextMeetingDate || null,
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setNewMeeting({ scheduledAt: "", agenda: "", nextMeetingDate: "" });
+      fetchMeetings(meetingsModalProject._id);
+      showToast("Meeting scheduled. The team has been notified.");
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to schedule meeting.");
+    } finally {
+      setSchedulingMeeting(false);
+    }
+  };
+
+  const handleSaveMinutes = async (meetingId) => {
+    const text = (minutesDrafts[meetingId] || "").trim();
+    if (!text) {
+      alert("Please write the minutes before saving.");
+      return;
+    }
+    setSavingMinutesId(meetingId);
+    try {
+      await axios.put(
+        `${apiBase}/auth/meetings/${meetingId}/minutes`,
+        { minutesOfMeeting: text },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      fetchMeetings(meetingsModalProject._id);
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to save minutes.");
+    } finally {
+      setSavingMinutesId(null);
+    }
+  };
+
+  const handleCancelMeeting = async (meetingId) => {
+    if (!window.confirm("Cancel this meeting?")) return;
+    setUpdatingMeetingStatusId(meetingId);
+    try {
+      await axios.put(
+        `${apiBase}/auth/meetings/${meetingId}/status`,
+        { status: "CANCELLED" },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      fetchMeetings(meetingsModalProject._id);
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to cancel meeting.");
+    } finally {
+      setUpdatingMeetingStatusId(null);
+    }
+  };
+
   const handleSendFeedback = async (logId) => {
     const text = (feedbackDrafts[logId] || "").trim();
     if (!text) {
@@ -241,16 +341,23 @@ const FYPProjects = () => {
   const openGradeModal = (project, phase = "FINAL", isRegrade = false) => {
     const members = buildMemberList(project);
     const rubric  = getRubricForPhase(phase);
+    const phaseData = (project.evaluationPhases || []).find((p) => p.phase === phase);
+    // A saved draft only makes sense to load if this phase hasn't actually
+    // been submitted yet — once real evaluationPhases data exists, that's
+    // authoritative and takes priority over a leftover scratch draft.
+    const draft = project.gradingDraft;
+    const useDraft = !phaseData && draft?.phase === phase && draft?.rubricScores;
+
     const initialScores = {};
     members.forEach((m) => {
-      // Try to pre-fill from evaluationPhases data
-      const phaseData = (project.evaluationPhases || []).find((p) => p.phase === phase);
-      const existing  = phaseData?.memberGrades?.find((g) => String(g.userId) === m._id);
+      const existing = phaseData?.memberGrades?.find((g) => String(g.userId) === m._id);
       if (existing?.rubricScores?.length) {
         initialScores[m._id] = rubric.map((c) => {
           const rs = existing.rubricScores.find((r) => r.criterionName === c.name);
           return rs !== undefined ? String(rs.score) : "";
         });
+      } else if (useDraft && draft.rubricScores[m._id]) {
+        initialScores[m._id] = draft.rubricScores[m._id];
       } else if (!existing && isRegrade && phase === "FINAL") {
         // Legacy: pre-fill from top-level memberGrades for re-grade
         const leg = project.memberGrades?.find((g) => String(g.userId) === m._id);
@@ -275,8 +382,29 @@ const FYPProjects = () => {
       isRegrade,
       flaggedReason: project.flaggedReason,
     });
-    setEvalRemarks(isRegrade || phase !== "FINAL" ? (project.remarks || "") : "");
+    setEvalRemarks(useDraft ? (draft.remarks || "") : (isRegrade || phase !== "FINAL" ? (project.remarks || "") : ""));
+    setDraftLoaded(useDraft);
     setPhaseModal(null); // close phase overview when opening rubric
+  };
+
+  const handleSaveDraft = async () => {
+    const { projectId, phase } = gradeModal;
+    setSavingDraft(true);
+    try {
+      await axios.put(
+        `${apiBase}/auth/projects/${projectId}/grade-draft`,
+        { phase, rubricScores, remarks: evalRemarks },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setProjects((prev) =>
+        prev.map((p) => (p._id === projectId ? { ...p, gradingDraft: { phase, rubricScores, remarks: evalRemarks, savedAt: new Date() } } : p))
+      );
+      showToast("Draft saved — you can finish grading later.");
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to save draft.");
+    } finally {
+      setSavingDraft(false);
+    }
   };
 
   const setCriterionScore = (memberId, idx, val) => {
@@ -623,6 +751,12 @@ const FYPProjects = () => {
               </p>
             )}
 
+            {draftLoaded && (
+              <p style={{ fontSize: "12px", color: "#92400e", background: "#fef3c7", border: "1px solid #fde68a", borderRadius: "7px", padding: "7px 10px", marginTop: "12px" }}>
+                Loaded from your saved draft — pick up where you left off.
+              </p>
+            )}
+
             <label className={styles.label} style={{ marginTop: "16px" }}>
               Remarks (optional):
             </label>
@@ -652,7 +786,14 @@ const FYPProjects = () => {
                  gradeModal.isRegrade         ? "Submit Re-grade" :
                                                "Mark as Completed"}
               </button>
-              <button className={styles.cancelBtn} onClick={() => { setGradeModal(null); setSubmitError(""); }}>
+              <button
+                className={styles.cancelBtn}
+                onClick={handleSaveDraft}
+                disabled={savingDraft || completing}
+              >
+                {savingDraft ? "Saving Draft..." : "Save Draft"}
+              </button>
+              <button className={styles.cancelBtn} onClick={() => { setGradeModal(null); setSubmitError(""); setDraftLoaded(false); }}>
                 Cancel
               </button>
             </div>
@@ -788,6 +929,7 @@ const FYPProjects = () => {
                 <th>Team Leader</th>
                 <th>Links</th>
                 <th>Weekly Updates</th>
+                <th>Meetings</th>
                 <th>Progress</th>
                 <th>Status</th>
                 <th>Grades Status</th>
@@ -870,6 +1012,20 @@ const FYPProjects = () => {
                         }}
                       >
                         <FaCalendarWeek /> View Updates
+                      </button>
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenMeetingsModal(project)}
+                        style={{
+                          display: "flex", alignItems: "center", gap: "6px",
+                          background: "#f5f3ff", color: "#5b21b6", border: "1px solid #ddd6fe",
+                          borderRadius: "8px", padding: "6px 12px", fontSize: "12.5px", fontWeight: "600",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <FaHandshake /> Meetings
                       </button>
                     </td>
                     <td>
@@ -1050,6 +1206,129 @@ const FYPProjects = () => {
 
             <div className={styles.modalActions} style={{ marginTop: "18px" }}>
               <button className={styles.cancelBtn} onClick={() => setProgressModalProject(null)}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Meetings Modal */}
+      {meetingsModalProject && (
+        <div className={styles.overlay}>
+          <div className={styles.modal} style={{ maxWidth: "640px" }}>
+            <h3 className={styles.modalTitle}><FaHandshake style={{ marginRight: "8px", color: "#5b21b6" }} />Supervision Meetings</h3>
+            <p className={styles.modalSubtitle}>{meetingsModalProject.title}</p>
+
+            <div style={{ marginTop: "16px", background: "#f8fafc", border: "1px solid #e5e7eb", borderRadius: "10px", padding: "14px" }}>
+              <strong style={{ fontSize: "13px", color: "#111827", display: "block", marginBottom: "10px" }}>Schedule a Meeting</strong>
+              <label style={{ fontWeight: "600", fontSize: "12.5px", display: "block", marginBottom: "4px" }}>Date &amp; Time *</label>
+              <input
+                type="datetime-local"
+                value={newMeeting.scheduledAt}
+                onChange={(e) => setNewMeeting((f) => ({ ...f, scheduledAt: e.target.value }))}
+                style={{ width: "100%", padding: "8px 10px", border: "1px solid #d1d5db", borderRadius: "8px", fontSize: "13px", boxSizing: "border-box" }}
+              />
+              <label style={{ fontWeight: "600", fontSize: "12.5px", display: "block", marginTop: "10px", marginBottom: "4px" }}>Agenda (optional)</label>
+              <textarea
+                value={newMeeting.agenda}
+                onChange={(e) => setNewMeeting((f) => ({ ...f, agenda: e.target.value }))}
+                placeholder="What will this meeting cover?"
+                style={{ width: "100%", minHeight: "50px", padding: "8px 10px", border: "1px solid #d1d5db", borderRadius: "8px", boxSizing: "border-box", fontSize: "13px", fontFamily: "inherit" }}
+              />
+              <button
+                onClick={handleScheduleMeeting}
+                disabled={schedulingMeeting}
+                style={{
+                  marginTop: "10px", display: "flex", alignItems: "center", gap: "6px",
+                  background: "#5b21b6", color: "white", border: "none", borderRadius: "8px",
+                  padding: "9px 14px", fontSize: "12.5px", fontWeight: "700", cursor: "pointer",
+                }}
+              >
+                <FaCalendarAlt /> {schedulingMeeting ? "Scheduling..." : "Schedule Meeting"}
+              </button>
+            </div>
+
+            <div style={{ marginTop: "18px", maxHeight: "360px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "12px" }}>
+              {meetingsLoading ? (
+                <p style={{ color: "#9ca3af", fontSize: "13px" }}>Loading meetings...</p>
+              ) : meetings.length === 0 ? (
+                <p style={{ color: "#9ca3af", fontSize: "13px" }}>No meetings scheduled yet for this project.</p>
+              ) : (
+                meetings.map((m) => (
+                  <div key={m._id} style={{
+                    background: m.status === "CANCELLED" ? "#f9fafb" : "#f8fafc",
+                    opacity: m.status === "CANCELLED" ? 0.65 : 1,
+                    borderRadius: "10px", padding: "12px 14px", border: "1px solid #e5e7eb",
+                  }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                      <strong style={{ fontSize: "13.5px", color: "#111827", display: "flex", alignItems: "center", gap: "6px" }}>
+                        <FaCalendarAlt style={{ fontSize: "12px", color: "#6b7280" }} />
+                        {new Date(m.scheduledAt).toLocaleString()}
+                      </strong>
+                      <span style={{
+                        fontSize: "11px", fontWeight: "700", padding: "2px 8px", borderRadius: "999px",
+                        background: m.status === "COMPLETED" ? "#dcfce7" : m.status === "CANCELLED" ? "#fee2e2" : "#fef3c7",
+                        color: m.status === "COMPLETED" ? "#15803d" : m.status === "CANCELLED" ? "#b91c1c" : "#92400e",
+                      }}>
+                        {m.status === "COMPLETED" ? "Completed" : m.status === "CANCELLED" ? "Cancelled" : "Scheduled"}
+                      </span>
+                    </div>
+                    {m.agenda && (
+                      <p style={{ fontSize: "13px", color: "#374151", margin: "4px 0" }}><strong>Agenda:</strong> {m.agenda}</p>
+                    )}
+
+                    {m.status === "COMPLETED" && m.minutesOfMeeting && (
+                      <div style={{ marginTop: "8px", background: "#eff6ff", borderLeft: "3px solid #2563eb", borderRadius: "6px", padding: "8px 10px" }}>
+                        <strong style={{ fontSize: "12px", color: "#1e40af" }}>Minutes:</strong>
+                        <p style={{ fontSize: "12.5px", color: "#1e3a8a", margin: "2px 0 0", whiteSpace: "pre-wrap" }}>{m.minutesOfMeeting}</p>
+                        {m.nextMeetingDate && (
+                          <p style={{ fontSize: "11.5px", color: "#1e40af", margin: "6px 0 0" }}>
+                            Next meeting: {new Date(m.nextMeetingDate).toLocaleDateString()}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {m.status === "SCHEDULED" && (
+                      <div style={{ marginTop: "10px" }}>
+                        <textarea
+                          value={minutesDrafts[m._id] || ""}
+                          onChange={(e) => setMinutesDrafts((d) => ({ ...d, [m._id]: e.target.value }))}
+                          placeholder="Add minutes after the meeting to mark it complete..."
+                          style={{ width: "100%", minHeight: "44px", padding: "8px 10px", border: "1px solid #d1d5db", borderRadius: "8px", fontSize: "13px", fontFamily: "inherit", boxSizing: "border-box" }}
+                        />
+                        <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
+                          <button
+                            onClick={() => handleSaveMinutes(m._id)}
+                            disabled={savingMinutesId === m._id}
+                            style={{
+                              background: "#2563eb", color: "white", border: "none", borderRadius: "8px",
+                              padding: "8px 12px", fontSize: "12px", fontWeight: "700", cursor: "pointer",
+                            }}
+                          >
+                            {savingMinutesId === m._id ? "Saving..." : "Save Minutes & Complete"}
+                          </button>
+                          <button
+                            onClick={() => handleCancelMeeting(m._id)}
+                            disabled={updatingMeetingStatusId === m._id}
+                            style={{
+                              background: "#fef2f2", color: "#b91c1c", border: "1px solid #fecaca", borderRadius: "8px",
+                              padding: "8px 12px", fontSize: "12px", fontWeight: "700", cursor: "pointer",
+                            }}
+                          >
+                            {updatingMeetingStatusId === m._id ? "Cancelling..." : "Cancel Meeting"}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className={styles.modalActions} style={{ marginTop: "18px" }}>
+              <button className={styles.cancelBtn} onClick={() => setMeetingsModalProject(null)}>
                 Close
               </button>
             </div>

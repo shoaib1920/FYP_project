@@ -246,7 +246,7 @@ const SupervisorChatBox = () => {
     const fetchContacts = async () => {
       try {
         const [adminsRes, projectsRes] = await Promise.all([
-          axios.get(`${API}/auth/admins`),
+          axios.get(`${API}/auth/admins`, { headers: { Authorization: `Bearer ${token}` } }),
           axios.get(`${API}/auth/projects/supervisor`, {
             headers: { Authorization: `Bearer ${token}` },
           }),

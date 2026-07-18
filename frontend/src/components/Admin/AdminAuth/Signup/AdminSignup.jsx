@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { useNavigate, Link } from 'react-router-dom';
-import { FaUserShield, FaUser, FaEnvelope, FaLock, FaEye, FaEyeSlash } from 'react-icons/fa';
+import { FaUserShield, FaUser, FaEnvelope, FaLock, FaEye, FaEyeSlash, FaKey } from 'react-icons/fa';
 import styles from './styles.module.css';
 
 const AdminSignup = () => {
-  const [admin, setAdmin] = useState({ name: '', email: '', password: '' });
+  const [admin, setAdmin] = useState({ name: '', email: '', password: '', signupCode: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -80,6 +80,21 @@ const AdminSignup = () => {
               {showPassword ? <FaEyeSlash /> : <FaEye />}
             </button>
           </div>
+
+          <div className={styles.inputGroup}>
+            <FaKey className={styles.inputIcon} />
+            <input
+              type="text"
+              placeholder="Admin Signup Code"
+              className={styles.input}
+              value={admin.signupCode}
+              onChange={(e) => setAdmin({ ...admin, signupCode: e.target.value })}
+              required
+            />
+          </div>
+          <p className={styles.switchText} style={{ marginTop: '-8px' }}>
+            Ask your institution's system administrator for the signup code.
+          </p>
 
           <button type="submit" className={styles.submitBtn} disabled={loading}>
             {loading ? <span className={styles.loader}></span> : "Register"}
