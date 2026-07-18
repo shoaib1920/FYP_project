@@ -27,6 +27,7 @@ const AcademicCalendar = () => {
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [actionLoading, setActionLoading] = useState("");
   const [toast, setToast] = useState("");
 
   const apiBase = process.env.REACT_APP_API_URL || "";
@@ -98,23 +99,29 @@ const AcademicCalendar = () => {
   };
 
   const handleActivate = async (term) => {
+    setActionLoading(term._id + "_activate");
     try {
       await axios.put(`${apiBase}/auth/admin/academic-terms/${term._id}/activate`, {}, authHeader);
       showToast(`"${term.name}" is now the active term.`);
       fetchTerms();
     } catch (err) {
       alert(err.response?.data?.message || "Failed to activate term.");
+    } finally {
+      setActionLoading("");
     }
   };
 
   const handleDelete = async (term) => {
     if (!window.confirm(`Delete "${term.name}"? This cannot be undone.`)) return;
+    setActionLoading(term._id + "_delete");
     try {
       await axios.delete(`${apiBase}/auth/admin/academic-terms/${term._id}`, authHeader);
       showToast("Term deleted.");
       fetchTerms();
     } catch (err) {
       alert(err.response?.data?.message || "Failed to delete term.");
+    } finally {
+      setActionLoading("");
     }
   };
 
@@ -218,14 +225,24 @@ const AcademicCalendar = () => {
 
                 <div className={styles.termActions}>
                   {!term.isActive && (
-                    <button type="button" className={styles.activateBtn} onClick={() => handleActivate(term)}>
-                      Set Active
+                    <button
+                      type="button"
+                      className={styles.activateBtn}
+                      onClick={() => handleActivate(term)}
+                      disabled={actionLoading === term._id + "_activate"}
+                    >
+                      {actionLoading === term._id + "_activate" ? "Activating..." : "Set Active"}
                     </button>
                   )}
                   <button type="button" className={styles.editBtn} onClick={() => openEditModal(term)}>
                     <FaEdit /> Edit
                   </button>
-                  <button type="button" className={styles.deleteBtn} onClick={() => handleDelete(term)}>
+                  <button
+                    type="button"
+                    className={styles.deleteBtn}
+                    onClick={() => handleDelete(term)}
+                    disabled={actionLoading === term._id + "_delete"}
+                  >
                     <FaTrash />
                   </button>
                 </div>

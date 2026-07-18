@@ -43,6 +43,7 @@ const AIAssistant = () => {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [clearing, setClearing] = useState(false);
 
   const messagesRef = useRef(null);
 
@@ -113,11 +114,14 @@ const AIAssistant = () => {
   const handleClear = async () => {
     const token = getToken();
     if (!token) return;
+    setClearing(true);
     try {
       await axios.delete(`${API}/auth/ai/history`, { headers: { Authorization: `Bearer ${token}` } });
       setMessages([]);
     } catch (err) {
       console.error("Failed to clear AI chat history:", err);
+    } finally {
+      setClearing(false);
     }
   };
 
@@ -146,8 +150,13 @@ const AIAssistant = () => {
                 <span>AI coding assistant</span>
               </div>
             </div>
-            <button className={styles.iconBtn} onClick={handleClear} title="Start a new conversation">
-              <FaTrash />
+            <button
+              className={styles.iconBtn}
+              onClick={handleClear}
+              disabled={clearing}
+              title="Start a new conversation"
+            >
+              {clearing ? "⏳" : <FaTrash />}
             </button>
           </div>
 

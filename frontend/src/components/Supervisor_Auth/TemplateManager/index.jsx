@@ -37,6 +37,7 @@ const SupervisorTemplateManager = () => {
   const [file,        setFile]      = useState(null);
   const [uploading,   setUploading] = useState(false);
   const [message,     setMessage]   = useState("");
+  const [deletingId,  setDeletingId] = useState(null);
 
   const token    = localStorage.getItem("token");
   const userData = JSON.parse(localStorage.getItem("user") || "{}");
@@ -94,11 +95,14 @@ const SupervisorTemplateManager = () => {
 
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this document? Your team will no longer see it.")) return;
+    setDeletingId(id);
     try {
       await axios.delete(`${apiBase}/auth/templates/${id}`, authHdr);
       setTemplates((prev) => prev.filter((t) => t._id !== id));
     } catch {
       showMsg("Delete failed. Please try again.", true);
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -287,9 +291,10 @@ const SupervisorTemplateManager = () => {
                       <button
                         className={styles.deleteBtn}
                         onClick={() => handleDelete(tpl._id)}
+                        disabled={deletingId === tpl._id}
                         title="Delete document"
                       >
-                        <FaTrash /> Delete
+                        <FaTrash /> {deletingId === tpl._id ? "Deleting..." : "Delete"}
                       </button>
                     </td>
                   </tr>

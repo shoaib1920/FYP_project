@@ -164,11 +164,11 @@ const Signup = () => {
 						
 						{/* Loader */}
 						{loading ? (
-							<button type="submit" className={styles.green_btn}>
+							<button type="submit" className={styles.green_btn} disabled={loading}>
 								<span className={styles.loader}></span>
 							</button>
 						) : (
-							<button type="submit" className={styles.green_btn}>
+							<button type="submit" className={styles.green_btn} disabled={loading}>
 								Sign Up
 							</button>
 						)}

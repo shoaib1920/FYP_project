@@ -19,6 +19,7 @@ const ProposalApprovals = () => {
   const [supervisors, setSupervisors] = useState([]);
   const [filterStatus, setFilterStatus] = useState("");
   const [expandedProposalId, setExpandedProposalId] = useState(null);
+  const [actionLoading, setActionLoading] = useState("");
 
   const token = localStorage.getItem("adminToken");
 
@@ -70,6 +71,7 @@ const ProposalApprovals = () => {
   };
 
   const handleApprove = async (proposalId) => {
+    setActionLoading(proposalId + "_approve");
     try {
       await axios.put(
         `${process.env.REACT_APP_API_URL}/auth/proposals/${proposalId}/status`,
@@ -83,10 +85,13 @@ const ProposalApprovals = () => {
     } catch (error) {
       console.error("Error approving proposal:", error);
       alert("Failed to approve proposal");
+    } finally {
+      setActionLoading("");
     }
   };
 
   const handleReject = async (proposalId) => {
+    setActionLoading(proposalId + "_reject");
     try {
       await axios.put(
         `${process.env.REACT_APP_API_URL}/auth/proposals/${proposalId}/status`,
@@ -100,10 +105,13 @@ const ProposalApprovals = () => {
     } catch (error) {
       console.error("Error rejecting proposal:", error);
       alert("Failed to reject proposal");
+    } finally {
+      setActionLoading("");
     }
   };
 
   const handleRequestRevision = async (proposalId) => {
+    setActionLoading(proposalId + "_revision");
     try {
       await axios.put(
         `${process.env.REACT_APP_API_URL}/auth/proposals/${proposalId}/status`,
@@ -117,6 +125,8 @@ const ProposalApprovals = () => {
     } catch (error) {
       console.error("Error requesting revision:", error);
       alert("Failed to request revision");
+    } finally {
+      setActionLoading("");
     }
   };
 
@@ -126,6 +136,7 @@ const ProposalApprovals = () => {
       return;
     }
 
+    setActionLoading(proposalId + "_assign");
     try {
       await axios.put(
         `${process.env.REACT_APP_API_URL}/auth/proposals/${proposalId}/assign-supervisor`,
@@ -139,6 +150,8 @@ const ProposalApprovals = () => {
     } catch (error) {
       console.error("Error assigning supervisor:", error);
       alert("Failed to assign supervisor");
+    } finally {
+      setActionLoading("");
     }
   };
 
@@ -339,20 +352,23 @@ const ProposalApprovals = () => {
                           <button
                             className={`${styles.btn} ${styles.btnApprove}`}
                             onClick={() => handleApprove(proposal._id)}
+                            disabled={actionLoading === proposal._id + "_approve"}
                           >
-                            ✅ Approve
+                            {actionLoading === proposal._id + "_approve" ? "Approving..." : "✅ Approve"}
                           </button>
                           <button
                             className={`${styles.btn} ${styles.btnRevision}`}
                             onClick={() => handleRequestRevision(proposal._id)}
+                            disabled={actionLoading === proposal._id + "_revision"}
                           >
-                            📝 Request Revision
+                            {actionLoading === proposal._id + "_revision" ? "Sending..." : "📝 Request Revision"}
                           </button>
                           <button
                             className={`${styles.btn} ${styles.btnReject}`}
                             onClick={() => handleReject(proposal._id)}
+                            disabled={actionLoading === proposal._id + "_reject"}
                           >
-                            ❌ Reject
+                            {actionLoading === proposal._id + "_reject" ? "Rejecting..." : "❌ Reject"}
                           </button>
                         </div>
                       </div>
@@ -376,8 +392,9 @@ const ProposalApprovals = () => {
                         <button
                           className={`${styles.btn} ${styles.btnAssign}`}
                           onClick={() => handleAssignSupervisor(proposal._id)}
+                          disabled={actionLoading === proposal._id + "_assign"}
                         >
-                          🔗 Assign Supervisor
+                          {actionLoading === proposal._id + "_assign" ? "Assigning..." : "🔗 Assign Supervisor"}
                         </button>
                       </div>
                     )}

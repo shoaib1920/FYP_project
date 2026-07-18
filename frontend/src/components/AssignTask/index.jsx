@@ -28,6 +28,9 @@ const AssignTask = () => {
   const [editingTask, setEditingTask] = useState(null);
   const [isTeamLeader, setIsTeamLeader] = useState(false);
   const [groupMemberIds, setGroupMemberIds] = useState([]);
+  const [assigning, setAssigning] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
 
   useEffect(() => {
     fetchProjects();
@@ -96,6 +99,7 @@ const AssignTask = () => {
       return;
     }
 
+    setSavingEdit(true);
     try {
       const updateData = {
         project: editingTask.project,
@@ -114,18 +118,23 @@ const AssignTask = () => {
     } catch (error) {
       console.error("❌ Error updating task:", error.response?.data || error.message);
       alert("Error updating task: " + (error.response?.data?.message || error.message));
+    } finally {
+      setSavingEdit(false);
     }
   };
 
   const handleDelete = async (taskId) => {
     if (!window.confirm("Are you sure you want to delete this task?")) return;
 
+    setDeletingId(taskId);
     try {
       await axios.delete(`${process.env.REACT_APP_API_URL}/auth/assigntask/${taskId}`);
       setAssignedTasks(assignedTasks.filter((task) => task._id !== taskId));
       console.log("✅ Task deleted successfully!");
     } catch (error) {
       console.error("❌ Error deleting task:", error);
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -173,6 +182,7 @@ const AssignTask = () => {
         assignedBy: String(assignedBy),
       };
 
+      setAssigning(true);
       const response = await axios.post(`${process.env.REACT_APP_API_URL}/auth/assigntask`, requestBody);
 
       console.log("✅ Task Assigned Successfully:", response.data);
@@ -183,6 +193,8 @@ const AssignTask = () => {
       fetchAssignedTasks();
     } catch (error) {
       console.error("❌ Error assigning task:", error.response ? error.response.data : error);
+    } finally {
+      setAssigning(false);
     }
   };
 
@@ -305,8 +317,8 @@ const AssignTask = () => {
             </div>
           </div>
 
-          <button className={styles.assignButton} onClick={handleSubmit}>
-            <FaUserPlus /> Assign Task
+          <button className={styles.assignButton} onClick={handleSubmit} disabled={assigning}>
+            <FaUserPlus /> {assigning ? "Assigning..." : "Assign Task"}
           </button>
         </div>
       )}
@@ -404,10 +416,10 @@ const AssignTask = () => {
                     <td>
                       {editingTask?._id === task._id ? (
                         <div className={styles.actionRow}>
-                          <button className={styles.updateButton} onClick={handleUpdateTask}>
-                            <FaCheck /> Save
+                          <button className={styles.updateButton} onClick={handleUpdateTask} disabled={savingEdit}>
+                            <FaCheck /> {savingEdit ? "Saving..." : "Save"}
                           </button>
-                          <button className={styles.cancelButton} onClick={() => setEditingTask(null)}>
+                          <button className={styles.cancelButton} onClick={() => setEditingTask(null)} disabled={savingEdit}>
                             <FaTimes /> Cancel
                           </button>
                         </div>
@@ -416,8 +428,12 @@ const AssignTask = () => {
                           <button className={styles.editButton} onClick={() => handleEdit(task)}>
                             <FaEdit /> Edit
                           </button>
-                          <button className={styles.deleteButton} onClick={() => handleDelete(task._id)}>
-                            <FaTrash /> Delete
+                          <button
+                            className={styles.deleteButton}
+                            onClick={() => handleDelete(task._id)}
+                            disabled={deletingId === task._id}
+                          >
+                            <FaTrash /> {deletingId === task._id ? "Deleting..." : "Delete"}
                           </button>
                         </div>
                       )}

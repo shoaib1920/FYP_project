@@ -44,6 +44,8 @@ const Dashboard = ({ setActiveModule }) => {
   const [showAllTeamModal, setShowAllTeamModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
+  const [creatingTeam, setCreatingTeam] = useState(false);
+  const [respondingInvite, setRespondingInvite] = useState(null); // `${teamId}_${action}`
 
   const loggedInUser = JSON.parse(localStorage.getItem("user"));
   const userId = loggedInUser.id;
@@ -186,6 +188,7 @@ const Dashboard = ({ setActiveModule }) => {
       alert("Invite at least one teammate to your team.");
       return;
     }
+    setCreatingTeam(true);
     try {
       const token = localStorage.getItem("token");
       const payload = {
@@ -213,10 +216,13 @@ const Dashboard = ({ setActiveModule }) => {
     } catch (error) {
       console.error("Error creating team:", error);
       alert(error.response?.data?.message || "Error creating team");
+    } finally {
+      setCreatingTeam(false);
     }
   };
 
   const handleRespondToInvite = async (teamId, action) => {
+    setRespondingInvite(`${teamId}_${action}`);
     try {
       const token = localStorage.getItem("token");
       const response = await axios.put(
@@ -230,6 +236,8 @@ const Dashboard = ({ setActiveModule }) => {
     } catch (error) {
       console.error("Error responding to invite:", error);
       alert(error.response?.data?.message || "Error responding to invite");
+    } finally {
+      setRespondingInvite(null);
     }
   };
 
@@ -420,13 +428,20 @@ const Dashboard = ({ setActiveModule }) => {
                   <span className={styles.stepLabel}>{invite.subject}</span>
                   <div>Invited by {invite.creatorName}</div>
                 </div>
-                <button className={styles.stepBtn} onClick={() => handleRespondToInvite(invite.teamId, "accept")}>Accept</button>
+                <button
+                  className={styles.stepBtn}
+                  onClick={() => handleRespondToInvite(invite.teamId, "accept")}
+                  disabled={respondingInvite === `${invite.teamId}_accept` || respondingInvite === `${invite.teamId}_decline`}
+                >
+                  {respondingInvite === `${invite.teamId}_accept` ? "Accepting..." : "Accept"}
+                </button>
                 <button
                   className={styles.stepBtn}
                   style={{ background: "#6b7280" }}
                   onClick={() => handleRespondToInvite(invite.teamId, "decline")}
+                  disabled={respondingInvite === `${invite.teamId}_accept` || respondingInvite === `${invite.teamId}_decline`}
                 >
-                  Decline
+                  {respondingInvite === `${invite.teamId}_decline` ? "Declining..." : "Decline"}
                 </button>
               </div>
             ))}
@@ -499,8 +514,10 @@ const Dashboard = ({ setActiveModule }) => {
               )}
             </div>
             <div className={styles.modalFooter}>
-              <button onClick={() => setShowTeamModal(false)} className={styles.cancelButton}>Cancel</button>
-              <button onClick={handleCreateTeam} className={styles.createButton}>Create Team</button>
+              <button onClick={() => setShowTeamModal(false)} className={styles.cancelButton} disabled={creatingTeam}>Cancel</button>
+              <button onClick={handleCreateTeam} className={styles.createButton} disabled={creatingTeam}>
+                {creatingTeam ? "Creating..." : "Create Team"}
+              </button>
             </div>
           </div>
         </div>

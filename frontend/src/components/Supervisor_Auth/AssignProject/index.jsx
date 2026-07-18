@@ -14,6 +14,7 @@ const AssignProjectForm = () => {
   const [selectedGroup, setSelectedGroup] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [assigning, setAssigning] = useState(false);
 
   const [showModal, setShowModal] = useState(false);
   const [selectedProjectDetails, setSelectedProjectDetails] = useState(null);
@@ -59,6 +60,7 @@ const AssignProjectForm = () => {
     setSuccessMessage("");
     setErrorMessage("");
 
+    setAssigning(true);
     try {
       await axios.post(`${process.env.REACT_APP_API_URL}/auth/assign-project`, {
         projectId: selectedProject,
@@ -72,6 +74,8 @@ const AssignProjectForm = () => {
       fetchAssignedProjects();
     } catch (error) {
       setErrorMessage(error.response?.data?.message || "Error assigning project");
+    } finally {
+      setAssigning(false);
     }
   };
 
@@ -123,8 +127,8 @@ const AssignProjectForm = () => {
           ))}
         </select>
 
-        <button className={styles.button} type="submit">
-          Assign Project
+        <button className={styles.button} type="submit" disabled={assigning}>
+          {assigning ? "Assigning..." : "Assign Project"}
         </button>
 
         {successMessage && (

@@ -65,6 +65,7 @@ const ChatBox = () => {
   const [sidebarTab, setSidebarTab] = useState("chats"); // "chats" | "groups"
   const [uploadingFile, setUploadingFile] = useState(false);
   const [filePreview, setFilePreview] = useState(null);
+  const [downloadingUrl, setDownloadingUrl] = useState(null);
   const [socket, setSocket] = useState(null);
 
   // Group (team) chat
@@ -487,6 +488,7 @@ const ChatBox = () => {
   };
 
   const handleDownload = async (fileUrl, fileName) => {
+    setDownloadingUrl(fileUrl);
     try {
       const res = await axios.get(resolveFileUrl(fileUrl), { responseType: "blob" });
       const blobUrl = window.URL.createObjectURL(new Blob([res.data]));
@@ -497,6 +499,8 @@ const ChatBox = () => {
       window.URL.revokeObjectURL(blobUrl);
     } catch {
       window.open(resolveFileUrl(fileUrl), "_blank");
+    } finally {
+      setDownloadingUrl(null);
     }
   };
 
@@ -506,12 +510,17 @@ const ChatBox = () => {
 
   const renderMediaInMessage = (msg) => {
     const url = resolveFileUrl(msg.fileUrl);
+    const isDownloading = downloadingUrl === msg.fileUrl;
     if (msg.fileType === "image") {
       return (
         <div className="msg-media">
           <img src={url} alt={msg.fileName} onClick={() => window.open(url, "_blank")} />
-          <button className="dl-btn" onClick={() => handleDownload(msg.fileUrl, msg.fileName)}>
-            ⬇ Download
+          <button
+            className="dl-btn"
+            onClick={() => handleDownload(msg.fileUrl, msg.fileName)}
+            disabled={isDownloading}
+          >
+            {isDownloading ? "⏳ Downloading..." : "⬇ Download"}
           </button>
         </div>
       );
@@ -520,8 +529,12 @@ const ChatBox = () => {
       return (
         <div className="msg-media">
           <video controls src={url} />
-          <button className="dl-btn" onClick={() => handleDownload(msg.fileUrl, msg.fileName)}>
-            ⬇ Download
+          <button
+            className="dl-btn"
+            onClick={() => handleDownload(msg.fileUrl, msg.fileName)}
+            disabled={isDownloading}
+          >
+            {isDownloading ? "⏳ Downloading..." : "⬇ Download"}
           </button>
         </div>
       );
@@ -533,8 +546,12 @@ const ChatBox = () => {
           <span className="doc-name">{msg.fileName}</span>
           <span className="doc-size">{formatFileSize(msg.fileSize)}</span>
         </div>
-        <button className="dl-btn" onClick={() => handleDownload(msg.fileUrl, msg.fileName)}>
-          ⬇
+        <button
+          className="dl-btn"
+          onClick={() => handleDownload(msg.fileUrl, msg.fileName)}
+          disabled={isDownloading}
+        >
+          {isDownloading ? "⏳" : "⬇"}
         </button>
       </div>
     );

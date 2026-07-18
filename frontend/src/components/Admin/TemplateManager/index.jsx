@@ -32,6 +32,7 @@ const AdminTemplateManager = () => {
   const [message, setMessage]       = useState("");
   const [activeFilter, setFilter]   = useState("All");
   const [searchTerm, setSearchTerm] = useState("");
+  const [deletingId, setDeletingId] = useState(null);
 
   const adminToken = localStorage.getItem("adminToken");
   const adminData  = JSON.parse(localStorage.getItem("adminData") || "{}");
@@ -84,11 +85,14 @@ const AdminTemplateManager = () => {
 
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this template? Students will no longer see it.")) return;
+    setDeletingId(id);
     try {
       await axios.delete(`${apiBase}/auth/templates/${id}`, authHdr);
       setTemplates((prev) => prev.filter((t) => t._id !== id));
     } catch (err) {
       showMsg("Delete failed.", true);
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -299,8 +303,9 @@ const AdminTemplateManager = () => {
                       <button
                         className={styles.deleteBtn}
                         onClick={() => handleDelete(tpl._id)}
+                        disabled={deletingId === tpl._id}
                       >
-                        <FaTrash /> Delete
+                        <FaTrash /> {deletingId === tpl._id ? "Deleting..." : "Delete"}
                       </button>
                     </td>
                   </tr>

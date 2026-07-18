@@ -55,6 +55,7 @@ const CreateTask = () => {
   const [linksSaving, setLinksSaving] = useState(false);
   const [previewUrl, setPreviewUrl] = useState(null);
 
+  const [deletingTaskId, setDeletingTaskId] = useState(null);
   const [progressModalProject, setProgressModalProject] = useState(null);
   const [progressLogs, setProgressLogs] = useState([]);
   const [progressLogsLoading, setProgressLogsLoading] = useState(false);
@@ -336,6 +337,8 @@ const CreateTask = () => {
     } catch (error) {
       console.error("Update Error:", error);
       setMessage("❌ Error updating task.");
+    } finally {
+      setLoading(false);
     }
   };
   const handleOpenModal = (preselectedProjectId = "") => {
@@ -370,6 +373,7 @@ const CreateTask = () => {
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this task?")) return;
 
+    setDeletingTaskId(id);
     try {
       await axios.delete(`${process.env.REACT_APP_API_URL}/auth/task/${id}`);
       setMessage("🗑 Task Deleted Successfully!");
@@ -377,6 +381,8 @@ const CreateTask = () => {
     } catch (error) {
       console.error("Delete Error:", error);
       setMessage("❌ Error deleting task.");
+    } finally {
+      setDeletingTaskId(null);
     }
   };
 
@@ -1433,8 +1439,9 @@ const CreateTask = () => {
                       <button
                         className={styles.deleteButton}
                         onClick={() => handleDelete(task._id)}
+                        disabled={deletingTaskId === task._id}
                       >
-                        🗑 Delete
+                        {deletingTaskId === task._id ? "⏳ Deleting..." : "🗑 Delete"}
                       </button>
                      {task?.isAssigned ? (
   <div className={styles.assignPlaceholder}></div>

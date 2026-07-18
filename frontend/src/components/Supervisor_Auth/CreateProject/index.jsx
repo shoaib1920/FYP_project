@@ -12,6 +12,7 @@ const CreateProject = () => {
   });
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [creating, setCreating] = useState(false);
   const storedSupervisor = localStorage.getItem("supervisorData");
   const parsedSupervisor = JSON.parse(storedSupervisor);
   const supervisorId = parsedSupervisor._id;
@@ -64,9 +65,10 @@ useEffect(() => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setCreating(true);
     try {
-       
-       
+
+
                 //   const response = await axios.post(`${process.env.REACT_APP_API_URL}/auth/create-project`, project);
                   const response = await axios.post(`${process.env.REACT_APP_API_URL}/auth/create-project`, {
                     title: project.title,
@@ -81,6 +83,8 @@ useEffect(() => {
       fetchProjects(); // Refresh list
     } catch (error) {
       console.error("Failed to create project:", error);
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -181,8 +185,8 @@ useEffect(() => {
                 <button type="button" className={styles.cancelButton} onClick={() => setShowModal(false)}>
                   Cancel
                 </button>
-                <button type="submit" className={styles.submitButton}>
-                  🚀 Create
+                <button type="submit" className={styles.submitButton} disabled={creating}>
+                  {creating ? "🚀 Creating..." : "🚀 Create"}
                 </button>
               </div>
             </form>

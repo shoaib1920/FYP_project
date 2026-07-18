@@ -154,7 +154,7 @@ const Feedback = () => {
               rows={1}
             />
             <button type="submit" className={styles.submitBtn} disabled={submitting} title="Submit feedback">
-              <Send size={17} />
+              {submitting ? "⏳" : <Send size={17} />}
             </button>
           </div>
         </form>

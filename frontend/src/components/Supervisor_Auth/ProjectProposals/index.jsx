@@ -28,6 +28,7 @@ const ProposalApprovals = () => {
   const [expandedProposalId, setExpandedProposalId] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [actionLoading, setActionLoading] = useState(null); // `${proposalId}_accept` | `${proposalId}_revision`
 
   const token = localStorage.getItem("token");
 
@@ -54,6 +55,7 @@ const ProposalApprovals = () => {
   };
 
   const handleAccept = async (proposalId) => {
+    setActionLoading(proposalId + "_accept");
     try {
       await axios.put(
         `${process.env.REACT_APP_API_URL}/auth/proposals/${proposalId}/decision`,
@@ -71,10 +73,13 @@ const ProposalApprovals = () => {
         error.message ||
         "Failed to accept proposal";
       alert(message);
+    } finally {
+      setActionLoading(null);
     }
   };
 
   const handleRequestRevision = async (proposalId) => {
+    setActionLoading(proposalId + "_revision");
     try {
       await axios.put(
         `${process.env.REACT_APP_API_URL}/auth/proposals/${proposalId}/decision`,
@@ -92,6 +97,8 @@ const ProposalApprovals = () => {
         error.message ||
         "Failed to request revision";
       alert(message);
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -342,14 +349,22 @@ const ProposalApprovals = () => {
                           <button
                             className={`${styles.btn} ${styles.btnAccept}`}
                             onClick={() => handleAccept(proposal._id)}
+                            disabled={
+                              actionLoading === proposal._id + "_accept" ||
+                              actionLoading === proposal._id + "_revision"
+                            }
                           >
-                            ✅ Accept
+                            {actionLoading === proposal._id + "_accept" ? "Accepting..." : "✅ Accept"}
                           </button>
                           <button
                             className={`${styles.btn} ${styles.btnRevision}`}
                             onClick={() => handleRequestRevision(proposal._id)}
+                            disabled={
+                              actionLoading === proposal._id + "_accept" ||
+                              actionLoading === proposal._id + "_revision"
+                            }
                           >
-                            📝 Request Revision
+                            {actionLoading === proposal._id + "_revision" ? "Requesting..." : "📝 Request Revision"}
                           </button>
                         </div>
                       </div>

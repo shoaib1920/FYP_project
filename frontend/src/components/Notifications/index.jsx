@@ -22,6 +22,8 @@ const Notifications = ({ onOpenRelated }) => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [open, setOpen] = useState(false);
+  const [markingAll, setMarkingAll] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
   const panelRef = useRef(null);
 
   const fetchNotifications = useCallback(async () => {
@@ -77,17 +79,21 @@ const Notifications = ({ onOpenRelated }) => {
   };
 
   const handleMarkAllAsRead = async () => {
+    setMarkingAll(true);
     try {
       await axios.put(`${API}/auth/notifications/all/read`, {}, authHeader());
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
       setUnreadCount(0);
     } catch (err) {
       console.error("Failed to mark all notifications as read:", err);
+    } finally {
+      setMarkingAll(false);
     }
   };
 
   const handleDelete = async (e, notificationId) => {
     e.stopPropagation();
+    setDeletingId(notificationId);
     try {
       await axios.delete(`${API}/auth/notifications/${notificationId}`, authHeader());
       setNotifications((prev) => {
@@ -99,6 +105,8 @@ const Notifications = ({ onOpenRelated }) => {
       });
     } catch (err) {
       console.error("Failed to delete notification:", err);
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -122,8 +130,8 @@ const Notifications = ({ onOpenRelated }) => {
           <div className={styles.panelHeader}>
             <span>Notifications</span>
             {unreadCount > 0 && (
-              <button className={styles.markAllBtn} onClick={handleMarkAllAsRead}>
-                Mark all read
+              <button className={styles.markAllBtn} onClick={handleMarkAllAsRead} disabled={markingAll}>
+                {markingAll ? "Marking..." : "Mark all read"}
               </button>
             )}
           </div>
@@ -150,9 +158,10 @@ const Notifications = ({ onOpenRelated }) => {
                   <button
                     className={styles.deleteBtn}
                     onClick={(e) => handleDelete(e, n._id)}
+                    disabled={deletingId === n._id}
                     title="Delete"
                   >
-                    ✕
+                    {deletingId === n._id ? "⏳" : "✕"}
                   </button>
                 </div>
               ))
