@@ -3,6 +3,7 @@ const Notification = require("../Models/Notification");
 const AssignedProject = require("../Models/SupervisorModels/AssignedProject");
 const Users = require("../Models/Users");
 const AcademicTerm = require("../Models/AcademicTerm");
+const Team = require("../Models/Team");
 const sendEmail = require("../utils/emailService");
 const { logAction } = require("./AuditLogController");
 
@@ -740,7 +741,7 @@ exports.gradePhase = async (req, res) => {
 exports.scheduleViva = async (req, res) => {
   try {
     const { projectId } = req.params;
-    const { scheduledAt, venue, examinerName } = req.body;
+    const { scheduledAt, mode, venue, meetingLink, durationMinutes, instructions, examiners } = req.body;
 
     if (!scheduledAt) return res.status(400).json({ message: "scheduledAt date is required" });
 
@@ -752,12 +753,23 @@ exports.scheduleViva = async (req, res) => {
       return res.status(400).json({ message: "Viva can only be scheduled for projects with released grades" });
     }
 
+    const cleanExaminers = Array.isArray(examiners)
+      ? examiners.filter((e) => e && e.name && e.name.trim()).map((e) => ({ name: e.name.trim(), role: (e.role || "").trim() }))
+      : [];
+    const resolvedMode = mode === "ONLINE" ? "ONLINE" : "IN_PERSON";
+
     project.vivaDetails = {
       ...((project.vivaDetails || {})),
-      status:       "SCHEDULED",
-      scheduledAt:  new Date(scheduledAt),
-      venue:        venue || "",
-      examinerName: examinerName || "",
+      status:           "SCHEDULED",
+      scheduledAt:      new Date(scheduledAt),
+      mode:             resolvedMode,
+      venue:            resolvedMode === "IN_PERSON" ? (venue || "") : "",
+      meetingLink:      resolvedMode === "ONLINE" ? (meetingLink || "") : "",
+      durationMinutes:  Number(durationMinutes) || 30,
+      instructions:     instructions || "",
+      examiners:        cleanExaminers,
+      examinerName:     cleanExaminers.map((e) => e.name).join(", "),
+      remindersSent:    [],
     };
 
     await project.save();
@@ -767,7 +779,11 @@ exports.scheduleViva = async (req, res) => {
     if (project.teamLeaderId) recipientIds.add(String(project.teamLeaderId._id || project.teamLeaderId));
     (project.memberGrades || []).forEach((mg) => { if (mg.userId) recipientIds.add(String(mg.userId)); });
     const vivaDate = new Date(scheduledAt).toLocaleString();
-    const notifMsg = `Your viva defense for "${project.title}" is scheduled on ${vivaDate}${venue ? ` at ${venue}` : ""}${examinerName ? `. Examiner: ${examinerName}` : ""}.`;
+    const locationBit = resolvedMode === "ONLINE"
+      ? (meetingLink ? ` — join online: ${meetingLink}` : " — online (link to follow)")
+      : (venue ? ` at ${venue}` : "");
+    const examinerBit = cleanExaminers.length ? `. Panel: ${cleanExaminers.map((e) => e.role ? `${e.name} (${e.role})` : e.name).join(", ")}` : "";
+    const notifMsg = `Your viva defense for "${project.title}" is scheduled on ${vivaDate}${locationBit}${examinerBit}.`;
 
     await Promise.all([...recipientIds].map((userId) =>
       createNotification({
@@ -781,7 +797,7 @@ exports.scheduleViva = async (req, res) => {
     await createNotification({
       userId: project.supervisorId,
       title: "Viva Defense Scheduled",
-      message: `Viva for project "${project.title}" scheduled on ${vivaDate}${venue ? ` at ${venue}` : ""}.`,
+      message: `Viva for project "${project.title}" scheduled on ${vivaDate}${locationBit}.`,
       relatedType: "project",
       relatedId: project._id,
     });
@@ -881,6 +897,68 @@ exports.gradeViva = async (req, res) => {
     res.json({ success: true, project });
   } catch (err) {
     console.error("gradeViva error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// GET /my-viva — the logged-in student's own upcoming/recent viva, if any.
+// Also opportunistically fires a reminder notification (3 days out, then 1
+// day out) the first time this loads after each threshold is crossed —
+// piggy-backed on this read instead of a separate cron job, since students
+// hit this endpoint every time they open the Dashboard or Project page.
+exports.getMyViva = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    const team = await Team.findOne({ members: userId }).select("_id members createdBy");
+    if (!team) return res.json({ success: true, viva: null });
+
+    const project = await Project.findOne({
+      teamId: team._id,
+      "vivaDetails.status": { $in: ["SCHEDULED", "GRADED"] },
+    });
+
+    if (!project || !project.vivaDetails?.status) {
+      return res.json({ success: true, viva: null });
+    }
+
+    if (project.vivaDetails.status === "SCHEDULED") {
+      const msPerDay = 1000 * 60 * 60 * 24;
+      const daysUntil = Math.ceil((new Date(project.vivaDetails.scheduledAt).getTime() - Date.now()) / msPerDay);
+      const thresholds = [3, 1];
+      const alreadySent = project.vivaDetails.remindersSent || [];
+      const due = thresholds.filter((t) => daysUntil <= t && daysUntil >= 0 && !alreadySent.includes(t));
+
+      if (due.length > 0) {
+        const recipientIds = new Set([String(team.createdBy), ...team.members.map(String)]);
+        const when = daysUntil <= 0 ? "today" : daysUntil === 1 ? "tomorrow" : `in ${daysUntil} days`;
+        const when24 = new Date(project.vivaDetails.scheduledAt).toLocaleString();
+
+        await Promise.all([...recipientIds].map((uid) =>
+          createNotification({
+            userId: uid,
+            title: "Viva Reminder",
+            message: `Reminder: your viva defense for "${project.title}" is ${when} (${when24}).`,
+            relatedType: "project",
+            relatedId: project._id,
+          })
+        ));
+
+        project.vivaDetails.remindersSent = [...alreadySent, ...due];
+        await project.save();
+      }
+    }
+
+    res.json({
+      success: true,
+      viva: {
+        projectId: project._id,
+        projectTitle: project.title,
+        ...project.vivaDetails.toObject(),
+      },
+    });
+  } catch (err) {
+    console.error("getMyViva error:", err);
     res.status(500).json({ message: "Server error" });
   }
 };

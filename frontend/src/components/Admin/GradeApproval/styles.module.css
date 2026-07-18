@@ -663,6 +663,8 @@
   border-radius: 14px;
   width: 90%;
   max-width: 480px;
+  max-height: 88vh;
+  overflow-y: auto;
   box-shadow: 0 8px 32px rgba(0,0,0,0.2);
 }
 
@@ -680,11 +682,104 @@
 }
 
 .label {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 7px;
   font-size: 14px;
   font-weight: 600;
   color: #374151;
   margin-bottom: 6px;
+}
+
+.label svg {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.modeToggle {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.modeBtn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 9px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #fff;
+  color: #6b7280;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.modeBtn:hover {
+  background: #f9fafb;
+}
+
+.modeBtnActive {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: #1e40af;
+}
+
+.examinerRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.examinerRow .input {
+  margin-bottom: 0;
+}
+
+.removeExaminerBtn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid #fecaca;
+  border-radius: 7px;
+  background: #fef2f2;
+  color: #b91c1c;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background 0.15s;
+}
+
+.removeExaminerBtn:hover {
+  background: #fee2e2;
+}
+
+.addExaminerBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: 100%;
+  padding: 8px;
+  border: 1px dashed #93c5fd;
+  border-radius: 8px;
+  background: transparent;
+  color: #2563eb;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 14px;
+  transition: background 0.15s;
+}
+
+.addExaminerBtn:hover {
+  background: #eff6ff;
 }
 
 .textarea {

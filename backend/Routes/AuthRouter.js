@@ -341,6 +341,7 @@ const {
   flagGrades,
   scheduleViva,
   gradeViva,
+  getMyViva,
 } = require("../Controllers/ProjectController");
 
 const finalReportStorage = multer.diskStorage({
@@ -358,6 +359,7 @@ const finalReportUpload = multer({
   limits: { fileSize: 20 * 1024 * 1024 },
 });
 
+route.get("/my-viva", authenticate, getMyViva); // The logged-in student's own upcoming/recent viva, if any
 route.get("/projects/team/:teamId", authenticate, getProjectsByTeam);
 route.get("/projects/supervisor", authenticate, getProjectsBySupervisor);
 route.get("/projects/:projectId", authenticate, getProjectById);

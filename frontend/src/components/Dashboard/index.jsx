@@ -3,6 +3,7 @@ import axios from "axios";
 import styles from "./styles.module.css";
 import { useNavigate } from "react-router-dom";
 import { Bar, Line } from "react-chartjs-2";
+import VivaBanner from "../VivaBanner";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -470,6 +471,8 @@ const Dashboard = ({ setActiveModule }) => {
           )}
         </div>
       </div>
+
+      <VivaBanner tokenKey="token" />
 
       {/* ── Getting Started (fresh student, or team still forming) ── */}
       {!loading && !teamIsFormed && (

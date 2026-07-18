@@ -197,8 +197,24 @@ const projectSchema = new mongoose.Schema(
     vivaDetails: {
       status:        { type: String, enum: ["SCHEDULED", "GRADED"] },
       scheduledAt:   { type: Date },
-      venue:         { type: String, default: "" },
+      mode:          { type: String, enum: ["IN_PERSON", "ONLINE"], default: "IN_PERSON" },
+      venue:         { type: String, default: "" },   // room/building, when mode is IN_PERSON
+      meetingLink:   { type: String, default: "" },   // join URL, when mode is ONLINE
+      durationMinutes: { type: Number, default: 30 },
+      instructions:  { type: String, default: "" },   // what to bring / prepare
+      // examinerName is kept for backward compatibility with vivas scheduled
+      // before the panel feature existed; new schedules populate `examiners`
+      // and derive examinerName from it for any old consumer still reading it.
       examinerName:  { type: String, default: "" },
+      examiners: [
+        {
+          name: { type: String },
+          role: { type: String, default: "" }, // e.g. "Internal Examiner", "External Examiner", "Panel Chair"
+        },
+      ],
+      // Which reminder thresholds (days-before, e.g. 3 and 1) have already
+      // been sent, so the lazy check-on-load doesn't re-notify.
+      remindersSent: [{ type: Number }],
       vivaMarks:     { type: Number, default: 0 },
       memberVivaGrades: [
         {

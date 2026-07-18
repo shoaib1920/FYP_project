@@ -3,6 +3,7 @@ import axios from "axios";
 import styles from "./styles.module.css";
 import { useNavigate } from "react-router-dom";
 import DeadlineBanner from "../DeadlineBanner";
+import VivaBanner from "../VivaBanner";
 import LivePreview from "../LivePreview";
 import { resolveFileUrl } from "../../utils/resolveFileUrl";
 import { generateCompletionCertificate } from "../../utils/certificateUtils";
@@ -705,6 +706,7 @@ const CreateTask = () => {
         </div>
       </div>
 
+      <VivaBanner tokenKey="token" />
       <DeadlineBanner type="final" tokenKey="token" />
 
       {message && (

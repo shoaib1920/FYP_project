@@ -13,6 +13,10 @@ import {
   FaFileCsv,
   FaFilePdf,
   FaBuilding,
+  FaMapMarkerAlt,
+  FaVideo,
+  FaUserTie,
+  FaPlus,
 } from "react-icons/fa";
 import { exportToCSV, exportToPDF } from "../../../utils/exportUtils";
 
@@ -88,7 +92,10 @@ const GradeApproval = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [vivaScheduleModal, setVivaScheduleModal] = useState(null); // { project }
   const [vivaGradeModal, setVivaGradeModal]       = useState(null); // { project }
-  const [vivaForm, setVivaForm] = useState({ scheduledAt: "", venue: "", examinerName: "" });
+  const [vivaForm, setVivaForm] = useState({
+    scheduledAt: "", mode: "IN_PERSON", venue: "", meetingLink: "",
+    durationMinutes: 30, instructions: "", examiners: [{ name: "", role: "" }],
+  });
   const [vivaRubricScores, setVivaRubricScores]   = useState({}); // { [memberId]: [s0,s1,s2,s3] }
   const [vivaRemarks, setVivaRemarks]             = useState("");
   const [vivaLoading, setVivaLoading]             = useState(false);
@@ -227,10 +234,29 @@ const GradeApproval = () => {
     const existing = project.vivaDetails;
     setVivaForm({
       scheduledAt:  existing?.scheduledAt ? new Date(existing.scheduledAt).toISOString().slice(0, 16) : "",
-      venue:        existing?.venue || "",
-      examinerName: existing?.examinerName || "",
+      mode:            existing?.mode || "IN_PERSON",
+      venue:           existing?.venue || "",
+      meetingLink:     existing?.meetingLink || "",
+      durationMinutes: existing?.durationMinutes || 30,
+      instructions:    existing?.instructions || "",
+      examiners:       existing?.examiners?.length ? existing.examiners : [{ name: "", role: "" }],
     });
     setVivaScheduleModal({ project });
+  };
+
+  const setVivaExaminer = (idx, field, value) => {
+    setVivaForm((f) => ({
+      ...f,
+      examiners: f.examiners.map((ex, i) => (i === idx ? { ...ex, [field]: value } : ex)),
+    }));
+  };
+
+  const addVivaExaminer = () => {
+    setVivaForm((f) => ({ ...f, examiners: [...f.examiners, { name: "", role: "" }] }));
+  };
+
+  const removeVivaExaminer = (idx) => {
+    setVivaForm((f) => ({ ...f, examiners: f.examiners.filter((_, i) => i !== idx) }));
   };
 
   const handleScheduleViva = async () => {
@@ -463,22 +489,93 @@ const GradeApproval = () => {
               onChange={(e) => setVivaForm((f) => ({ ...f, scheduledAt: e.target.value }))}
             />
 
-            <label className={styles.label}>Venue / Room</label>
+            <label className={styles.label}>Duration (minutes)</label>
             <input
-              type="text"
+              type="number"
+              min="10"
+              step="5"
               className={styles.input}
-              placeholder="e.g. Seminar Hall A, Lab 201"
-              value={vivaForm.venue}
-              onChange={(e) => setVivaForm((f) => ({ ...f, venue: e.target.value }))}
+              value={vivaForm.durationMinutes}
+              onChange={(e) => setVivaForm((f) => ({ ...f, durationMinutes: e.target.value }))}
             />
 
-            <label className={styles.label}>Examiner / Panel</label>
-            <input
-              type="text"
-              className={styles.input}
-              placeholder="e.g. Dr. Ahmed, External Panel"
-              value={vivaForm.examinerName}
-              onChange={(e) => setVivaForm((f) => ({ ...f, examinerName: e.target.value }))}
+            <label className={styles.label}>Mode</label>
+            <div className={styles.modeToggle}>
+              <button
+                type="button"
+                className={`${styles.modeBtn} ${vivaForm.mode === "IN_PERSON" ? styles.modeBtnActive : ""}`}
+                onClick={() => setVivaForm((f) => ({ ...f, mode: "IN_PERSON" }))}
+              >
+                <FaMapMarkerAlt /> In Person
+              </button>
+              <button
+                type="button"
+                className={`${styles.modeBtn} ${vivaForm.mode === "ONLINE" ? styles.modeBtnActive : ""}`}
+                onClick={() => setVivaForm((f) => ({ ...f, mode: "ONLINE" }))}
+              >
+                <FaVideo /> Online
+              </button>
+            </div>
+
+            {vivaForm.mode === "IN_PERSON" ? (
+              <>
+                <label className={styles.label}>Venue / Room</label>
+                <input
+                  type="text"
+                  className={styles.input}
+                  placeholder="e.g. Seminar Hall A, Lab 201"
+                  value={vivaForm.venue}
+                  onChange={(e) => setVivaForm((f) => ({ ...f, venue: e.target.value }))}
+                />
+              </>
+            ) : (
+              <>
+                <label className={styles.label}>Meeting Link</label>
+                <input
+                  type="text"
+                  className={styles.input}
+                  placeholder="e.g. https://meet.google.com/xyz"
+                  value={vivaForm.meetingLink}
+                  onChange={(e) => setVivaForm((f) => ({ ...f, meetingLink: e.target.value }))}
+                />
+              </>
+            )}
+
+            <label className={styles.label}><FaUserTie /> Examination Panel</label>
+            {vivaForm.examiners.map((ex, idx) => (
+              <div key={idx} className={styles.examinerRow}>
+                <input
+                  type="text"
+                  className={styles.input}
+                  placeholder="Name"
+                  value={ex.name}
+                  onChange={(e) => setVivaExaminer(idx, "name", e.target.value)}
+                />
+                <input
+                  type="text"
+                  className={styles.input}
+                  placeholder="Role (e.g. External Examiner)"
+                  value={ex.role}
+                  onChange={(e) => setVivaExaminer(idx, "role", e.target.value)}
+                />
+                {vivaForm.examiners.length > 1 && (
+                  <button type="button" className={styles.removeExaminerBtn} onClick={() => removeVivaExaminer(idx)}>
+                    <FaTimes />
+                  </button>
+                )}
+              </div>
+            ))}
+            <button type="button" className={styles.addExaminerBtn} onClick={addVivaExaminer}>
+              <FaPlus /> Add Examiner
+            </button>
+
+            <label className={styles.label}>Instructions for Students (optional)</label>
+            <textarea
+              className={styles.textarea}
+              rows={3}
+              placeholder="e.g. Bring a printed copy of your final report and be ready to demo your project."
+              value={vivaForm.instructions}
+              onChange={(e) => setVivaForm((f) => ({ ...f, instructions: e.target.value }))}
             />
 
             <div className={styles.modalActions}>
