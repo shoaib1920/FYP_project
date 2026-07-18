@@ -128,6 +128,7 @@ const FYPProjects = () => {
   const [reviewHistoryLoading, setReviewHistoryLoading] = useState(false);
 
   const [phaseModal, setPhaseModal] = useState(null);   // { project } — phase overview
+  const [gradeSummaryModal, setGradeSummaryModal] = useState(null); // { project } — released grades + viva summary
   const [historyModal, setHistoryModal] = useState(null); // { project } — grade history
   const [submitError, setSubmitError] = useState("");
 
@@ -1169,34 +1170,10 @@ const FYPProjects = () => {
                         {project.status === "COMPLETED" && project.gradesStatus === "PENDING_RELEASE" && (
                           <span className={styles.awaitingLabel}>Awaiting Review</span>
                         )}
-                        {project.status === "COMPLETED" && project.gradesStatus === "RELEASED" && (
-                          <div className={styles.gradesCell}>
-                            <span className={styles.avgGradeLabel}>Avg: {project.evaluationMarks ?? "—"}/100</span>
-                            {project.memberGrades?.length > 0 && (
-                              <div className={styles.memberGradesList}>
-                                {project.memberGrades.map((g) => (
-                                  <span key={String(g.userId)} className={styles.memberGradeChip}>
-                                    {g.name}: {g.marks}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                            <button className={styles.certBtn} onClick={() => generateCompletionCertificate(project)}>
-                              Certificate
-                            </button>
-                          </div>
-                        )}
-                        {/* Viva info on supervisor side */}
-                        {project.vivaDetails?.status === "SCHEDULED" && (
-                          <div className={styles.vivaInfoChip}>
-                            Viva: {new Date(project.vivaDetails.scheduledAt).toLocaleDateString()}
-                            {project.vivaDetails.venue ? ` @ ${project.vivaDetails.venue}` : ""}
-                          </div>
-                        )}
-                        {project.vivaDetails?.status === "GRADED" && (
-                          <div className={styles.vivaGradedChip}>
-                            Viva done · Combined: {project.overallFinalMarks ?? project.evaluationMarks}/100
-                          </div>
+                        {(project.gradesStatus === "RELEASED" || project.vivaDetails?.status) && (
+                          <button className={styles.gradeSummaryBtn} onClick={() => setGradeSummaryModal({ project })}>
+                            Grade &amp; Viva
+                          </button>
                         )}
                       </div>
                     </td>
@@ -1418,6 +1395,96 @@ const FYPProjects = () => {
           </div>
         </div>
       )}
+
+      {/* Grade & Viva Summary Modal */}
+      {gradeSummaryModal && (() => {
+        const project = gradeSummaryModal.project;
+        return (
+          <div className={styles.overlay}>
+            <div className={styles.modal} style={{ maxWidth: "520px" }}>
+              <h3 className={styles.modalTitle}>Grade &amp; Viva Summary</h3>
+              <p className={styles.modalSubtitle}>{project.title}</p>
+
+              {project.gradesStatus === "RELEASED" && (
+                <div style={{ marginTop: "14px", background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: "10px", padding: "14px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <strong style={{ fontSize: "13px", color: "#15803d" }}>Released Grades</strong>
+                    <span style={{ fontSize: "16px", fontWeight: "700", color: "#15803d" }}>
+                      Avg: {project.evaluationMarks ?? "—"}/100
+                    </span>
+                  </div>
+                  {project.memberGrades?.length > 0 && (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginTop: "10px" }}>
+                      {project.memberGrades.map((g) => (
+                        <span key={String(g.userId)} className={styles.memberGradeChip}>
+                          {g.name}: {g.marks}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <button
+                    className={styles.certBtn}
+                    onClick={() => generateCompletionCertificate(project)}
+                    style={{ marginTop: "12px" }}
+                  >
+                    <FaAward /> Download Certificate
+                  </button>
+                </div>
+              )}
+
+              {project.vivaDetails?.status === "SCHEDULED" && (
+                <div style={{ marginTop: "14px", background: "#f5f3ff", border: "1px solid #ddd6fe", borderRadius: "10px", padding: "14px" }}>
+                  <strong style={{ fontSize: "13px", color: "#5b21b6" }}>Viva Scheduled</strong>
+                  <p style={{ fontSize: "13px", color: "#4c1d95", margin: "6px 0 0" }}>
+                    {new Date(project.vivaDetails.scheduledAt).toLocaleString()}
+                  </p>
+                  {project.vivaDetails.mode === "ONLINE" ? (
+                    project.vivaDetails.meetingLink && (
+                      <p style={{ fontSize: "12px", color: "#5b21b6", margin: "4px 0 0" }}>
+                        <a href={project.vivaDetails.meetingLink} target="_blank" rel="noopener noreferrer">Join link</a>
+                      </p>
+                    )
+                  ) : (
+                    project.vivaDetails.venue && (
+                      <p style={{ fontSize: "12px", color: "#5b21b6", margin: "4px 0 0" }}>Venue: {project.vivaDetails.venue}</p>
+                    )
+                  )}
+                  {project.vivaDetails.examiners?.length > 0 && (
+                    <p style={{ fontSize: "12px", color: "#5b21b6", margin: "4px 0 0" }}>
+                      Panel: {project.vivaDetails.examiners.map((e) => e.name).join(", ")}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {project.vivaDetails?.status === "GRADED" && (
+                <div style={{ marginTop: "14px", background: "#f5f3ff", border: "1px solid #ddd6fe", borderRadius: "10px", padding: "14px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <strong style={{ fontSize: "13px", color: "#5b21b6" }}>Viva Graded</strong>
+                    <span style={{ fontSize: "12px", color: "#5b21b6", fontWeight: "700" }}>Viva Avg: {project.vivaDetails.vivaMarks}/100</span>
+                  </div>
+                  <p style={{ fontSize: "12px", color: "#4c1d95", margin: "8px 0 0" }}>
+                    Supervisor (60%) + Viva (40%) = <strong>{project.overallFinalMarks ?? project.evaluationMarks}/100</strong>
+                  </p>
+                  {project.vivaDetails.memberVivaGrades?.length > 0 && (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginTop: "10px" }}>
+                      {project.vivaDetails.memberVivaGrades.map((v, i) => (
+                        <span key={i} className={styles.memberGradeChip}>{v.name}: {v.marks}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className={styles.modalActions} style={{ marginTop: "18px" }}>
+                <button className={styles.cancelBtn} onClick={() => setGradeSummaryModal(null)}>
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Review History Modal */}
       {historyProject && (
