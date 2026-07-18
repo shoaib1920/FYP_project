@@ -18,6 +18,7 @@ import {
 import {
   FaRocket, FaUsers, FaChartBar, FaTrophy,
   FaClipboardList, FaCheckCircle, FaLock, FaFileAlt, FaTimes,
+  FaPlus, FaUsersCog, FaUserPlus, FaSearch, FaClock,
 } from "react-icons/fa";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Filler, Title, Tooltip, Legend);
@@ -568,34 +569,45 @@ const Dashboard = ({ setActiveModule }) => {
         <div className={styles.modalOverlay}>
           <div className={styles.modalCard}>
             <div className={styles.modalHeader}>
-              <h2>Create New Team</h2>
+              <h2><FaUserPlus className={styles.modalHeaderIcon} /> Create New Team</h2>
               <button className={styles.closeButton} onClick={() => setShowTeamModal(false)}><FaTimes /></button>
             </div>
             <div className={styles.modalBody}>
-              <label className={styles.modalLabel}>Subject:</label>
+              <label className={styles.modalLabel}>Subject</label>
               <input type="text" placeholder="Enter Subject Name" value={teamSubject} onChange={(e) => setTeamSubject(e.target.value)} className={styles.modalInput} />
-              <label className={styles.modalLabel}>Search Team Members:</label>
-              <input type="text" placeholder="Search student by name or id..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className={styles.modalInput} />
-              <div className={styles.searchResults}>
-                {searchTerm && filteredUsers.length > 0 ? (
-                  filteredUsers.map((user) => (
-                    <div key={user._id} className={styles.searchItem} onClick={() => {
-                      if (!selectedUsers.some((s) => s.id === user._id)) {
-                        setSelectedUsers((prev) => [...prev, { id: user._id, name: user.name }]);
-                      }
-                      setSearchTerm("");
-                    }}>
-                      <strong>{user.name}</strong><br /><small>{user.registration_id}</small>
-                    </div>
-                  ))
-                ) : (searchTerm && <div className={styles.noResults}>No student found with this name or registration ID.</div>)}
+              <label className={styles.modalLabel}>Search Team Members</label>
+              <div className={styles.searchInputWrap}>
+                <FaSearch className={styles.searchInputIcon} />
+                <input type="text" placeholder="Search student by name or id..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className={styles.modalInput} />
               </div>
+              {searchTerm && (
+                <div className={styles.searchResults}>
+                  {filteredUsers.length > 0 ? (
+                    filteredUsers.map((user) => (
+                      <div key={user._id} className={styles.searchItem} onClick={() => {
+                        if (!selectedUsers.some((s) => s.id === user._id)) {
+                          setSelectedUsers((prev) => [...prev, { id: user._id, name: user.name }]);
+                        }
+                        setSearchTerm("");
+                      }}>
+                        <span className={styles.avatarCircle}>{user.name.charAt(0).toUpperCase()}</span>
+                        <div>
+                          <strong>{user.name}</strong>
+                          <small>{user.registration_id}</small>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className={styles.noResults}>No student found with this name or registration ID.</div>
+                  )}
+                </div>
+              )}
               {selectedUsers.length > 0 && (
                 <div className={styles.selectedUsers}>
                   {selectedUsers.map((user) => (
                     <span key={user.id} className={styles.selectedUserBadge}>
                       {user.name}
-                      <button type="button" onClick={() => setSelectedUsers(selectedUsers.filter((u) => u.id !== user.id))}>✖</button>
+                      <button type="button" onClick={() => setSelectedUsers(selectedUsers.filter((u) => u.id !== user.id))}><FaTimes /></button>
                     </span>
                   ))}
                 </div>
@@ -715,6 +727,7 @@ const Dashboard = ({ setActiveModule }) => {
         <div className={styles.teammodalOverlay}>
           <div className={styles.teammodalContent}>
             <button className={styles.closeButton} onClick={() => setShowManageTeamsModal(false)}><FaTimes /></button>
+            <h2 className={styles.teammodalTitle}><FaUsersCog className={styles.modalHeaderIcon} /> Manage Teams</h2>
             <div className={styles.tabButtons}>
               <button className={`${styles.tabButton} ${activeTab === "myTeams" ? styles.active : ""}`} onClick={() => setActiveTab("myTeams")}>My Teams</button>
               <button className={`${styles.tabButton} ${activeTab === "otherTeams" ? styles.active : ""}`} onClick={() => setActiveTab("otherTeams")}>Other Teams</button>
@@ -731,8 +744,13 @@ const Dashboard = ({ setActiveModule }) => {
                       <div className={styles.memberList}>
                         {team.members.map((member) => (
                           <div key={member._id} className={styles.memberItem}>
-                            <span className={styles.memberIcon}>👤</span>
-                            <span className={styles.memberName}>{member.name}</span>
+                            <span className={styles.avatarCircle}>{(member.name || "?").charAt(0).toUpperCase()}</span>
+                            <span className={styles.memberName}>
+                              {member.name}
+                              {String(member._id) === String(team.createdBy) && (
+                                <span className={styles.leaderBadge}>Leader</span>
+                              )}
+                            </span>
                             {iAmLeaderOfThis && String(member._id) !== String(team.createdBy) && (
                               <button
                                 type="button"
@@ -752,8 +770,8 @@ const Dashboard = ({ setActiveModule }) => {
                           <p><strong>Pending invites ({team.pendingInvites.length}):</strong></p>
                           <div className={styles.memberList}>
                             {team.pendingInvites.map((inv) => (
-                              <div key={String(inv.student)} className={styles.memberItem}>
-                                <span className={styles.memberIcon}>⏳</span>
+                              <div key={String(inv.student)} className={`${styles.memberItem} ${styles.pendingItem}`}>
+                                <span className={styles.pendingIconWrap}><FaClock /></span>
                                 <span className={styles.memberName}>{inv.name}</span>
                                 <button
                                   type="button"
@@ -771,35 +789,46 @@ const Dashboard = ({ setActiveModule }) => {
 
                       {iAmLeaderOfThis && (
                         addMemberOpenFor === team._id ? (
-                          <div className={styles.modalBody}>
-                            <label className={styles.modalLabel}>Search students to invite:</label>
-                            <input
-                              type="text"
-                              placeholder="Search student by name or id..."
-                              value={addMemberSearchTerm}
-                              onChange={(e) => setAddMemberSearchTerm(e.target.value)}
-                              className={styles.modalInput}
-                            />
-                            <div className={styles.searchResults}>
-                              {addMemberSearchTerm && addMemberFilteredUsers.length > 0 ? (
-                                addMemberFilteredUsers.map((user) => (
-                                  <div key={user._id} className={styles.searchItem} onClick={() => {
-                                    if (!addMemberSelected.some((s) => s.id === user._id)) {
-                                      setAddMemberSelected((prev) => [...prev, { id: user._id, name: user.name }]);
-                                    }
-                                    setAddMemberSearchTerm("");
-                                  }}>
-                                    <strong>{user.name}</strong><br /><small>{user.registration_id}</small>
-                                  </div>
-                                ))
-                              ) : (addMemberSearchTerm && <div className={styles.noResults}>No student found with this name or registration ID.</div>)}
+                          <div className={styles.addMemberPanel}>
+                            <label className={styles.modalLabel}>Search students to invite</label>
+                            <div className={styles.searchInputWrap}>
+                              <FaSearch className={styles.searchInputIcon} />
+                              <input
+                                type="text"
+                                placeholder="Search student by name or id..."
+                                value={addMemberSearchTerm}
+                                onChange={(e) => setAddMemberSearchTerm(e.target.value)}
+                                className={styles.modalInput}
+                              />
                             </div>
+                            {addMemberSearchTerm && (
+                              <div className={styles.searchResults}>
+                                {addMemberFilteredUsers.length > 0 ? (
+                                  addMemberFilteredUsers.map((user) => (
+                                    <div key={user._id} className={styles.searchItem} onClick={() => {
+                                      if (!addMemberSelected.some((s) => s.id === user._id)) {
+                                        setAddMemberSelected((prev) => [...prev, { id: user._id, name: user.name }]);
+                                      }
+                                      setAddMemberSearchTerm("");
+                                    }}>
+                                      <span className={styles.avatarCircle}>{user.name.charAt(0).toUpperCase()}</span>
+                                      <div>
+                                        <strong>{user.name}</strong>
+                                        <small>{user.registration_id}</small>
+                                      </div>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <div className={styles.noResults}>No student found with this name or registration ID.</div>
+                                )}
+                              </div>
+                            )}
                             {addMemberSelected.length > 0 && (
                               <div className={styles.selectedUsers}>
                                 {addMemberSelected.map((user) => (
                                   <span key={user.id} className={styles.selectedUserBadge}>
                                     {user.name}
-                                    <button type="button" onClick={() => setAddMemberSelected(addMemberSelected.filter((u) => u.id !== user.id))}>✖</button>
+                                    <button type="button" onClick={() => setAddMemberSelected(addMemberSelected.filter((u) => u.id !== user.id))}><FaTimes /></button>
                                   </span>
                                 ))}
                               </div>
@@ -826,10 +855,10 @@ const Dashboard = ({ setActiveModule }) => {
                         ) : (
                           <button
                             type="button"
-                            className={styles.stepBtn}
+                            className={styles.inviteMoreBtn}
                             onClick={() => setAddMemberOpenFor(team._id)}
                           >
-                            + Invite More Members
+                            <FaPlus /> Invite More Members
                           </button>
                         )
                       )}
@@ -847,15 +876,28 @@ const Dashboard = ({ setActiveModule }) => {
 
       {/* ── Quick Actions ── */}
       <div className={styles.actions}>
-        <button className={styles.create_task} onClick={() => {
-          if (!isLeader) { alert("Only the group leader can create tasks."); return; }
-          setActiveModule("CreateTask");
-        }}>➕ Create Task</button>
-        <button className={styles.manage_teams} onClick={() => setShowManageTeamsModal(true)}>👥 Manage Teams</button>
-        <button className={styles.create_team} onClick={() => {
-          if (!canCreateTeam) { alert("Only the group leader can create a team once you've already joined one."); return; }
-          setShowTeamModal(true);
-        }}>🛠️ Create Team</button>
+        <button
+          className={styles.create_task}
+          onClick={() => setActiveModule("CreateTask")}
+          disabled={!isLeader}
+          title={!isLeader ? "Only the team leader can create tasks" : undefined}
+        >
+          <span className={styles.actionIconWrap}><FaPlus /></span>
+          Create Task
+        </button>
+        <button className={styles.manage_teams} onClick={() => setShowManageTeamsModal(true)}>
+          <span className={styles.actionIconWrap}><FaUsersCog /></span>
+          Manage Teams
+        </button>
+        <button
+          className={styles.create_team}
+          onClick={() => setShowTeamModal(true)}
+          disabled={!canCreateTeam}
+          title={!canCreateTeam ? "Only the team leader can create a team once you've already joined one" : undefined}
+        >
+          <span className={styles.actionIconWrap}><FaUserPlus /></span>
+          Create Team
+        </button>
       </div>
     </div>
   );

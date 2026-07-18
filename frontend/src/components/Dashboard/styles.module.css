@@ -402,20 +402,39 @@
 
 .actions button {
 	border: none;
-	padding: 11px 20px;
-	border-radius: 10px;
+	padding: 10px 18px 10px 10px;
+	border-radius: 12px;
 	font-size: 14px;
 	font-weight: 700;
 	cursor: pointer;
 	display: flex;
 	align-items: center;
-	gap: 8px;
+	gap: 10px;
 	box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
-	transition: transform 0.15s ease, box-shadow 0.15s ease;
+	transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
 }
 
 .actions button:hover {
 	transform: translateY(-2px);
+}
+
+.actions button:disabled {
+	cursor: not-allowed;
+	opacity: 0.55;
+	transform: none;
+	box-shadow: none;
+}
+
+.actionIconWrap {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 30px;
+	height: 30px;
+	border-radius: 9px;
+	font-size: 14px;
+	flex-shrink: 0;
+	background: rgba(255, 255, 255, 0.2);
 }
 
 /* 🟢 Create Task Button */
@@ -431,11 +450,21 @@
 	border: 1px solid #e2e8f0 !important;
 }
 
+.manage_teams .actionIconWrap {
+	background: #eff6ff;
+	color: #2563eb;
+}
+
 /* 🛠️ Create Team Button */
 .create_team {
 	background: #fff;
 	color: #1e40af;
 	border: 1px solid #e2e8f0 !important;
+}
+
+.create_team .actionIconWrap {
+	background: #eff6ff;
+	color: #2563eb;
 }
 
 /* 📱 Responsive Design */
@@ -629,6 +658,86 @@
 	font-weight: 700;
 	color: #111827;
 	margin: 0;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+  }
+
+  .modalHeaderIcon {
+	color: #2563eb;
+	font-size: 17px;
+  }
+
+  .searchInputWrap {
+	position: relative;
+  }
+
+  .searchInputIcon {
+	position: absolute;
+	left: 12px;
+	top: 50%;
+	transform: translateY(-50%);
+	color: #94a3b8;
+	font-size: 13px;
+	pointer-events: none;
+  }
+
+  .searchInputWrap .modalInput {
+	width: 100%;
+	padding-left: 34px;
+	box-sizing: border-box;
+  }
+
+  .searchResults {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	max-height: 220px;
+	overflow-y: auto;
+	border: 1px solid #e2e8f0;
+	border-radius: 10px;
+	padding: 6px;
+	background: #f8fafc;
+  }
+
+  .searchItem {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 8px 10px;
+	border-radius: 8px;
+	cursor: pointer;
+	background: #fff;
+	transition: background 0.15s;
+  }
+
+  .searchItem:hover {
+	background: #eff6ff;
+  }
+
+  .searchItem strong {
+	display: block;
+	font-size: 13px;
+	color: #1f2937;
+  }
+
+  .searchItem small {
+	color: #94a3b8;
+	font-size: 11.5px;
+  }
+
+  .avatarCircle {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 30px;
+	height: 30px;
+	border-radius: 50%;
+	background: linear-gradient(135deg, #2563eb, #1e40af);
+	color: white;
+	font-size: 12.5px;
+	font-weight: 700;
+	flex-shrink: 0;
   }
 
   .modalBody {
@@ -680,6 +789,22 @@
 	border-radius: 999px;
 	font-size: 12.5px;
 	font-weight: 600;
+  }
+
+  .selectedUserBadge button {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: transparent;
+	border: none;
+	color: #60a5fa;
+	cursor: pointer;
+	font-size: 11px;
+	padding: 0;
+  }
+
+  .selectedUserBadge button:hover {
+	color: #1e40af;
   }
 
   .cancelButton {
@@ -780,6 +905,16 @@
 	color: #b91c1c;
   }
 
+  .teammodalTitle {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	font-size: 18px;
+	font-weight: 700;
+	color: #111827;
+	margin: 0 0 16px;
+  }
+
   .tabButtons {
 	display: flex;
 	gap: 10px;
@@ -868,17 +1003,78 @@
   .memberItem {
 	display: flex;
 	align-items: center;
-	gap: 8px;
+	gap: 10px;
 	font-size: 13px;
 	color: #475569;
-  }
-
-  .memberIcon {
-	font-size: 15px;
+	padding: 4px 0;
   }
 
   .memberName {
 	font-weight: 600;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+  }
+
+  .leaderBadge {
+	background: #fef3c7;
+	color: #92400e;
+	font-size: 10px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.3px;
+	padding: 2px 7px;
+	border-radius: 999px;
+  }
+
+  .pendingItem {
+	color: #92400e;
+  }
+
+  .pendingIconWrap {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 30px;
+	height: 30px;
+	border-radius: 50%;
+	background: #fef3c7;
+	color: #b45309;
+	font-size: 12px;
+	flex-shrink: 0;
+  }
+
+  .addMemberPanel {
+	margin-top: 10px;
+	padding: 12px;
+	border: 1px dashed #cbd5e1;
+	border-radius: 10px;
+	background: #f8fafc;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+  }
+
+  .inviteMoreBtn {
+	margin-top: 10px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 7px;
+	width: 100%;
+	padding: 9px;
+	border: 1px dashed #93c5fd;
+	border-radius: 9px;
+	background: transparent;
+	color: #2563eb;
+	font-weight: 600;
+	font-size: 12.5px;
+	cursor: pointer;
+	transition: background 0.15s;
+  }
+
+  .inviteMoreBtn:hover {
+	background: #eff6ff;
   }
 
   .removeMemberBtn {
