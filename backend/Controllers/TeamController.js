@@ -140,6 +140,28 @@ exports.respondToInvite = async (req, res) => {
 
     if (action === "decline") {
       team.pendingInvites = team.pendingInvites.filter((inv) => String(inv.student) !== String(userId));
+
+      // If that was the last hope for this team — no accepted members besides
+      // the leader, and nobody else still pending — the team never really
+      // formed. Disband it so the leader isn't stuck unable to create a new
+      // one (createTeam blocks anyone already listed as a member elsewhere).
+      const isDeadOnArrival = team.members.length <= 1 && team.pendingInvites.length === 0;
+
+      if (isDeadOnArrival) {
+        await Team.findByIdAndDelete(team._id);
+        await Users.findByIdAndUpdate(team.createdBy, { designation: "Student" });
+
+        await Notification.create({
+          userId: team.createdBy,
+          title: "Team Disbanded",
+          message: `${invite.name} declined your invite to "${team.subject}", and no one else accepted — the team has been disbanded so you can start a new one.`,
+          relatedType: "TeamInvite",
+          relatedId: team._id,
+        });
+
+        return res.status(200).json({ success: true, message: "Invite declined", teamDisbanded: true });
+      }
+
       await team.save();
 
       await Notification.create({
