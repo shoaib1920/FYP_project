@@ -13,6 +13,7 @@ import ProposalApprovals from "../ProjectProposals";
 import DepartmentManagement from "../DepartmentManagement";
 import GradeApproval from "../GradeApproval";
 import AcademicCalendar from "../AcademicCalendar";
+import Notifications from "../../Notifications";
 // Hidden for now (not deleted) — see ShowModule nav below.
 // import AuditLog from "../AuditLog";
 // import Analytics from "../Analytics";
@@ -142,6 +143,10 @@ const Main = ({ defaultModule = "Dashboard" }) => {
   </aside>
 
   <main className={styles.content_area}>
+    <div className={styles.topbar}>
+      <span className={styles.topbarGreeting}>{studentName ? `Welcome, ${studentName}` : "Admin Panel"}</span>
+      <Notifications tokenKey="adminToken" onOpenRelated={() => ShowModule("Dashboard")} />
+    </div>
     {activeModule === "Dashboard"        && <AdminDashboard setActiveModule={setActiveModule} />}
     {activeModule === "DepartmentManagement" && <DepartmentManagement />}
     {activeModule === "Supervisors"      && <Supervisors />}

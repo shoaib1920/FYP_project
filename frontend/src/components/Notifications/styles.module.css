@@ -153,6 +153,9 @@
 }
 
 .deleteBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: transparent;
   border: none;
   color: #9ca3af;

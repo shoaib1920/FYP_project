@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import axios from "axios";
-import { FaBell } from "react-icons/fa";
+import { FaRegBell, FaBellSlash, FaTimes } from "react-icons/fa";
 import styles from "./styles.module.css";
 
 const API = process.env.REACT_APP_API_URL;
@@ -18,7 +18,7 @@ function formatTimeAgo(date) {
   return new Date(date).toLocaleDateString();
 }
 
-const Notifications = ({ onOpenRelated }) => {
+const Notifications = ({ onOpenRelated, tokenKey = "token" }) => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [open, setOpen] = useState(false);
@@ -27,7 +27,7 @@ const Notifications = ({ onOpenRelated }) => {
   const panelRef = useRef(null);
 
   const fetchNotifications = useCallback(async () => {
-    const token = localStorage.getItem("token");
+    const token = localStorage.getItem(tokenKey);
     if (!token) return;
     try {
       const res = await axios.get(`${API}/auth/notifications`, {
@@ -38,7 +38,7 @@ const Notifications = ({ onOpenRelated }) => {
     } catch (err) {
       console.error("Failed to load notifications:", err);
     }
-  }, []);
+  }, [tokenKey]);
 
   useEffect(() => {
     fetchNotifications();
@@ -57,7 +57,7 @@ const Notifications = ({ onOpenRelated }) => {
   }, []);
 
   const authHeader = () => ({
-    headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+    headers: { Authorization: `Bearer ${localStorage.getItem(tokenKey)}` },
   });
 
   const handleToggle = () => {
@@ -121,7 +121,7 @@ const Notifications = ({ onOpenRelated }) => {
   return (
     <div className={styles.wrapper} ref={panelRef}>
       <button className={styles.bellBtn} onClick={handleToggle} title="Notifications">
-        <FaBell />
+        <FaRegBell />
         {unreadCount > 0 && <span className={styles.badge}>{unreadCount > 9 ? "9+" : unreadCount}</span>}
       </button>
 
@@ -139,7 +139,7 @@ const Notifications = ({ onOpenRelated }) => {
           <div className={styles.panelBody}>
             {notifications.length === 0 ? (
               <div className={styles.empty}>
-                <span className={styles.emptyIcon}>🔔</span>
+                <FaBellSlash className={styles.emptyIcon} />
                 <p>No notifications yet</p>
               </div>
             ) : (
@@ -161,7 +161,7 @@ const Notifications = ({ onOpenRelated }) => {
                     disabled={deletingId === n._id}
                     title="Delete"
                   >
-                    {deletingId === n._id ? "⏳" : "✕"}
+                    <FaTimes />
                   </button>
                 </div>
               ))
