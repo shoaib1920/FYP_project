@@ -1249,3 +1249,43 @@ exports.getSupervisorSchedule = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+// GET /admin/viva-schedule — every SCHEDULED viva across the whole
+// department (not scoped to one supervisor), so admin gets the same
+// at-a-glance schedule view supervisors already have.
+exports.getAdminVivaSchedule = async (req, res) => {
+  try {
+    const now = new Date();
+
+    const projectsWithViva = await Project.find({
+      "vivaDetails.status": "SCHEDULED",
+      "vivaDetails.scheduledAt": { $gte: now },
+    })
+      .select("title vivaDetails teamId supervisorId")
+      .populate("teamId", "subject")
+      .populate("supervisorId", "name");
+
+    await Promise.all(projectsWithViva.map((p) => checkAndFireVivaReminders(p)));
+
+    const items = projectsWithViva
+      .map((p) => ({
+        type: "VIVA",
+        date: p.vivaDetails.scheduledAt,
+        projectId: p._id,
+        projectTitle: p.title,
+        teamName: p.teamId?.subject || "",
+        supervisorName: p.supervisorId?.name || "",
+        mode: p.vivaDetails.mode,
+        venue: p.vivaDetails.venue,
+        meetingLink: p.vivaDetails.meetingLink,
+        durationMinutes: p.vivaDetails.durationMinutes,
+        examiners: p.vivaDetails.examiners || [],
+      }))
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    res.json({ success: true, items });
+  } catch (err) {
+    console.error("getAdminVivaSchedule error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};

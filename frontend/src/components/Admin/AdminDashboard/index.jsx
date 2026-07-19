@@ -3,6 +3,7 @@ import axios from "axios";
 import styles from "./styles.module.css";
 import Loader from "../../Loader";
 import Notifications from "../../Notifications";
+import UpcomingVivas from "../UpcomingVivas";
 import {
   FaProjectDiagram,
   FaUserGraduate,
@@ -201,6 +202,8 @@ const AdminDashboard = ({ setActiveModule }) => {
       </div>
 
       {error && <div className={styles.errorBanner}>{error}</div>}
+
+      <UpcomingVivas />
 
       {loading ? (
         <Loader text="Loading dashboard..." />

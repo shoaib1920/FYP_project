@@ -344,6 +344,7 @@ const {
   gradeViva,
   getMyViva,
   getSupervisorSchedule,
+  getAdminVivaSchedule,
   analyzeFinalReport,
   requestGradeAppeal,
   resolveGradeAppeal,
@@ -387,6 +388,7 @@ route.put("/admin/projects/:projectId/flag-grades", authenticate, authorize("adm
 route.put("/admin/projects/:projectId/resolve-appeal", authenticate, authorize("admin"), resolveGradeAppeal);
 route.put("/admin/projects/:projectId/schedule-viva", authenticate, authorize("admin"), scheduleViva);
 route.put("/admin/projects/:projectId/grade-viva",    authenticate, authorize("admin"),    gradeViva);
+route.get("/admin/viva-schedule", authenticate, authorize("admin"), getAdminVivaSchedule); // Department-wide upcoming vivas
 
 // ─────────────────────────────────────────────
 // 🧾 AUDIT LOG ROUTES (admin only)
