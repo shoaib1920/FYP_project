@@ -1113,11 +1113,56 @@ exports.gradeViva = async (req, res) => {
   }
 };
 
+// Fires a "Viva Reminder" notification (3 days out, then 1 day out) to the
+// student team, the assigned supervisor, AND all admins — previously this
+// only reached the student team, so neither the supervisor nor admin ever
+// got an actual push notification (only a passive dashboard widget for
+// supervisors, and nothing at all for admin). Piggy-backed on whichever
+// dashboard load crosses a threshold first (student's viva banner or
+// supervisor's upcoming schedule) instead of a separate cron job.
+const checkAndFireVivaReminders = async (project, team = null) => {
+  if (project.vivaDetails?.status !== "SCHEDULED") return;
+
+  const msPerDay = 1000 * 60 * 60 * 24;
+  const daysUntil = Math.ceil((new Date(project.vivaDetails.scheduledAt).getTime() - Date.now()) / msPerDay);
+  const thresholds = [3, 1];
+  const alreadySent = project.vivaDetails.remindersSent || [];
+  const due = thresholds.filter((t) => daysUntil <= t && daysUntil >= 0 && !alreadySent.includes(t));
+  if (due.length === 0) return;
+
+  const resolvedTeam = team || (await Team.findById(project.teamId?._id || project.teamId).select("members createdBy"));
+  const admins = await Admin.find().select("_id");
+
+  const recipientIds = new Set();
+  if (resolvedTeam) {
+    recipientIds.add(String(resolvedTeam.createdBy));
+    resolvedTeam.members.forEach((m) => recipientIds.add(String(m)));
+  }
+  if (project.supervisorId) recipientIds.add(String(project.supervisorId));
+  admins.forEach((a) => recipientIds.add(String(a._id)));
+
+  const when = daysUntil <= 0 ? "today" : daysUntil === 1 ? "tomorrow" : `in ${daysUntil} days`;
+  const when24 = new Date(project.vivaDetails.scheduledAt).toLocaleString();
+
+  await Promise.all([...recipientIds].map((uid) =>
+    createNotification({
+      userId: uid,
+      title: "Viva Reminder",
+      message: `Reminder: the viva defense for "${project.title}" is ${when} (${when24}).`,
+      relatedType: "project",
+      relatedId: project._id,
+    })
+  ));
+
+  project.vivaDetails.remindersSent = [...alreadySent, ...due];
+  await project.save();
+};
+
 // GET /my-viva — the logged-in student's own upcoming/recent viva, if any.
-// Also opportunistically fires a reminder notification (3 days out, then 1
-// day out) the first time this loads after each threshold is crossed —
-// piggy-backed on this read instead of a separate cron job, since students
-// hit this endpoint every time they open the Dashboard or Project page.
+// Also opportunistically fires a reminder notification (see
+// checkAndFireVivaReminders above) the first time this loads after each
+// threshold is crossed, since students hit this endpoint on every
+// Dashboard/Project page load.
 exports.getMyViva = async (req, res) => {
   try {
     const userId = req.user._id;
@@ -1134,32 +1179,7 @@ exports.getMyViva = async (req, res) => {
       return res.json({ success: true, viva: null });
     }
 
-    if (project.vivaDetails.status === "SCHEDULED") {
-      const msPerDay = 1000 * 60 * 60 * 24;
-      const daysUntil = Math.ceil((new Date(project.vivaDetails.scheduledAt).getTime() - Date.now()) / msPerDay);
-      const thresholds = [3, 1];
-      const alreadySent = project.vivaDetails.remindersSent || [];
-      const due = thresholds.filter((t) => daysUntil <= t && daysUntil >= 0 && !alreadySent.includes(t));
-
-      if (due.length > 0) {
-        const recipientIds = new Set([String(team.createdBy), ...team.members.map(String)]);
-        const when = daysUntil <= 0 ? "today" : daysUntil === 1 ? "tomorrow" : `in ${daysUntil} days`;
-        const when24 = new Date(project.vivaDetails.scheduledAt).toLocaleString();
-
-        await Promise.all([...recipientIds].map((uid) =>
-          createNotification({
-            userId: uid,
-            title: "Viva Reminder",
-            message: `Reminder: your viva defense for "${project.title}" is ${when} (${when24}).`,
-            relatedType: "project",
-            relatedId: project._id,
-          })
-        ));
-
-        project.vivaDetails.remindersSent = [...alreadySent, ...due];
-        await project.save();
-      }
-    }
+    await checkAndFireVivaReminders(project, team);
 
     res.json({
       success: true,
@@ -1189,12 +1209,16 @@ exports.getSupervisorSchedule = async (req, res) => {
         "vivaDetails.status": "SCHEDULED",
         "vivaDetails.scheduledAt": { $gte: now },
       })
-        .select("title vivaDetails teamId")
+        .select("title vivaDetails teamId supervisorId")
         .populate("teamId", "subject"),
       MeetingLog.find({ supervisorId, status: "SCHEDULED", scheduledAt: { $gte: now } })
         .populate("projectId", "title")
         .sort({ scheduledAt: 1 }),
     ]);
+
+    // Piggy-back the same reminder check used on the student side, so the
+    // reminder fires reliably whichever role opens their dashboard first.
+    await Promise.all(projectsWithViva.map((p) => checkAndFireVivaReminders(p)));
 
     const items = [
       ...projectsWithViva.map((p) => ({
