@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import styles from "./styles.module.css";
 import Loader from "../../Loader";
+import Notifications from "../../Notifications";
 import {
   FaProjectDiagram,
   FaUserGraduate,
@@ -184,13 +185,18 @@ const AdminDashboard = ({ setActiveModule }) => {
   return (
     <div className={styles.container}>
       {/* Hero */}
-      <div className={styles.hero}>
-        <div className={styles.heroAvatar}>{initials(admin?.name)}</div>
-        <div className={styles.heroText}>
-          <h2 className={styles.heading}>
-            Welcome back, {admin?.name ? admin.name.split(" ")[0] : "Admin"}
-          </h2>
-          <p className={styles.subheading}>{admin?.email || ""}</p>
+      <div className={styles.heroWrap}>
+        <div className={styles.hero}>
+          <div className={styles.heroAvatar}>{initials(admin?.name)}</div>
+          <div className={styles.heroText}>
+            <h2 className={styles.heading}>
+              Welcome back, {admin?.name ? admin.name.split(" ")[0] : "Admin"}
+            </h2>
+            <p className={styles.subheading}>{admin?.email || ""}</p>
+          </div>
+        </div>
+        <div className={styles.heroBell}>
+          <Notifications tokenKey="adminToken" onOpenRelated={() => goTo("Dashboard")} />
         </div>
       </div>
 

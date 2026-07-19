@@ -13,7 +13,6 @@ import ProposalApprovals from "../ProjectProposals";
 import DepartmentManagement from "../DepartmentManagement";
 import GradeApproval from "../GradeApproval";
 import AcademicCalendar from "../AcademicCalendar";
-import Notifications from "../../Notifications";
 // Hidden for now (not deleted) — see ShowModule nav below.
 // import AuditLog from "../AuditLog";
 // import Analytics from "../Analytics";
@@ -25,20 +24,6 @@ import { FaHome, FaTasks, FaUserGraduate, FaUserTie, FaProjectDiagram, FaComment
 const Main = ({ defaultModule = "Dashboard" }) => {
   const navigate = useNavigate();
   const [activeModule, setActiveModule] = useState(defaultModule);
-  const [studentName, setStudentName] = useState("");
-
-  useEffect(() => {
-	const userData = localStorage.getItem("adminData");
-	if (userData) {
-	  try {
-		const parsedUser = JSON.parse(userData);
-		setStudentName(parsedUser.name);
-		console.log("✅ Loaded data:", parsedUser);
-	  } catch (error) {
-		console.error("❌ Failed to parse user from localStorage", error);
-	  }
-	}
-  }, []);
 
   useEffect(() => {
 	setActiveModule(defaultModule);
@@ -143,10 +128,6 @@ const Main = ({ defaultModule = "Dashboard" }) => {
   </aside>
 
   <main className={styles.content_area}>
-    <div className={styles.topbar}>
-      <span className={styles.topbarGreeting}>{studentName ? `Welcome, ${studentName}` : "Admin Panel"}</span>
-      <Notifications tokenKey="adminToken" onOpenRelated={() => ShowModule("Dashboard")} />
-    </div>
     {activeModule === "Dashboard"        && <AdminDashboard setActiveModule={setActiveModule} />}
     {activeModule === "DepartmentManagement" && <DepartmentManagement />}
     {activeModule === "Supervisors"      && <Supervisors />}

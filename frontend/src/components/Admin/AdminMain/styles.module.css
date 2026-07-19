@@ -131,16 +131,3 @@
   overflow-y: auto;
 }
 
-.topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 28px;
-  background: linear-gradient(135deg, #2563eb, #1e40af);
-  color: white;
-}
-
-.topbarGreeting {
-  font-size: 14.5px;
-  font-weight: 600;
-}
