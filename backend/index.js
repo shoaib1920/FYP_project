@@ -13,7 +13,7 @@ const jwt = require("jsonwebtoken");
 const Message = require("./Models/Message");
 const GroupMessage = require("./Models/GroupMessage");
 const { getTeamsForUser, isMemberOfTeamChat } = require("./utils/teamChatMembership");
-require("./Models/db");
+const { url: mongoUrl } = require("./Models/db");
 require("./Models/Task");
 require("./Models/TaskAssignment");
 require("./Models/Department");
@@ -239,6 +239,7 @@ app.use(
     secret: process.env.SESSION_SECRET || 'your-secret-key',
     resave: false,
     saveUninitialized: false,
+    store: MongoStore.create({ mongoUrl }),
     cookie: { maxAge: 1000 * 60 * 60 },
   })
 );
