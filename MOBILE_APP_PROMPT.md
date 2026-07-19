@@ -25,7 +25,14 @@ There are **three independent roles/portals**, each with its own signup/login/fo
 
 Students and supervisors register via a **department-issued join code** (format `DEPT-STU-XXXX` / `DEPT-SUP-XXXX`); admins register directly (gated by an env-var signup code) and set up departments themselves.
 
-**Recommended mobile stack**: React Native (Expo) — it lets you reuse the same mental model as the existing React/CSS-Modules web frontend (component-per-screen, plain `useState`/`useEffect`, no Redux) and the same JS/JSON contracts with the backend. This is a recommendation, not a hard requirement — confirm with the user if they want Flutter or native instead before scaffolding.
+**Target mobile stack: Flutter (Dart).** This is decided, not a recommendation to reconsider — scaffold a standard Flutter app (`flutter create`), targeting Android first (iOS only if the user later asks). Suggested core packages, all mainstream/actively maintained:
+- `http` or `dio` for REST calls (equivalent to the web app's axios usage — keep it just as simple, no elaborate client abstraction)
+- `socket_io_client` (the official-compatible Dart client) for the Socket.IO connection in §1
+- `flutter_secure_storage` for per-role token storage (see the token-key note below)
+- `font_awesome_flutter` for icons — maps near 1:1 onto the web app's `react-icons/fa` usage (see §3 Icons)
+- `provider` (or `riverpod` if the user prefers) for the thin bits of cross-screen state that are unavoidable (e.g. "who's logged in") — see §5 for how much state-management machinery is actually appropriate here
+- `image_picker` (for the supervisor's live-review screenshot flow) and `file_picker` (for PDF report/template uploads)
+- `go_router` for navigation (see §4) — declarative, plays well with auth-gated route redirection
 
 ---
 
@@ -48,7 +55,7 @@ There is no versioned API prefix (no `/api/v1`), no root health-check route.
 - **Role is resolved server-side by DB lookup, not by trusting the token.** The `authorize(...roles)` middleware takes the `_id` from the verified JWT and checks, in order: is this `_id` a Student? a Supervisor? an Admin? — whichever collection matches (and is in the allowed list) wins. Implication: don't try to decode "who am I" purely from the JWT payload on the mobile side either — trust the `user`/`admin`/etc. object returned by the login response, and store which role you logged in as alongside the token.
 - **Not every state-changing endpoint enforces `authorize(role)` — some only check "is this a valid JWT for *any* account" (`authenticate` with no role check), and a few have no auth middleware at all.** This is an existing backend quirk (relies on the web frontend's UI to gate access), not something the mobile app should try to "correct" — just always send the Bearer token you have available, and expect that the backend's own authorization is inconsistent in a few corners (e.g. `/auth/admin/supervisors*`, `/auth/create-project`, `/auth/task/:id` are effectively under-protected server-side).
 - There is **no refresh-token mechanism**. When a token expires, the user must log in again — plan your mobile auth state (e.g. a 401-interceptor that routes to the correct role's login screen) accordingly.
-- **Store tokens per-role in separate secure-storage slots** (e.g. `expo-secure-store` keys `studentToken` / `supervisorToken` / `adminToken`), even though the *web* frontend actually collides Student and Supervisor onto the same `localStorage` key `"token"` (a real bug/quirk in the web app — do not replicate this collision in the mobile app, since a mobile app is far more likely to have a user switch between roles or reinstall).
+- **Store tokens per-role in separate secure-storage slots** (e.g. `flutter_secure_storage` keys `studentToken` / `supervisorToken` / `adminToken`), even though the *web* frontend actually collides Student and Supervisor onto the same `localStorage` key `"token"` (a real bug/quirk in the web app — do not replicate this collision in the mobile app, since a mobile app is far more likely to have a user switch between roles or reinstall).
 
 ### Password/email flows (shared across roles)
 `POST /auth/forgot-password`, `POST /auth/reset-password`, `POST /auth/verify-email`, `POST /auth/resend-verification`, `POST /auth/check-verification` — all take a `role` field (`"student"` | `"supervisor"` | `"admin"`) in the body to disambiguate which collection to act on.
@@ -168,58 +175,79 @@ Mirror these exactly; a mobile client that invents its own status strings will d
 
 ## 3. Design system — replicate this visual language exactly
 
-The web app (React + CSS Modules, no Tailwind — these are hand-copied Tailwind-default hex values) has a very consistent, hand-built design language. Translate these into your mobile styling system (e.g. a shared `theme.js`/`theme.ts` constants file, or NativeWind if you want literal Tailwind class parity).
+The web app (React + CSS Modules, no Tailwind — these are hand-copied Tailwind-default hex values) has a very consistent, hand-built design language. Translate these into a Flutter `ThemeData`/`ColorScheme` plus a shared `AppColors`/`AppRadii`/`AppShadows` constants class (a single `theme.dart`), so every widget pulls from the same source instead of hardcoding hex values per screen.
 
 ### Color palette
 
-```js
-const colors = {
+```dart
+class AppColors {
   // Primary blue (brand color — hero gradients, primary buttons, links, active nav states)
-  primary900: "#1e3a8a",
-  primary800: "#1e40af",   // gradient start
-  primary700: "#1d4ed8",   // badge text on light-blue bg
-  primary600: "#2563eb",   // gradient mid / primary action color — THE brand color
-  primary500: "#3b82f6",   // gradient end / focus rings
-  primary400: "#60a5fa",   // active sidebar icon
-  primary100: "#dbeafe",   // hover tint
-  primary50:  "#eff6ff",   // chip/badge background
+  static const primary900 = Color(0xFF1E3A8A);
+  static const primary800 = Color(0xFF1E40AF); // gradient start
+  static const primary700 = Color(0xFF1D4ED8); // badge text on light-blue bg
+  static const primary600 = Color(0xFF2563EB); // gradient mid / primary action — THE brand color
+  static const primary500 = Color(0xFF3B82F6); // gradient end / focus rings
+  static const primary400 = Color(0xFF60A5FA); // active sidebar/tab icon
+  static const primary100 = Color(0xFFDBEAFE); // hover/pressed tint
+  static const primary50  = Color(0xFFEFF6FF); // chip/badge background
 
   // Success / green
-  success800: "#065f46", success700: "#15803d", success600: "#059669",
-  successBg:  "#d1fae5", successBgAlt: "#dcfce7", successBgLight: "#f0fdf4",
+  static const success800 = Color(0xFF065F46);
+  static const success700 = Color(0xFF15803D);
+  static const success600 = Color(0xFF059669);
+  static const successBg      = Color(0xFFD1FAE5);
+  static const successBgAlt   = Color(0xFFDCFCE7);
+  static const successBgLight = Color(0xFFF0FDF4);
 
   // Warning / amber
-  warning800: "#92400e", warning700: "#b45309", warningTextOrange: "#c2410c",
-  warningBg: "#fef3c7", warningBgAlt: "#fffbeb", warningBgOrange: "#fff7ed",
+  static const warning800 = Color(0xFF92400E);
+  static const warning700 = Color(0xFFB45309);
+  static const warningTextOrange = Color(0xFFC2410C);
+  static const warningBg       = Color(0xFFFEF3C7);
+  static const warningBgAlt    = Color(0xFFFFFBEB);
+  static const warningBgOrange = Color(0xFFFFF7ED);
 
   // Danger / red
-  danger800: "#991b1b", danger700: "#b91c1c", danger600: "#dc2626", danger500: "#ef4444",
-  dangerBg: "#fee2e2", dangerBgAlt: "#fef2f2", dangerBorder: "#fecaca",
+  static const danger800 = Color(0xFF991B1B);
+  static const danger700 = Color(0xFFB91C1C);
+  static const danger600 = Color(0xFFDC2626);
+  static const danger500 = Color(0xFFEF4444);
+  static const dangerBg     = Color(0xFFFEE2E2);
+  static const dangerBgAlt  = Color(0xFFFEF2F2);
+  static const dangerBorder = Color(0xFFFECACA);
 
   // Neutrals / slate (text, borders, backgrounds)
-  gray900: "#111827", gray800: "#1f2937", gray700: "#374151",
-  gray600: "#4b5563", gray500: "#6b7280", gray400: "#9ca3af",
-  gray300: "#d1d5db", gray200: "#e5e7eb",   // ← most common border color
-  gray100: "#f3f4f6", gray50:  "#f9fafb",
-  slateText: "#475569", slateMuted: "#64748b", slatePlaceholder: "#94a3b8",
-  pageBg: "#f8fafc",    // ← standard page background (alt: "#f4f7fa")
+  static const gray900 = Color(0xFF111827);
+  static const gray800 = Color(0xFF1F2937);
+  static const gray700 = Color(0xFF374151);
+  static const gray600 = Color(0xFF4B5563);
+  static const gray500 = Color(0xFF6B7280);
+  static const gray400 = Color(0xFF9CA3AF);
+  static const gray300 = Color(0xFFD1D5DB);
+  static const gray200 = Color(0xFFE5E7EB); // ← most common border color
+  static const gray100 = Color(0xFFF3F4F6);
+  static const gray50  = Color(0xFFF9FAFB);
+  static const slateText        = Color(0xFF475569);
+  static const slateMuted       = Color(0xFF64748B);
+  static const slatePlaceholder = Color(0xFF94A3B8);
+  static const pageBg = Color(0xFFF8FAFC); // ← standard page background (alt: 0xFFF4F7FA)
 
-  white: "#ffffff",
+  static const white = Color(0xFFFFFFFF);
 
   // Dark navy — sidebar (Admin/Supervisor) and top navbar (Student) chrome, ALL THREE roles
-  navyStart: "#0f1b3d",
-  navyEnd:   "#111827",
-};
+  static const navyStart = Color(0xFF0F1B3D);
+  static const navyEnd   = Color(0xFF111827);
+}
 ```
 
 Status badge convention (light tint bg + dark saturated text of the same hue):
-```js
-const statusColors = {
-  pending:   { bg: "#fff7ed", text: "#c2410c" },
-  completed: { bg: "#eff6ff", text: "#1d4ed8" },
-  approved:  { bg: "#f0fdf4", text: "#15803d" },
-  rejected:  { bg: "#fef2f2", text: "#b91c1c" },
-};
+```dart
+class StatusColors {
+  static const pending   = (bg: Color(0xFFFFF7ED), text: Color(0xFFC2410C));
+  static const completed = (bg: Color(0xFFEFF6FF), text: Color(0xFF1D4ED8));
+  static const approved  = (bg: Color(0xFFF0FDF4), text: Color(0xFF15803D));
+  static const rejected  = (bg: Color(0xFFFEF2F2), text: Color(0xFFB91C1C));
+}
 ```
 
 ### Typography
@@ -234,28 +262,38 @@ Font sizes observed: 11-12.5px (badges/meta), 13-14px (body), 15-17px (section t
 - Border radius: `9-10px` buttons/inputs · `12-14px` cards/stat-tiles · `16-18px` hero banners/modals · `50%` avatars/icon circles · `999px`/pill badges
 
 ### Shadows / elevation
-```js
-const shadows = {
-  card:       "0 3px 10px rgba(0,0,0,0.05)",
-  cardHover:  "0 6px 16px rgba(0,0,0,0.08)",
-  hero:       "0 8px 32px rgba(37,99,235,0.28)",   // colored, matches brand blue
-  modal:      "0 10px 25px rgba(0,0,0,0.2)",
-  sidebar:    "3px 0 16px rgba(0,0,0,0.18)",
-};
+```dart
+class AppShadows {
+  static const card = [
+    BoxShadow(color: Color(0x0D000000), blurRadius: 10, offset: Offset(0, 3)),
+  ];
+  static const cardHover = [
+    BoxShadow(color: Color(0x14000000), blurRadius: 16, offset: Offset(0, 6)),
+  ];
+  static const hero = [ // colored, matches brand blue
+    BoxShadow(color: Color(0x472563EB), blurRadius: 32, offset: Offset(0, 8)),
+  ];
+  static const modal = [
+    BoxShadow(color: Color(0x33000000), blurRadius: 25, offset: Offset(0, 10)),
+  ];
+  static const sidebar = [
+    BoxShadow(color: Color(0x2E000000), blurRadius: 16, offset: Offset(3, 0)),
+  ];
+}
 ```
-Translate to React Native `elevation` (Android) / `shadowColor`+`shadowOpacity`+`shadowRadius` (iOS), keeping the same relative hierarchy (page cards lightest, hero/nav chrome heaviest).
+Use these as `BoxDecoration(boxShadow: ...)` on `Container`s rather than Material `elevation` where you need the exact colored/soft look above — plain `elevation` on `Card`/`Material` gives a flatter, grayer default shadow that won't match the brand-blue-tinted hero shadow. Keep the same relative hierarchy (page cards lightest, hero/nav chrome heaviest).
 
 ### Icons
-**react-icons/fa (Font Awesome) is used exclusively** everywhere except the 3 `Feedbacks` screens, which use `lucide-react`. For mobile, use `@expo/vector-icons`'s `FontAwesome`/`FontAwesome5` set to match icon-for-icon (e.g. `FaHome`→`home`, `FaUserGraduate`→`user-graduate`, `FaSignOutAlt`→`sign-out-alt`, `FaComments`→`comments`, `FaBell`→`bell`/`bell-slash`, `FaCalendarCheck`→`calendar-check`, `FaClock`→`clock`, `FaMapMarkerAlt`→`map-marker-alt`, `FaVideo`→`video`, `FaUserTie`→`user-tie`, `FaProjectDiagram`→`project-diagram`, `FaStar`→`star`, `FaClipboardCheck`→`clipboard-check`, `FaBuilding`→`building`, `FaShieldAlt`→`shield-alt`).
+**react-icons/fa (Font Awesome) is used exclusively** everywhere except the 3 `Feedbacks` screens, which use `lucide-react`. For mobile, use the `font_awesome_flutter` package's `FontAwesomeIcons` set to match icon-for-icon (e.g. `FaHome`→`FontAwesomeIcons.house`, `FaUserGraduate`→`FontAwesomeIcons.userGraduate`, `FaSignOutAlt`→`FontAwesomeIcons.rightFromBracket`, `FaComments`→`FontAwesomeIcons.comments`, `FaBell`/`FaBellSlash`→`FontAwesomeIcons.bell`/`FontAwesomeIcons.bellSlash`, `FaCalendarCheck`→`FontAwesomeIcons.calendarCheck`, `FaClock`→`FontAwesomeIcons.clock`, `FaMapMarkerAlt`→`FontAwesomeIcons.locationDot`, `FaVideo`→`FontAwesomeIcons.video`, `FaUserTie`→`FontAwesomeIcons.userTie`, `FaProjectDiagram`→`FontAwesomeIcons.diagramProject`, `FaStar`→`FontAwesomeIcons.star`, `FaClipboardCheck`→`FontAwesomeIcons.clipboardCheck`, `FaBuilding`→`FontAwesomeIcons.building`, `FaShieldAlt`→`FontAwesomeIcons.shield`). Note Font Awesome 6 (which this package ships) renamed several icons from the `react-icons/fa` (FA4/5-based) names above — double check each one against the package's icon browser rather than assuming the name maps literally.
 
 ### Recurring components to rebuild as shared mobile primitives
 
 1. **Hero banner** — top-of-screen card with the blue gradient (`135deg, #1e40af 0%, #2563eb 60%, #3b82f6 100%`), rounded `18px`, white heading (22-24px/800) + translucent white subheading, an avatar/icon chip on the left, and (where applicable) a notification bell in the top-right corner (absolute-positioned over the gradient, see below).
-2. **Stat card grid** — white rounded (`14px`) cards in a wrap/grid, each with a colored icon chip (semantic color per stat), a small gray label, and a large bold number. Translate the CSS grid (`repeat(auto-fit, minmax(200px,1fr))`) into a `FlatList`/`flexWrap` row that wraps responsively.
+2. **Stat card grid** — white rounded (`14px`) cards in a wrap/grid, each with a colored icon chip (semantic color per stat), a small gray label, and a large bold number. Translate the CSS grid (`repeat(auto-fit, minmax(200px,1fr))`) into a `Wrap`/`GridView` that wraps responsively.
 3. **Status badge/pill** — small pill (`border-radius: 20px` or `999px`), tinted background + saturated text per the status-color map above.
-4. **"View All" modal pattern** — a compact inline list (top N items or items within a day/count window) plus a dashed "View All (N)" button that opens a full-screen modal/bottom-sheet reusing the *exact same item row component* as the inline list — this pattern is used for schedules (viva/meetings) and should carry over as a bottom-sheet on mobile.
-5. **Notification bell** — circular translucent button (only meaningful over the colored hero gradient) with a small red badge showing unread count, opening a dropdown/panel; unread rows tinted `#eff6ff` with a small blue dot indicator. On mobile this likely becomes a header-right icon button opening a modal/sheet.
-6. **Sidebar/tab navigation** — **all three roles share the same navy gradient chrome** (`#0f1b3d → #111827`), just oriented differently on web (vertical sidebar for Admin/Supervisor, horizontal top navbar for Student). Active nav item: `rgba(37,99,235,0.18)` background + a blue accent border + `#60a5fa` icon tint; inactive: `#cbd5e1` muted text. On mobile, this maps naturally to a **bottom tab bar per role** (or a drawer for roles with many modules, e.g. Admin) using the same navy background + blue-accent-active styling — this is a strong, literal cross-role brand element worth preserving pixel-for-pixel in spirit.
+4. **"View All" modal pattern** — a compact inline list (top N items or items within a day/count window) plus a dashed "View All (N)" button that opens a full modal/bottom-sheet reusing the *exact same item row widget* as the inline list — this pattern is used for schedules (viva/meetings) and should carry over as a `showModalBottomSheet` on mobile.
+5. **Notification bell** — circular translucent button (only meaningful over the colored hero gradient) with a small red badge showing unread count, opening a dropdown/panel; unread rows tinted `#eff6ff` with a small blue dot indicator. On mobile this likely becomes an `AppBar` action icon opening a `showModalBottomSheet` or a slide-over panel.
+6. **Sidebar/tab navigation** — **all three roles share the same navy gradient chrome** (`#0f1b3d → #111827`), just oriented differently on web (vertical sidebar for Admin/Supervisor, horizontal top navbar for Student). Active nav item: `rgba(37,99,235,0.18)` background + a blue accent border + `#60a5fa` icon tint; inactive: `#cbd5e1` muted text. On mobile, this maps naturally to a **bottom `NavigationBar`/`BottomNavigationBar` per role** (or a `Drawer` for roles with many modules, e.g. Admin) using the same navy background + blue-accent-active styling — this is a strong, literal cross-role brand element worth preserving pixel-for-pixel in spirit.
 7. **Loading state** — spinning ring (`border-top-color: #3b82f6` on a `#e5e7eb` ring) + 3 staggered bouncing dots + "Loading…" gray text; reusable as a shared `<Loader />`.
 8. **Form inputs** — rounded (`10px`), light gray background (`#fafafa`) that turns white + gets a blue focus ring (`box-shadow: 0 0 0 3px rgba(37,99,235,0.15)`, border `#3b82f6`) on focus; left-aligned icon inside the field; error banners `#fee2e2` bg / `#991b1b` text.
 9. **Buttons** — primary = blue gradient (`135deg, #2563eb, #1e40af`) with white text and a soft blue shadow; secondary = flat gray (`#f3f4f6`/`#374151`); "tinted" light-action buttons per semantic color (view=blue tint, approve=green tint, reject=red tint); disabled = `opacity: 0.55-0.6`.
@@ -264,7 +302,7 @@ Translate to React Native `elevation` (Android) / `shadowColor`+`shadowOpacity`+
 
 ## 4. Screen/navigation map (per role)
 
-Translate the web app's flat, state-driven "module switching within one shell" pattern into proper mobile navigation (React Navigation: a bottom-tab or drawer navigator per role, with stack navigators inside each tab for detail screens/modals) — do not literally replicate the web's ad-hoc `activeModule` state switching; that was a web-specific shortcut, not something to preserve for its own sake.
+Translate the web app's flat, state-driven "module switching within one shell" pattern into proper mobile navigation (`go_router` with a `StatefulShellRoute` per role — bottom-tab or drawer branches, each with its own nested `Navigator` stack for detail screens/modals) — do not literally replicate the web's ad-hoc `activeModule` state switching; that was a web-specific shortcut, not something to preserve for its own sake. Gate the three role-specific route branches behind a `redirect` that checks the relevant secure-storage token, mirroring (but centralizing, unlike the web app — see §5) the per-role auth check.
 
 **Student** modules → Dashboard (stats, team, leaderboard), Proposal (submit/track), Project & Tasks (task board, progress logs, live-review notes, final report, deployment links), Team Chat + 1:1 chat, AI Assistant, Templates, Feedback, Notifications, Viva banner (shown contextually on Dashboard/Project when a viva is scheduled).
 
@@ -281,7 +319,7 @@ Translate the web app's flat, state-driven "module switching within one shell" p
 ## 5. Explicit non-goals / things NOT to replicate
 
 - Don't collide Student and Supervisor tokens onto one storage key — that's a bug in the web app, not a design decision.
-- Don't invent a Redux/Context/React-Query state layer just because "that's more standard for mobile" — match the existing app's simplicity (local state + direct axios calls) unless the user asks for more architecture.
+- Don't reach for `bloc`/heavy `riverpod` code-generation setups just because "that's more standard for Flutter" — match the existing app's simplicity (`StatefulWidget` + local `setState`, plain `http`/`dio` calls per screen, no repository/DI framework) unless the user asks for more architecture. A thin `provider` for "current logged-in user/role" is the one piece of shared state that's actually justified, per §0.
 - Don't assume Cloudinary — uploaded files are plain disk-backed URLs relative to the API origin.
 - Don't try to "fix" the inconsistent server-side route authorization (some mutating routes lack `authorize()` or any auth at all) from the mobile side beyond always sending the token you have; that's a backend-side concern out of scope for this app.
 - Don't add a versioned `/api/v1` prefix or assume one exists — it's `/auth/*` for everything, flat.
@@ -290,8 +328,8 @@ Translate the web app's flat, state-driven "module switching within one shell" p
 
 ## 6. What to do first in the new session
 
-1. Confirm the target framework (default recommendation: React Native + Expo) and confirm the backend's live base URL with the user (get the actual API origin — do not guess a domain).
-2. Scaffold navigation: a role-selector landing screen → three auth stacks (Student/Supervisor/Admin) → three post-login tab/drawer navigators matching §4.
-3. Build the shared design-system primitives from §3 first (colors/theme constants, `<Loader>`, `<StatusBadge>`, `<HeroBanner>`, `<StatCard>`, `<PrimaryButton>`) before building individual screens, so every screen after that stays visually consistent by construction.
+1. `flutter create` the project, add the packages listed in §0, and confirm the backend's live base URL with the user (get the actual API origin — do not guess a domain).
+2. Scaffold navigation: a role-selector landing screen → three auth flows (Student/Supervisor/Admin) → three post-login `StatefulShellRoute` navigators matching §4.
+3. Build the shared design-system primitives from §3 first (`theme.dart` with `AppColors`/`AppShadows`, a `Loader` widget, `StatusBadge`, `HeroBanner`, `StatCard`, `PrimaryButton`) before building individual screens, so every screen after that stays visually consistent by construction.
 4. Implement auth (login/signup/token storage per §1) before any data screens, since virtually everything requires a Bearer token.
 5. Build one role fully (recommend Student first, since it's the most feature-complete on web) before starting the other two, reusing the shared primitives.
