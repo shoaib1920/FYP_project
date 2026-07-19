@@ -5,7 +5,7 @@ import {
 } from "react-icons/fa";
 import styles from "./styles.module.css";
 
-const VISIBLE_COUNT = 3;
+const DAYS_WINDOW = 3;
 
 const ScheduleItem = ({ item }) => {
   const date = new Date(item.date);
@@ -54,9 +54,10 @@ const ScheduleItem = ({ item }) => {
  * a small inline chip on each project's row, with no way to see everything
  * coming up at a glance.
  *
- * Only shows the soonest few inline so the dashboard's height stays constant
- * regardless of how many projects/vivas/meetings exist; the rest are one
- * click away in a "View All" modal rather than growing the page.
+ * Only shows items due within DAYS_WINDOW days inline so the dashboard's
+ * height stays constant regardless of how many projects/vivas/meetings
+ * exist; the rest are one click away in a "View All" modal rather than
+ * growing the page.
  */
 const UpcomingSchedule = () => {
   const [items, setItems] = useState([]);
@@ -86,7 +87,10 @@ const UpcomingSchedule = () => {
 
   if (loading) return null;
 
-  const visibleItems = items.slice(0, VISIBLE_COUNT);
+  const msPerDay = 1000 * 60 * 60 * 24;
+  const visibleItems = items.filter(
+    (item) => Math.ceil((new Date(item.date).getTime() - Date.now()) / msPerDay) <= DAYS_WINDOW
+  );
   const remaining = items.length - visibleItems.length;
 
   return (
@@ -100,11 +104,15 @@ const UpcomingSchedule = () => {
         <p className={styles.empty}>No vivas or meetings scheduled in the near future.</p>
       ) : (
         <>
-          <div className={styles.list}>
-            {visibleItems.map((item) => (
-              <ScheduleItem key={`${item.type}-${item.type === "VIVA" ? item.projectId : item.meetingId}`} item={item} />
-            ))}
-          </div>
+          {visibleItems.length === 0 ? (
+            <p className={styles.empty}>No vivas or meetings in the next {DAYS_WINDOW} days.</p>
+          ) : (
+            <div className={styles.list}>
+              {visibleItems.map((item) => (
+                <ScheduleItem key={`${item.type}-${item.type === "VIVA" ? item.projectId : item.meetingId}`} item={item} />
+              ))}
+            </div>
+          )}
           {remaining > 0 && (
             <button type="button" className={styles.viewAllBtn} onClick={() => setShowAll(true)}>
               View All ({items.length})
