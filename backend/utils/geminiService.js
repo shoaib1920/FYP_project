@@ -133,21 +133,28 @@ Assess it on: structural completeness (does it read like it has an introduction,
 
 You are NOT a plagiarism-detection database and have no access to other documents to compare against — do not claim to have found a match elsewhere. Only flag ORIGINALITY CONCERNS you can actually observe from THIS text alone: abrupt style/tone shifts between sections, generic filler language, sections that don't connect to the rest of the report, or content that reads as copied from documentation/tutorials rather than describing the student's own work.
 
+Additionally, assess how likely the text is to be AI-generated or heavily AI-drafted rather than written by the student. Base this only on observable writing signals: unnaturally uniform sentence length/rhythm, low vocabulary variety, overuse of stock transitional phrases ("furthermore", "moreover", "it is important to note", "in conclusion", "delve", "tapestry", "boast"), generic statements lacking project-specific detail, and an absence of the small inconsistencies typical of human writing. This is a heuristic judgment call, not a certified detector — you may be wrong, so only flag passages you can point to a concrete textual reason for, and do not claim certainty.
+
 Respond with ONLY a JSON object (no markdown fences, no extra text) in exactly this shape:
 {
   "score": <integer 0-100, overall report quality>,
   "issues": [<short strings, each one concrete problem found — empty array if none>],
   "suggestions": [<short strings, each one concrete actionable improvement for the supervisor to consider — empty array if none>],
-  "originalityConcerns": [<short strings, each a specific observed originality/consistency red flag as described above — empty array if none found>]
+  "originalityConcerns": [<short strings, each a specific observed originality/consistency red flag as described above — empty array if none found>],
+  "aiGenerated": {
+    "likelihoodScore": <integer 0-100, how likely this text is AI-generated/AI-drafted per the guidance above>,
+    "flaggedPassages": [{"text": <short exact quoted snippet, 1-2 sentences, from the text>, "reason": <short specific reason this snippet reads as AI-generated>}] (empty array if none found, max 5)
+  }
 }`;
 
 /**
  * Sends extracted final-report text to OpenRouter for a structured quality
  * assessment — same model/service as the proposal quality check, with a
  * report-specific prompt. This is an AI content-quality signal for the
- * supervisor, not a plagiarism-database match.
+ * supervisor (including an AI-generated-content heuristic), not a
+ * plagiarism-database match.
  * @param {string} reportText - extracted plain text from the report PDF
- * @returns {Promise<{score:number, issues:string[], suggestions:string[], originalityConcerns:string[]}>}
+ * @returns {Promise<{score:number, issues:string[], suggestions:string[], originalityConcerns:string[], aiGenerated:{likelihoodScore:number, flaggedPassages:{text:string,reason:string}[]}}>}
  */
 async function analyzeFinalReportQuality(reportText) {
   const apiKey = getApiKey();
@@ -169,7 +176,7 @@ async function analyzeFinalReportQuality(reportText) {
           { role: "user", content: userText },
         ],
         temperature: 0.3,
-        max_tokens: 640,
+        max_tokens: 900,
       },
       { headers: buildHeaders(apiKey), timeout: 45000 }
     );
@@ -178,17 +185,30 @@ async function analyzeFinalReportQuality(reportText) {
   }
 
   const raw = response.data?.choices?.[0]?.message?.content || "";
+  const defaultAiGenerated = { likelihoodScore: null, flaggedPassages: [] };
   try {
     const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/i, "").trim();
     const parsed = JSON.parse(cleaned);
+    const aiGeneratedRaw = parsed.aiGenerated || {};
     return {
       score: Number.isFinite(parsed.score) ? Math.max(0, Math.min(100, Math.round(parsed.score))) : 50,
       issues: Array.isArray(parsed.issues) ? parsed.issues.slice(0, 8) : [],
       suggestions: Array.isArray(parsed.suggestions) ? parsed.suggestions.slice(0, 8) : [],
       originalityConcerns: Array.isArray(parsed.originalityConcerns) ? parsed.originalityConcerns.slice(0, 8) : [],
+      aiGenerated: {
+        likelihoodScore: Number.isFinite(aiGeneratedRaw.likelihoodScore)
+          ? Math.max(0, Math.min(100, Math.round(aiGeneratedRaw.likelihoodScore)))
+          : null,
+        flaggedPassages: Array.isArray(aiGeneratedRaw.flaggedPassages)
+          ? aiGeneratedRaw.flaggedPassages
+              .filter((p) => p && typeof p.text === "string")
+              .slice(0, 5)
+              .map((p) => ({ text: p.text, reason: typeof p.reason === "string" ? p.reason : "" }))
+          : [],
+      },
     };
   } catch {
-    return { score: 50, issues: [], suggestions: [], originalityConcerns: [] };
+    return { score: 50, issues: [], suggestions: [], originalityConcerns: [], aiGenerated: defaultAiGenerated };
   }
 }
 

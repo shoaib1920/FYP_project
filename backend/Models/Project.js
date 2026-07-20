@@ -118,6 +118,15 @@ const projectSchema = new mongoose.Schema(
       issues: { type: [String], default: [] },
       suggestions: { type: [String], default: [] },
       originalityConcerns: { type: [String], default: [] },
+      aiGenerated: {
+        likelihoodScore: { type: Number, default: null },
+        flaggedPassages: [
+          {
+            text: { type: String },
+            reason: { type: String },
+          },
+        ],
+      },
       checkedAt: { type: Date, default: null },
     },
 

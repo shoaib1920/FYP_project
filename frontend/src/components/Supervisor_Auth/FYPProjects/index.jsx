@@ -741,6 +741,25 @@ const FYPProjects = () => {
                         </ul>
                       </div>
                     )}
+                    {gradeModal.reportQualityCheck.aiGenerated?.likelihoodScore != null && (
+                      <div style={{ marginTop: "6px" }}>
+                        <strong style={{ fontSize: "11.5px", color: "#b45309" }}>
+                          AI-Generated Content Likelihood: {gradeModal.reportQualityCheck.aiGenerated.likelihoodScore}%
+                        </strong>
+                        <p style={{ fontSize: "11px", color: "#92400e", margin: "2px 0 4px" }}>
+                          A heuristic AI judgment, not a certified detector — review the flagged passages yourself before raising it with the student.
+                        </p>
+                        {gradeModal.reportQualityCheck.aiGenerated.flaggedPassages?.length > 0 && (
+                          <ul style={{ margin: "3px 0 0", paddingLeft: "18px", fontSize: "12px", color: "#78350f" }}>
+                            {gradeModal.reportQualityCheck.aiGenerated.flaggedPassages.map((p, i) => (
+                              <li key={i} style={{ marginBottom: "4px" }}>
+                                <em>"{p.text}"</em> — {p.reason}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    )}
                   </>
                 ) : (
                   <p style={{ fontSize: "12px", color: "#6b21a8", marginTop: "6px" }}>
@@ -1136,6 +1155,15 @@ const FYPProjects = () => {
                               color: project.reportQualityCheck.score >= 70 ? "#15803d" : project.reportQualityCheck.score >= 40 ? "#92400e" : "#b91c1c",
                             }}>
                               AI Check: {project.reportQualityCheck.score}/100
+                            </span>
+                          )}
+                          {project.reportQualityCheck?.aiGenerated?.likelihoodScore >= 50 && (
+                            <span style={{
+                              fontSize: "10.5px", fontWeight: "700", padding: "2px 7px", borderRadius: "999px",
+                              background: "#fef3c7", color: "#92400e",
+                              display: "inline-flex", alignItems: "center", gap: "4px",
+                            }}>
+                              <FaExclamationTriangle size={9} /> AI-Written: {project.reportQualityCheck.aiGenerated.likelihoodScore}%
                             </span>
                           )}
                         </div>
