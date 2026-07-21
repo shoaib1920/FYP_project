@@ -158,12 +158,15 @@ Respond with ONLY a JSON object (no markdown fences, no extra text) in exactly t
  */
 async function analyzeFinalReportQuality(reportText) {
   const apiKey = getApiKey();
-  // Cap input to stay within the free model's context/cost budget — a
+  // Cap input to stay within the free model's context/cost budget and keep
+  // response times low enough to avoid the free tier's request timeout — a
   // report can run to dozens of pages, so this is a representative sample
-  // (opening chapters), not the full document.
-  const MAX_CHARS = 12000;
+  // (opening pages), not the full document. Kept intentionally small since
+  // this call now also does AI-generated-content analysis on top of the
+  // original quality check, which already pushes response time up.
+  const MAX_CHARS = 6000;
   const truncated = reportText.length > MAX_CHARS;
-  const userText = `${truncated ? "[Note: report truncated to the first ~12,000 characters for review]\n\n" : ""}${reportText.slice(0, MAX_CHARS)}`;
+  const userText = `${truncated ? "[Note: report truncated to the first ~6,000 characters for review]\n\n" : ""}${reportText.slice(0, MAX_CHARS)}`;
 
   let response;
   try {
