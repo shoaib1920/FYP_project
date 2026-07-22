@@ -103,6 +103,9 @@ const FYPProjects = () => {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [gradeModal, setGradeModal] = useState(null); // { projectId, title, members, isRegrade }
+  const [rejectModal, setRejectModal] = useState(null); // { projectId, title }
+  const [rejectReason, setRejectReason] = useState("");
+  const [rejecting, setRejecting] = useState(false);
   const [rubricScores, setRubricScores] = useState({}); // { [memberId]: [score0, score1, ...] }
   const [evalRemarks, setEvalRemarks] = useState("");
   const [completing, setCompleting] = useState(false);
@@ -407,6 +410,30 @@ const FYPProjects = () => {
       alert(err.response?.data?.message || "Failed to save draft.");
     } finally {
       setSavingDraft(false);
+    }
+  };
+
+  const handleRejectFinalReport = async () => {
+    if (!rejectReason.trim()) {
+      alert("Please enter a reason for rejecting this submission.");
+      return;
+    }
+    const { projectId } = rejectModal;
+    setRejecting(true);
+    try {
+      const res = await axios.put(
+        `${apiBase}/auth/projects/${projectId}/reject-final-report`,
+        { reason: rejectReason.trim() },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setProjects((prev) => prev.map((p) => (p._id === projectId ? res.data.project : p)));
+      setRejectModal(null);
+      setRejectReason("");
+      showToast("Final report rejected — the team has been notified.");
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to reject final report.");
+    } finally {
+      setRejecting(false);
     }
   };
 
@@ -955,6 +982,52 @@ const FYPProjects = () => {
         </div>
       )}
 
+      {rejectModal && (
+        <div className={styles.overlay}>
+          <div className={styles.modal}>
+            <h3 className={styles.modalTitle}>Reject Final Report Submission</h3>
+            <p className={styles.modalSubtitle}>{rejectModal.title}</p>
+
+            <p style={{ fontSize: "13px", color: "#4b5563", margin: "10px 0 6px" }}>
+              This sends the submission back to the team and reopens it for resubmission. Be specific — e.g.
+              "Report appears AI-generated (see AI check flags)", "Project is not complete yet", or any other reason.
+            </p>
+            <textarea
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="Reason for rejecting this submission..."
+              rows={4}
+              style={{
+                width: "100%", padding: "10px 12px", borderRadius: "8px",
+                border: "1px solid #d1d5db", fontSize: "13.5px", resize: "vertical",
+                fontFamily: "inherit",
+              }}
+            />
+
+            <div className={styles.modalActions}>
+              <button
+                className={styles.cancelBtn}
+                onClick={() => { setRejectModal(null); setRejectReason(""); }}
+                disabled={rejecting}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRejectFinalReport}
+                disabled={rejecting}
+                style={{
+                  background: "#dc2626", color: "#fff", border: "none",
+                  padding: "9px 18px", borderRadius: "6px", cursor: rejecting ? "not-allowed" : "pointer",
+                  fontSize: "14px", fontWeight: "600", opacity: rejecting ? 0.6 : 1,
+                }}
+              >
+                {rejecting ? "Rejecting..." : "Reject Submission"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Grade History Modal */}
       {historyModal && (
         <div className={styles.overlay}>
@@ -1166,9 +1239,31 @@ const FYPProjects = () => {
                               <FaExclamationTriangle size={9} /> AI-Written: {project.reportQualityCheck.aiGenerated.likelihoodScore}%
                             </span>
                           )}
+                          {project.status === "UNDER_REVIEW" && (
+                            <button
+                              type="button"
+                              onClick={() => setRejectModal({ projectId: project._id, title: project.title })}
+                              style={{
+                                background: "transparent", border: "1px solid #fecaca", color: "#b91c1c",
+                                borderRadius: "6px", padding: "3px 9px", fontSize: "11px", fontWeight: "600",
+                                cursor: "pointer", marginTop: "2px",
+                              }}
+                            >
+                              Reject Submission
+                            </button>
+                          )}
                         </div>
                       ) : (
-                        <span className={styles.na}>Not submitted</span>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                          <span className={styles.na}>Not submitted</span>
+                          {project.finalReportRejection?.reason && (
+                            <span style={{ fontSize: "10.5px", color: "#b91c1c" }} title={project.finalReportRejection.reason}>
+                              Last rejected: {project.finalReportRejection.reason.length > 40
+                                ? `${project.finalReportRejection.reason.slice(0, 40)}…`
+                                : project.finalReportRejection.reason}
+                            </span>
+                          )}
+                        </div>
                       )}
                     </td>
                     <td>

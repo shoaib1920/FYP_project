@@ -333,6 +333,7 @@ const {
   updateProjectProgress,
   submitFinalReport,
   completeProject,
+  rejectFinalReport,
   reGradeProject,
   gradePhase,
   saveGradeDraft,
@@ -373,6 +374,7 @@ route.get("/projects/:projectId", authenticate, getProjectById);
 route.put("/projects/:projectId/details", authenticate, updateProjectDetails);
 route.put("/projects/:projectId/progress", authenticate, updateProjectProgress);
 route.put("/projects/:projectId/final-report", authenticate, finalReportUpload.single("finalReport"), submitFinalReport);
+route.put("/projects/:projectId/reject-final-report", authenticate, authorize("supervisor"), rejectFinalReport); // Supervisor sends a submitted report back with a reason
 route.post("/projects/:projectId/analyze-report", authenticate, authorize("supervisor"), analyzeFinalReport); // On-demand AI re-check of the final report
 route.put("/projects/:projectId/complete", authenticate, authorize("supervisor"), completeProject);
 route.put("/projects/:projectId/regrade", authenticate, authorize("supervisor"), reGradeProject);

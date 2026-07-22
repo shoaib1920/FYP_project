@@ -319,6 +319,70 @@ exports.submitFinalReport = async (req, res) => {
   }
 };
 
+// PUT /projects/:projectId/reject-final-report  (Supervisor)
+// Sends a submitted final report back to the team with a reason (AI-generated
+// content concern, incomplete work, etc.), reopening submission — resets
+// status/finalReportUrl/reportQualityCheck so the team resubmits from scratch.
+exports.rejectFinalReport = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const supervisorId = req.user._id;
+    const { reason } = req.body;
+
+    if (!reason || !reason.trim()) {
+      return res.status(400).json({ message: "A reason is required to reject the final report" });
+    }
+
+    const project = await Project.findById(projectId);
+    if (!project) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+
+    if (String(project.supervisorId) !== String(supervisorId)) {
+      return res.status(403).json({ message: "Only the assigned supervisor can reject this submission" });
+    }
+
+    if (project.status !== "UNDER_REVIEW") {
+      return res.status(400).json({ message: "There is no pending final report submission to reject" });
+    }
+
+    project.finalReportRejection = { reason: reason.trim(), rejectedAt: new Date() };
+    project.status = "IN_PROGRESS";
+    project.finalReportUrl = "";
+    project.reportQualityCheck = {
+      score: null,
+      issues: [],
+      suggestions: [],
+      originalityConcerns: [],
+      aiGenerated: { likelihoodScore: null, flaggedPassages: [] },
+      checkedAt: null,
+    };
+
+    await project.save();
+
+    await notifyTeamMembers(project, {
+      title: "Final Report Rejected",
+      message: `Your supervisor rejected the final report for "${project.title}": ${reason.trim()}. Please revise and resubmit.`,
+      relatedType: "project",
+      relatedId: project._id,
+    });
+
+    await logAction({
+      actorId: supervisorId,
+      actorRole: "supervisor",
+      action: "FINAL_REPORT_REJECTED",
+      targetType: "Project",
+      targetId: project._id,
+      details: `Rejected final report submission for "${project.title}" — reason: ${reason.trim()}`,
+    });
+
+    res.json({ success: true, project });
+  } catch (err) {
+    console.error("Error rejecting final report:", err);
+    res.status(500).json({ message: "Server error while rejecting final report" });
+  }
+};
+
 // GET /projects/supervisor  (Supervisor — all their assigned FYP projects)
 exports.getProjectsBySupervisor = async (req, res) => {
   try {

@@ -130,6 +130,15 @@ const projectSchema = new mongoose.Schema(
       checkedAt: { type: Date, default: null },
     },
 
+    // Supervisor-initiated rejection of a submitted final report (e.g. AI
+    // plagiarism concern, incomplete work). Reopens submission by resetting
+    // status/finalReportUrl/reportQualityCheck — this is a snapshot of the
+    // most recent rejection only, not a history log.
+    finalReportRejection: {
+      reason:     { type: String, default: "" },
+      rejectedAt: { type: Date, default: null },
+    },
+
     evaluationMarks: {
       type: Number,
       default: 0,
