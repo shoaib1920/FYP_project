@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { FaUserShield, FaEnvelope, FaLock, FaEye, FaEyeSlash } from 'react-icons/fa';
 import styles from './styles.module.css';
 
@@ -16,7 +16,6 @@ const AdminLogin = () => {
   const [newEmail, setNewEmail] = useState('');
   const [changingEmail, setChangingEmail] = useState(false);
   const [changeMsg, setChangeMsg] = useState('');
-  const navigate = useNavigate();
 
   const handleResend = async () => {
     setResending(true);
@@ -64,8 +63,12 @@ const AdminLogin = () => {
     localStorage.setItem("adminToken", res.data.token);
     localStorage.setItem("adminData", JSON.stringify(res.data.admin)); // assuming backend returns admin object
 
-
-navigate('/admin/dashboard');
+    // Full page load (not React Router's navigate) so App.js re-reads
+    // adminToken from localStorage fresh — its route guard is a plain
+    // variable computed once, not reactive, so a client-side navigate()
+    // right after login would still see the pre-login (null) value and
+    // bounce straight back to /admin/login.
+    window.location.href = '/admin/dashboard';
 
   } catch (error) {
     if (error.response?.data?.unverified) setUnverified(true);
