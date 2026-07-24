@@ -12,7 +12,9 @@ const path = require('path');
 const jwt = require("jsonwebtoken");
 const Message = require("./Models/Message");
 const GroupMessage = require("./Models/GroupMessage");
+const DepartmentMessage = require("./Models/DepartmentMessage");
 const { getTeamsForUser, isMemberOfTeamChat } = require("./utils/teamChatMembership");
+const { getDepartmentIdsForUser, canPostInDepartmentChat, canAccessDepartmentChat } = require("./utils/departmentChatMembership");
 const { url: mongoUrl } = require("./Models/db");
 require("./Models/Task");
 require("./Models/TaskAssignment");
@@ -72,6 +74,17 @@ io.on("connection", (socket) => {
       teams.forEach((team) => socket.join(`team_${team._id}`));
     } catch (err) {
       console.error("Error joining team chat rooms:", err);
+    }
+  })();
+
+  // Join this user's department-wide chat room(s) — one for student/supervisor,
+  // all of them for admin (admins aren't scoped to a single department).
+  (async () => {
+    try {
+      const deptIds = await getDepartmentIdsForUser(userId);
+      deptIds.forEach((deptId) => socket.join(`dept_${deptId}`));
+    } catch (err) {
+      console.error("Error joining department chat rooms:", err);
     }
   })();
 
@@ -211,6 +224,65 @@ io.on("connection", (socket) => {
 
   socket.on("group_stop_typing", ({ teamId }) => {
     socket.to(`team_${teamId}`).emit("group_user_stop_typing", { teamId, senderId: userId });
+  });
+
+  // ── Department-wide chat ──
+  socket.on("send_dept_message", async (data) => {
+    const { departmentId, senderName, senderRole, message, fileUrl, fileName, fileSize, fileType, tempId } = data;
+
+    const allowed = await canPostInDepartmentChat(userId, departmentId);
+    if (!allowed) {
+      socket.emit("dept_message_rejected", { departmentId, tempId, reason: "You're muted or excluded from this department's chat." });
+      return;
+    }
+
+    const newMsg = await DepartmentMessage.create({
+      departmentId,
+      senderId: userId,
+      senderName,
+      senderRole: senderRole || "Student",
+      message: message || "",
+      fileUrl: fileUrl || null,
+      fileName: fileName || null,
+      fileSize: fileSize || null,
+      fileType: fileType || null,
+      readBy: [userId],
+    });
+
+    const payload = {
+      _id: newMsg._id,
+      tempId,
+      departmentId,
+      senderId: userId,
+      senderName,
+      senderRole: newMsg.senderRole,
+      message: newMsg.message,
+      fileUrl: newMsg.fileUrl,
+      fileName: newMsg.fileName,
+      fileSize: newMsg.fileSize,
+      fileType: newMsg.fileType,
+      timestamp: newMsg.timestamp,
+    };
+
+    io.to(`dept_${departmentId}`).emit("receive_dept_message", payload);
+  });
+
+  socket.on("mark_dept_read", async ({ departmentId }) => {
+    const allowed = await canAccessDepartmentChat(userId, departmentId);
+    if (!allowed) return;
+    await DepartmentMessage.updateMany(
+      { departmentId, readBy: { $ne: userId } },
+      { $addToSet: { readBy: userId } }
+    );
+    io.to(`dept_${departmentId}`).emit("dept_messages_read", { departmentId, by: userId });
+  });
+
+  socket.on("dept_typing", ({ departmentId, senderName }) => {
+    socket.to(`dept_${departmentId}`).emit("dept_user_typing", { departmentId, senderId: userId, senderName });
+  });
+
+  socket.on("dept_stop_typing", ({ departmentId }) => {
+    socket.to(`dept_${departmentId}`).emit("dept_user_stop_typing", { departmentId, senderId: userId });
   });
 
   socket.on("disconnect", () => {

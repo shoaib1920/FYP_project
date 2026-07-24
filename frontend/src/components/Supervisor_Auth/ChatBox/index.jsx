@@ -73,12 +73,21 @@ const SupervisorChatBox = () => {
   const [groupMessages, setGroupMessages] = useState([]);
   const [groupTypingUsers, setGroupTypingUsers] = useState(new Map());
 
+  // Department-wide chat (all students/supervisors/admin of the department)
+  const [departments, setDepartments] = useState([]);
+  const [selectedDepartment, setSelectedDepartment] = useState(null);
+  const [deptMessages, setDeptMessages] = useState([]);
+  const [deptTypingUsers, setDeptTypingUsers] = useState(new Map());
+  const [deptNotice, setDeptNotice] = useState("");
+
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const selectedGroupRef = useRef(null);
+  const selectedDepartmentRef = useRef(null);
 
   useEffect(() => { selectedGroupRef.current = selectedGroup; }, [selectedGroup]);
+  useEffect(() => { selectedDepartmentRef.current = selectedDepartment; }, [selectedDepartment]);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -208,6 +217,38 @@ const SupervisorChatBox = () => {
       });
     });
 
+    sock.on("receive_dept_message", (msg) => {
+      const isOpen = String(selectedDepartmentRef.current?._id) === String(msg.departmentId);
+      if (isOpen) {
+        setDeptMessages((prev) => {
+          if (prev.some((m) => String(m._id) === String(msg._id))) return prev;
+          if (msg.tempId && prev.some((m) => m.tempId && String(m.tempId) === String(msg.tempId))) {
+            return prev.map((m) => (m.tempId && String(m.tempId) === String(msg.tempId) ? { ...msg } : m));
+          }
+          return [...prev, msg];
+        });
+      }
+    });
+
+    sock.on("dept_message_rejected", ({ reason }) => {
+      setDeptNotice(reason || "Your message couldn't be sent.");
+      setTimeout(() => setDeptNotice(""), 5000);
+    });
+
+    sock.on("dept_user_typing", ({ departmentId, senderId, senderName }) => {
+      if (String(selectedDepartmentRef.current?._id) !== String(departmentId)) return;
+      setDeptTypingUsers((prev) => new Map(prev).set(String(senderId), senderName));
+    });
+
+    sock.on("dept_user_stop_typing", ({ departmentId, senderId }) => {
+      if (String(selectedDepartmentRef.current?._id) !== String(departmentId)) return;
+      setDeptTypingUsers((prev) => {
+        const next = new Map(prev);
+        next.delete(String(senderId));
+        return next;
+      });
+    });
+
     return () => {
       sock.off("online_users");
       sock.off("user_status");
@@ -220,6 +261,10 @@ const SupervisorChatBox = () => {
       sock.off("receive_group_message");
       sock.off("group_user_typing");
       sock.off("group_user_stop_typing");
+      sock.off("receive_dept_message");
+      sock.off("dept_message_rejected");
+      sock.off("dept_user_typing");
+      sock.off("dept_user_stop_typing");
     };
   }, [token, currentUserId]);
 
@@ -237,6 +282,24 @@ const SupervisorChatBox = () => {
       }
     };
     fetchGroups();
+  }, [currentUserId, token]);
+
+  // Load my department chat(s)
+  useEffect(() => {
+    if (!currentUserId || !token) return;
+    const fetchDepartments = async () => {
+      try {
+        const res = await axios.get(`${API}/auth/department-chat/my-departments`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const depts = res.data.departments || [];
+        setDepartments(depts);
+        if (depts.length === 1) setSelectedDepartment(depts[0]);
+      } catch (err) {
+        console.error("Failed to load department chat:", err);
+      }
+    };
+    fetchDepartments();
   }, [currentUserId, token]);
 
   // Load contacts: students from assigned project teams + all admins
@@ -331,14 +394,40 @@ const SupervisorChatBox = () => {
     );
   }, [selectedGroup, token, socket]);
 
+  // Load messages when selecting the department chat
+  useEffect(() => {
+    if (!selectedDepartment || !token) return;
+    const fetchDeptMessages = async () => {
+      try {
+        const res = await axios.get(`${API}/auth/department-chat/${selectedDepartment._id}/messages`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setDeptMessages(res.data.messages || []);
+      } catch (err) {
+        console.error("Failed to load department messages:", err);
+      }
+    };
+    fetchDeptMessages();
+
+    if (socket) socket.emit("mark_dept_read", { departmentId: selectedDepartment._id });
+  }, [selectedDepartment, token, socket]);
+
   const openUser = (user) => {
     setSelectedGroup(null);
+    setSelectedDepartment(null);
     setSelectedUser(user);
   };
 
   const openGroup = (group) => {
     setSelectedUser(null);
+    setSelectedDepartment(null);
     setSelectedGroup(group);
+  };
+
+  const openDepartment = (dept) => {
+    setSelectedUser(null);
+    setSelectedGroup(null);
+    setSelectedDepartment(dept);
   };
 
   const handleTyping = (e) => {
@@ -349,6 +438,12 @@ const SupervisorChatBox = () => {
       clearTimeout(typingTimeoutRef.current);
       typingTimeoutRef.current = setTimeout(() => {
         socket.emit("group_stop_typing", { teamId: selectedGroup.teamId });
+      }, 1500);
+    } else if (selectedDepartment) {
+      socket.emit("dept_typing", { departmentId: selectedDepartment._id, senderName: currentUserName });
+      clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = setTimeout(() => {
+        socket.emit("dept_stop_typing", { departmentId: selectedDepartment._id });
       }, 1500);
     } else if (selectedUser) {
       socket.emit("typing", { receiverId: selectedUser._id });
@@ -428,8 +523,47 @@ const SupervisorChatBox = () => {
     setFilePreview(null);
   };
 
+  const handleSendDeptMessage = () => {
+    if ((!newMessage.trim() && !filePreview) || !selectedDepartment || !socket) return;
+
+    const tempId = `temp_${Date.now()}`;
+    const optimistic = {
+      _id: tempId,
+      tempId,
+      departmentId: selectedDepartment._id,
+      senderId: currentUserId,
+      senderName: currentUserName,
+      senderRole: "Supervisor",
+      message: newMessage.trim(),
+      fileUrl: filePreview?.url || null,
+      fileName: filePreview?.name || null,
+      fileSize: filePreview?.size || null,
+      fileType: filePreview?.type || null,
+      timestamp: new Date(),
+    };
+
+    setDeptMessages((prev) => [...prev, optimistic]);
+
+    socket.emit("send_dept_message", {
+      departmentId: selectedDepartment._id,
+      senderName: currentUserName,
+      senderRole: "Supervisor",
+      message: newMessage.trim(),
+      fileUrl: filePreview?.url || null,
+      fileName: filePreview?.name || null,
+      fileSize: filePreview?.size || null,
+      fileType: filePreview?.type || null,
+      tempId,
+    });
+
+    socket.emit("dept_stop_typing", { departmentId: selectedDepartment._id });
+    setNewMessage("");
+    setFilePreview(null);
+  };
+
   const handleSend = () => {
     if (selectedGroup) handleSendGroupMessage();
+    else if (selectedDepartment) handleSendDeptMessage();
     else handleSendMessage();
   };
 
@@ -543,9 +677,35 @@ const SupervisorChatBox = () => {
           >
             Groups{groups.length > 0 ? ` (${groups.length})` : ""}
           </button>
+          <button
+            className={`wa-tab-btn ${sidebarTab === "department" ? "active" : ""}`}
+            onClick={() => setSidebarTab("department")}
+          >
+            Department
+          </button>
         </div>
 
-        {sidebarTab === "groups" ? (
+        {sidebarTab === "department" ? (
+          <div className="wa-contact-list wa-group-list">
+            {departments.length === 0 ? (
+              <div className="wa-empty-tab">No department chat available.</div>
+            ) : (
+              departments.map((dept) => (
+                <div
+                  key={dept._id}
+                  className={`wa-contact ${selectedDepartment?._id === dept._id ? "active" : ""}`}
+                  onClick={() => openDepartment(dept)}
+                >
+                  <div className="wa-avatar group-avatar">🏛️</div>
+                  <div className="wa-contact-info">
+                    <span className="wa-contact-name">{dept.name}</span>
+                    <span className="wa-contact-sub">All students, supervisors &amp; admin — {dept.code}</span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        ) : sidebarTab === "groups" ? (
           <div className="wa-contact-list wa-group-list">
             {groups.length === 0 ? (
               <div className="wa-empty-tab">No groups yet.</div>
@@ -615,7 +775,80 @@ const SupervisorChatBox = () => {
 
       {/* Chat Area */}
       <div className="wa-chat">
-        {selectedGroup ? (
+        {selectedDepartment ? (
+          <>
+            <div className="wa-chat-header">
+              <div className="wa-avatar large group-avatar">🏛️</div>
+              <div className="wa-header-info">
+                <span className="wa-header-name">{selectedDepartment.name} — Department</span>
+                <span className="wa-header-status">
+                  {deptTypingUsers.size > 0
+                    ? `${Array.from(deptTypingUsers.values()).join(", ")} typing...`
+                    : "All students, supervisors & admin of this department"}
+                </span>
+              </div>
+            </div>
+
+            {deptNotice && <div className="file-preview-bar" style={{ color: "#b91c1c" }}>{deptNotice}</div>}
+
+            <div className="wa-messages">
+              {deptMessages.map((msg, i) => {
+                const isMine = String(msg.senderId) === String(currentUserId);
+                return (
+                  <div key={msg._id || i} className={`wa-bubble-wrap ${isMine ? "mine" : "theirs"}`}>
+                    <div className={`wa-bubble ${isMine ? "sent" : "received"}`}>
+                      {!isMine && <p className="bubble-sender">{msg.senderName} ({msg.senderRole})</p>}
+                      {msg.fileUrl && renderMediaInMessage(msg)}
+                      {msg.message && <p className="bubble-text">{msg.message}</p>}
+                      <div className="wa-bubble-meta">
+                        <span className="wa-time">{formatTime(msg.timestamp)}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {filePreview && (
+              <div className="file-preview-bar">
+                {filePreview.type === "image" && <img src={filePreview.localUrl} alt="preview" className="fp-img" />}
+                {filePreview.type === "video" && <video src={filePreview.localUrl} className="fp-video" muted />}
+                {filePreview.type === "document" && <span className="fp-doc">📄 {filePreview.name}</span>}
+                <button className="fp-remove" onClick={() => setFilePreview(null)}>✕</button>
+              </div>
+            )}
+
+            <div className="wa-input-bar">
+              <button
+                className="attach-btn"
+                onClick={() => fileInputRef.current?.click()}
+                title="Attach file, image or video"
+                disabled={uploadingFile}
+              >
+                {uploadingFile ? "⏳" : "📎"}
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*,video/*,.pdf,.doc,.docx,.pptx,.xlsx,.zip"
+                style={{ display: "none" }}
+                onChange={handleFileSelect}
+              />
+              <textarea
+                className="wa-input"
+                placeholder="Message the department..."
+                value={newMessage}
+                onChange={handleTyping}
+                onKeyDown={handleKeyDown}
+                rows={1}
+              />
+              <button className="wa-send-btn" onClick={handleSend} disabled={!newMessage.trim() && !filePreview}>
+                ➤
+              </button>
+            </div>
+          </>
+        ) : selectedGroup ? (
           <>
             <div className="wa-chat-header">
               <div className="wa-avatar large group-avatar">👥</div>

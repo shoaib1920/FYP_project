@@ -56,6 +56,11 @@ const DepartmentSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    // Department-wide chat moderation — admin can mute (read-only) or fully
+    // exclude (no access at all) a disruptive member. Untyped ObjectId since
+    // a member may be a student ("users") or a supervisor, two collections.
+    mutedMembers: [{ type: mongoose.Schema.Types.ObjectId }],
+    excludedMembers: [{ type: mongoose.Schema.Types.ObjectId }],
     createdAt: {
       type: Date,
       default: Date.now,

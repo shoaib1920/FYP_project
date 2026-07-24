@@ -477,6 +477,23 @@ const { getMyGroups, getGroupMessages } = require("../Controllers/GroupChatContr
 route.get("/group-chats", authenticate, getMyGroups);
 route.get("/group-chats/:teamId/messages", authenticate, getGroupMessages);
 
+const {
+  getMyDepartments,
+  getDepartmentMessages,
+  getModerationMembers,
+  muteMember,
+  unmuteMember,
+  excludeMember,
+  restoreMember,
+} = require("../Controllers/DepartmentChatController");
+route.get("/department-chat/my-departments", authenticate, getMyDepartments); // Which department chat(s) this user belongs to
+route.get("/department-chat/:departmentId/messages", authenticate, getDepartmentMessages);
+route.get("/admin/department-chat/:departmentId/members", authenticate, authorize("admin"), getModerationMembers);
+route.put("/admin/department-chat/:departmentId/mute/:userId", authenticate, authorize("admin"), muteMember);
+route.put("/admin/department-chat/:departmentId/unmute/:userId", authenticate, authorize("admin"), unmuteMember);
+route.put("/admin/department-chat/:departmentId/exclude/:userId", authenticate, authorize("admin"), excludeMember);
+route.put("/admin/department-chat/:departmentId/restore/:userId", authenticate, authorize("admin"), restoreMember);
+
 // ─────────────────────────────────────────────
 // 🤖 AI CODING ASSISTANT (Gemini)
 // ─────────────────────────────────────────────
