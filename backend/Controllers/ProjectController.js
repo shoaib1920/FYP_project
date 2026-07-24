@@ -1,5 +1,5 @@
 const Project = require("../Models/Project");
-const Notification = require("../Models/Notification");
+const { createNotification } = require("../utils/notify");
 const AssignedProject = require("../Models/SupervisorModels/AssignedProject");
 const Users = require("../Models/Users");
 const AcademicTerm = require("../Models/AcademicTerm");
@@ -11,6 +11,19 @@ const { logAction } = require("./AuditLogController");
 const fs = require("fs");
 const pdfParse = require("pdf-parse");
 const { analyzeFinalReportQuality } = require("../utils/geminiService");
+
+// Deletes a previously-uploaded file from local disk — best-effort, must
+// never throw or block the caller. Used so superseded/rejected final reports
+// don't accumulate forever on disk (there's no revision history for them,
+// unlike proposals, which deliberately keep old proposalReportUrls).
+const deleteUploadedFile = (relativePath) => {
+  if (!relativePath) return;
+  try {
+    if (fs.existsSync(relativePath)) fs.unlinkSync(relativePath);
+  } catch (err) {
+    console.error("Failed to delete old uploaded file:", relativePath, err.message);
+  }
+};
 
 // Extracts text from a locally-stored report PDF and runs it through the AI
 // quality check — best-effort, must never throw or block report submission.
@@ -25,14 +38,6 @@ const runReportQualityCheck = async (localFilePath) => {
   } catch (err) {
     console.error("Final report AI quality check failed:", err.message);
     return null;
-  }
-};
-
-const createNotification = async ({ userId, title, message, relatedType, relatedId }) => {
-  try {
-    await Notification.create({ userId, title, message, relatedType, relatedId });
-  } catch (err) {
-    console.error("Notification creation failed:", err);
   }
 };
 
@@ -144,8 +149,9 @@ exports.getProjectsByTeam = async (req, res) => {
     const { teamId } = req.params;
     const projects = await Project.find({ teamId })
       .populate("supervisorId", "name email")
-      .populate("teamLeaderId", "name email")
-      .lean();
+      .populate("teamLeaderId", "name email");
+
+    await Promise.all(projects.map((p) => checkAndFireFinalDeadlineReminder(p)));
 
     res.json({ success: true, projects });
   } catch (err) {
@@ -293,6 +299,7 @@ exports.submitFinalReport = async (req, res) => {
       return res.status(400).json({ message: "No report file uploaded" });
     }
 
+    deleteUploadedFile(project.finalReportUrl); // clean up whatever was there before this resubmission
     project.finalReportUrl = req.file.path.replace(/\\/g, "/");
     project.status = "UNDER_REVIEW";
 
@@ -346,6 +353,7 @@ exports.rejectFinalReport = async (req, res) => {
       return res.status(400).json({ message: "There is no pending final report submission to reject" });
     }
 
+    deleteUploadedFile(project.finalReportUrl); // rejected — the file has served its purpose, don't let it linger
     project.finalReportRejection = { reason: reason.trim(), rejectedAt: new Date() };
     project.status = "IN_PROGRESS";
     project.finalReportUrl = "";
@@ -1219,6 +1227,49 @@ const checkAndFireVivaReminders = async (project, team = null) => {
   ));
 
   project.vivaDetails.remindersSent = [...alreadySent, ...due];
+  await project.save();
+};
+
+// Fires a "Final Submission Deadline Reminder" (3 days out, then 1 day out)
+// to the student team and supervisor for any project that hasn't submitted
+// its final report yet — piggy-backed on the student's project page load,
+// same lazy pattern as viva reminders above, since there's no cron job here.
+const checkAndFireFinalDeadlineReminder = async (project, team = null) => {
+  if (["UNDER_REVIEW", "COMPLETED", "CANCELLED"].includes(project.status)) return;
+
+  const activeTerm = await AcademicTerm.findOne({ isActive: true });
+  if (!activeTerm) return;
+
+  const msPerDay = 1000 * 60 * 60 * 24;
+  const daysUntil = Math.ceil((new Date(activeTerm.finalSubmissionDeadline).getTime() - Date.now()) / msPerDay);
+  const thresholds = [3, 1];
+  const alreadySent = project.finalDeadlineRemindersSent || [];
+  const due = thresholds.filter((t) => daysUntil <= t && daysUntil >= 0 && !alreadySent.includes(t));
+  if (due.length === 0) return;
+
+  const resolvedTeam = team || (await Team.findById(project.teamId?._id || project.teamId).select("members createdBy"));
+
+  const recipientIds = new Set();
+  if (resolvedTeam) {
+    recipientIds.add(String(resolvedTeam.createdBy));
+    resolvedTeam.members.forEach((m) => recipientIds.add(String(m)));
+  }
+  if (project.supervisorId) recipientIds.add(String(project.supervisorId?._id || project.supervisorId));
+
+  const when = daysUntil <= 0 ? "today" : daysUntil === 1 ? "tomorrow" : `in ${daysUntil} days`;
+  const when24 = new Date(activeTerm.finalSubmissionDeadline).toLocaleDateString();
+
+  await Promise.all([...recipientIds].map((uid) =>
+    createNotification({
+      userId: uid,
+      title: "Final Submission Deadline Reminder",
+      message: `Reminder: the final report submission deadline for "${activeTerm.name}" is ${when} (${when24}) — "${project.title}" hasn't been submitted yet.`,
+      relatedType: "project",
+      relatedId: project._id,
+    })
+  ));
+
+  project.finalDeadlineRemindersSent = [...alreadySent, ...due];
   await project.save();
 };
 

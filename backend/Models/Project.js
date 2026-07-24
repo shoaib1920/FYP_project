@@ -110,6 +110,11 @@ const projectSchema = new mongoose.Schema(
       default: "",
     },
 
+    // Which final-submission-deadline reminder thresholds (days-out) have
+    // already fired for this project — same lazy piggy-backed pattern as
+    // vivaDetails.remindersSent below, since there's no cron job here.
+    finalDeadlineRemindersSent: [{ type: Number }],
+
     // AI content-quality signal on the final report (same OpenRouter model
     // used for the proposal quality check), shown to the supervisor as a
     // second opinion before they grade — not a plagiarism-database match.

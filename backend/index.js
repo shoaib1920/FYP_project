@@ -41,6 +41,7 @@ const io = new Server(server, {
 // In-memory maps: userId -> socketId, userId -> lastSeen Date
 const onlineUsers = new Map();
 const lastSeenMap = new Map();
+require("./utils/socketRegistry").register(io, onlineUsers); // let controllers push real-time notifications
 
 // Socket.io JWT auth middleware
 io.use((socket, next) => {

@@ -19,6 +19,10 @@ const teamSchema = new mongoose.Schema(
         invitedAt: { type: Date, default: Date.now },
       },
     ],
+    // Which proposal-deadline reminder thresholds (days-out) have already
+    // fired for this team, so the lazy piggy-backed check doesn't re-notify
+    // on every page load — same pattern as Project.vivaDetails.remindersSent.
+    proposalDeadlineRemindersSent: [{ type: Number }],
   },
   { timestamps: true }
 );

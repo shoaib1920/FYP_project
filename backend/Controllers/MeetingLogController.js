@@ -1,14 +1,6 @@
 const MeetingLog = require("../Models/MeetingLog");
 const Project = require("../Models/Project");
-const Notification = require("../Models/Notification");
-
-const createNotification = async ({ userId, title, message, relatedType, relatedId }) => {
-  try {
-    await Notification.create({ userId, title, message, relatedType, relatedId });
-  } catch (err) {
-    console.error("Notification creation failed:", err);
-  }
-};
+const { createNotification } = require("../utils/notify");
 
 // POST /meetings
 // Supervisor schedules a meeting

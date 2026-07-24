@@ -1,10 +1,26 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import axios from "axios";
+import { io } from "socket.io-client";
 import { FaRegBell, FaBellSlash, FaTimes } from "react-icons/fa";
 import styles from "./styles.module.css";
 
 const API = process.env.REACT_APP_API_URL;
-const POLL_INTERVAL = 25000;
+const POLL_INTERVAL = 25000; // fallback only — new_notification socket event is the primary path now
+
+// Keyed by tokenKey (student/supervisor/admin all share this one component)
+// so each role's bell gets its own connection rather than accidentally
+// reusing another role's socket if more than one were ever mounted at once.
+const socketInstances = {};
+function getNotifSocket(tokenKey, token) {
+  if (!socketInstances[tokenKey] || !socketInstances[tokenKey].connected) {
+    socketInstances[tokenKey] = io(API, {
+      auth: { token },
+      transports: ["polling"],
+      reconnectionAttempts: 5,
+    });
+  }
+  return socketInstances[tokenKey];
+}
 
 function formatTimeAgo(date) {
   const diffMs = Date.now() - new Date(date).getTime();
@@ -45,6 +61,25 @@ const Notifications = ({ onOpenRelated, tokenKey = "token" }) => {
     const interval = setInterval(fetchNotifications, POLL_INTERVAL);
     return () => clearInterval(interval);
   }, [fetchNotifications]);
+
+  // Real-time push — a new notification appears instantly instead of waiting
+  // for the next poll or a manual reload.
+  useEffect(() => {
+    const token = localStorage.getItem(tokenKey);
+    if (!token) return;
+
+    const socket = getNotifSocket(tokenKey, token);
+    const handleNew = (notification) => {
+      setNotifications((prev) => {
+        if (prev.some((n) => String(n._id) === String(notification._id))) return prev;
+        return [notification, ...prev];
+      });
+      setUnreadCount((prev) => prev + 1);
+    };
+
+    socket.on("new_notification", handleNew);
+    return () => socket.off("new_notification", handleNew);
+  }, [tokenKey]);
 
   useEffect(() => {
     const handleClickOutside = (e) => {

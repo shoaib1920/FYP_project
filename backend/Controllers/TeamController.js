@@ -1,7 +1,7 @@
 // controllers/teamController.js
 const Team = require("../Models/Team");
 const Users = require("../Models/Users");
-const Notification = require("../Models/Notification");
+const { createNotification } = require("../utils/notify");
 
 // Create a new team. The creator joins immediately; everyone else is invited
 // and only becomes a member once they accept via respondToInvite.
@@ -53,14 +53,16 @@ exports.createTeam = async (req, res) => {
 
     await Users.findByIdAndUpdate(createdBy, { designation: "TeamLeader" });
 
-    await Notification.insertMany(
-      invitees.map((u) => ({
-        userId: u._id,
-        title: "Team Invite",
-        message: `${creatorName || creator.name} invited you to join the team "${subject}".`,
-        relatedType: "TeamInvite",
-        relatedId: newTeam._id,
-      }))
+    await Promise.all(
+      invitees.map((u) =>
+        createNotification({
+          userId: u._id,
+          title: "Team Invite",
+          message: `${creatorName || creator.name} invited you to join the team "${subject}".`,
+          relatedType: "TeamInvite",
+          relatedId: newTeam._id,
+        })
+      )
     );
 
     res.status(201).json({
@@ -130,7 +132,7 @@ const disbandIfDeadOnArrival = async (team, reasonMessage) => {
   await Team.findByIdAndDelete(team._id);
   await Users.findByIdAndUpdate(team.createdBy, { designation: "Student" });
 
-  await Notification.create({
+  await createNotification({
     userId: team.createdBy,
     title: "Team Disbanded",
     message: reasonMessage,
@@ -188,14 +190,16 @@ exports.inviteMoreMembers = async (req, res) => {
     );
     await team.save();
 
-    await Notification.insertMany(
-      invitees.map((u) => ({
-        userId: u._id,
-        title: "Team Invite",
-        message: `${team.creatorName} invited you to join the team "${team.subject}".`,
-        relatedType: "TeamInvite",
-        relatedId: team._id,
-      }))
+    await Promise.all(
+      invitees.map((u) =>
+        createNotification({
+          userId: u._id,
+          title: "Team Invite",
+          message: `${team.creatorName} invited you to join the team "${team.subject}".`,
+          relatedType: "TeamInvite",
+          relatedId: team._id,
+        })
+      )
     );
 
     res.status(200).json({ success: true, message: "Invites sent", team });
@@ -271,7 +275,7 @@ exports.removeMember = async (req, res) => {
     );
     if (!disbanded) await team.save();
 
-    await Notification.create({
+    await createNotification({
       userId: memberId,
       title: "Removed From Team",
       message: `You've been removed from the team "${team.subject}" and are free to join another team.`,
@@ -318,7 +322,7 @@ exports.respondToInvite = async (req, res) => {
 
       await team.save();
 
-      await Notification.create({
+      await createNotification({
         userId: team.createdBy,
         title: "Invite Declined",
         message: `${invite.name} declined your invite to "${team.subject}".`,
@@ -349,7 +353,7 @@ exports.respondToInvite = async (req, res) => {
       { $pull: { pendingInvites: { student: userId } } }
     );
 
-    await Notification.create({
+    await createNotification({
       userId: team.createdBy,
       title: "Invite Accepted",
       message: `${invite.name} joined your team "${team.subject}".`,

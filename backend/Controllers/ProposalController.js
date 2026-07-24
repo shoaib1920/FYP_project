@@ -3,7 +3,7 @@ const Proposal = require('../Models/Proposal');
 const Team = require('../Models/Team');
 const Users = require('../Models/Users');
 const Supervisor = require('../Models/supervisorModel');
-const Notification = require('../Models/Notification');
+const { createNotification } = require('../utils/notify');
 const AssignedProject = require('../Models/SupervisorModels/AssignedProject');
 const AcademicTerm = require('../Models/AcademicTerm');
 const sendEmail = require('../utils/emailService');
@@ -21,14 +21,43 @@ const runQualityCheck = async (proposal) => {
   }
 };
 
+// Fires a "Proposal Deadline Reminder" at 3-days-out and 1-day-out to a team
+// that doesn't have an accepted proposal yet — piggy-backed on the student's
+// proposals page load (same lazy pattern as ProjectController's viva
+// reminders), since there's no cron job in this deployment.
+const checkAndFireProposalDeadlineReminder = async (team) => {
+  const activeTerm = await AcademicTerm.findOne({ isActive: true });
+  if (!activeTerm) return;
 
-const createNotification = async ({ userId, title, message, relatedType, relatedId }) => {
-  try {
-    await Notification.create({ userId, title, message, relatedType, relatedId });
-  } catch (err) {
-    console.error('Notification creation failed:', err);
-  }
+  const msPerDay = 1000 * 60 * 60 * 24;
+  const daysUntil = Math.ceil((new Date(activeTerm.proposalDeadline).getTime() - Date.now()) / msPerDay);
+  const thresholds = [3, 1];
+  const alreadySent = team.proposalDeadlineRemindersSent || [];
+  const due = thresholds.filter((t) => daysUntil <= t && daysUntil >= 0 && !alreadySent.includes(t));
+  if (due.length === 0) return;
+
+  const hasAcceptedProposal = await Proposal.exists({ teamId: team._id, status: 'SUPERVISOR_ACCEPTED' });
+  if (hasAcceptedProposal) return;
+
+  const recipientIds = new Set([String(team.createdBy), ...team.members.map(String)]);
+  const when = daysUntil <= 0 ? 'today' : daysUntil === 1 ? 'tomorrow' : `in ${daysUntil} days`;
+  const when24 = new Date(activeTerm.proposalDeadline).toLocaleDateString();
+
+  await Promise.all([...recipientIds].map((uid) =>
+    createNotification({
+      userId: uid,
+      title: 'Proposal Deadline Reminder',
+      message: `Reminder: the proposal submission deadline for "${activeTerm.name}" is ${when} (${when24}). Submit or resubmit your proposal soon.`,
+      relatedType: 'proposal',
+      relatedId: team._id,
+    })
+  ));
+
+  team.proposalDeadlineRemindersSent = [...alreadySent, ...due];
+  await team.save();
 };
+
+
 
 const emailTeamLeader = async (teamLeaderId, subject, bodyHtml) => {
   try {
@@ -235,7 +264,8 @@ exports.analyzeProposalDraft = async (req, res) => {
 exports.getStudentProposals = async (req, res) => {
   try {
     const userId = req.user._id;
-    const teams = await Team.find({ $or: [{ members: userId }, { createdBy: userId }] }, '_id').lean();
+    const teams = await Team.find({ $or: [{ members: userId }, { createdBy: userId }] });
+    await Promise.all(teams.map((team) => checkAndFireProposalDeadlineReminder(team)));
     const teamIds = teams.map((t) => t._id);
     const proposals = await Proposal.find({ teamId: { $in: teamIds } })
       .populate('teamId', 'subject')
