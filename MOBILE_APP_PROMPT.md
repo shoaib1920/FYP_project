@@ -87,9 +87,10 @@ There is no versioned API prefix (no `/api/v1`), no root health-check route.
 
 **Projects** (spawned when a proposal is accepted)
 - 🔑 `GET /auth/my-viva` (student's own viva — also opportunistically fires viva reminder notifications, see §4), 🔒supervisor `GET /auth/supervisor/schedule` (upcoming vivas+meetings), 🔒admin `GET /auth/admin/viva-schedule` (department-wide upcoming vivas)
-- 🔑 `GET /auth/projects/team/:teamId`, `GET /auth/projects/supervisor`, `GET /auth/projects/:projectId`, `PUT /auth/projects/:projectId/details`, `PUT /auth/projects/:projectId/progress`
-- 🔑 `PUT /auth/projects/:projectId/final-report` (multipart, field `finalReport`, PDF, 20MB max — triggers server-side AI report-quality analysis)
-- 🔒supervisor: `POST /auth/projects/:projectId/analyze-report`, `PUT /auth/projects/:projectId/complete`, `PUT /auth/projects/:projectId/regrade`, `PUT /auth/projects/:projectId/grade-phase`, `PUT /auth/projects/:projectId/grade-draft`
+- 🔑 `GET /auth/projects/team/:teamId` (also opportunistically fires final-submission-deadline reminders, see §4), `GET /auth/projects/supervisor`, `GET /auth/projects/:projectId`, `PUT /auth/projects/:projectId/details`, `PUT /auth/projects/:projectId/progress`
+- 🔑 `PUT /auth/projects/:projectId/final-report` (multipart, field `finalReport`, PDF, 20MB max — triggers server-side AI report-quality **and** AI-generated-content analysis, see §2's `reportQualityCheck`; also deletes any previously-uploaded final report file from disk so resubmissions don't leave orphaned files)
+- 🔒supervisor: `POST /auth/projects/:projectId/analyze-report` (re-run the AI check on demand), `PUT /auth/projects/:projectId/complete`, `PUT /auth/projects/:projectId/regrade`, `PUT /auth/projects/:projectId/grade-phase`, `PUT /auth/projects/:projectId/grade-draft`
+- 🔒supervisor `PUT /auth/projects/:projectId/reject-final-report` — body `{ reason }` (required, free text). Only valid while `status === "UNDER_REVIEW"`. Sends the submission back to the team: resets `status` to `IN_PROGRESS`, clears `finalReportUrl`/`reportQualityCheck` (deleting the old file from disk), records `finalReportRejection: { reason, rejectedAt }`, and notifies the team. This is the only "undo a final report submission" mechanism — there's no student-facing withdraw button.
 - 🔑 `PUT /auth/projects/:projectId/request-appeal` (student appeals a released grade)
 - 🔒admin grading/viva: `GET /auth/admin/projects`, `GET /auth/admin/projects/grades`, `PUT /auth/admin/projects/:projectId/release-grades`, `.../flag-grades`, `.../resolve-appeal`, `.../schedule-viva`, `.../grade-viva`
 
@@ -103,6 +104,12 @@ There is no versioned API prefix (no `/api/v1`), no root health-check route.
 
 **Chat (1:1)** — 🔑 `POST /auth/messages/send`, `GET /auth/messages/:receiverId`, `PUT /auth/messages/read/:senderId`, `POST /auth/messages/upload` (multipart, field `file`, 50MB max), `POST /auth/users/status` (bulk online/offline check). 🔓 `GET /auth/chat-senders/:userId`.
 **Chat (team group)** — 🔑 `GET /auth/group-chats`, `GET /auth/group-chats/:teamId/messages`
+
+**Chat (department-wide)** — one all-hands room per department; students/supervisors auto-belong to their own department's room, **admin auto-belongs to every department's room** (the `Admin` model isn't scoped to one department, so admin oversees/moderates all of them). Anyone can post freely by default.
+- 🔑 `GET /auth/department-chat/my-departments` — which department chat(s) this user belongs to (one entry for student/supervisor, all departments for admin)
+- 🔑 `GET /auth/department-chat/:departmentId/messages`
+- 🔒admin `GET /auth/admin/department-chat/:departmentId/members` — every student/supervisor in that department plus their current muted/excluded flags
+- 🔒admin `PUT /auth/admin/department-chat/:departmentId/{mute,unmute,exclude,restore}/:userId` — moderation: **muted** = can still read, can't post (enforced server-side on every send, not just hidden client-side); **excluded** = no access at all (403 on history fetch, can't join the socket room)
 
 **Progress logs** — 🔑 `POST /auth/progress-logs`, `GET /auth/progress-logs/:projectId`, `PUT /auth/progress-logs/:logId/review`
 
@@ -132,13 +139,13 @@ All uploads are `multipart/form-data`; the backend stores them on **local disk**
 Pre-validate mime type/size client-side before uploading — server-side rejection surfaces as a generic error, not a clean message.
 
 ### Real-time (Socket.IO)
-Connect with `io(BASE_URL, { auth: { token: <same JWT as Bearer header> } })`. No custom namespaces; one room per team (`team_${teamId}`), auto-joined on connect.
+Connect with `io(BASE_URL, { auth: { token: <same JWT as Bearer header> } })`. No custom namespaces; one room per team (`team_${teamId}`) **and one room per department (`dept_${departmentId}`)**, both auto-joined on connect (department rooms: one for student/supervisor, every department's room for admin — see the department-chat routes above).
 
-Emit: `send_message` `{receiverId, message, fileUrl?, fileName?, fileSize?, fileType?, tempId}`, `mark_read` `{senderId}`, `typing`/`stop_typing` `{receiverId}`, `send_group_message` `{teamId, senderName, senderRole, message, ...}`, `mark_group_read` `{teamId}`, `group_typing`/`group_stop_typing` `{teamId, senderName}`.
+Emit: `send_message` `{receiverId, message, fileUrl?, fileName?, fileSize?, fileType?, tempId}`, `mark_read` `{senderId}`, `typing`/`stop_typing` `{receiverId}`, `send_group_message` `{teamId, senderName, senderRole, message, ...}`, `mark_group_read` `{teamId}`, `group_typing`/`group_stop_typing` `{teamId, senderName}`, `send_dept_message` `{departmentId, senderName, senderRole, message, fileUrl?, fileName?, fileSize?, fileType?, tempId}`, `mark_dept_read` `{departmentId}`, `dept_typing`/`dept_stop_typing` `{departmentId, senderName}`.
 
-Listen for: `user_status` `{userId, status, lastSeen?}`, `online_users` `[userId...]`, `message_sent`, `receive_message`, `message_status_update`, `messages_read` `{by}`, `user_typing`/`user_stop_typing` `{senderId}`, `receive_group_message`, `group_messages_read` `{teamId, by}`, `group_user_typing`/`group_user_stop_typing`.
+Listen for: `user_status` `{userId, status, lastSeen?}`, `online_users` `[userId...]`, `message_sent`, `receive_message`, `message_status_update`, `messages_read` `{by}`, `user_typing`/`user_stop_typing` `{senderId}`, `receive_group_message`, `group_messages_read` `{teamId, by}`, `group_user_typing`/`group_user_stop_typing`, `receive_dept_message`, `dept_messages_read` `{departmentId, by}`, `dept_user_typing`/`dept_user_stop_typing`, `dept_message_rejected` `{departmentId, tempId, reason}` (fires instead of `receive_dept_message` when the sender is muted/excluded — show `reason` to the user, don't just silently drop it), **and `new_notification`** — the full `Notification` document, pushed the instant any backend action creates one for a currently-connected user (proposal decisions, grade releases, viva/deadline reminders, team invites, final-report rejection, etc.). Notifications are otherwise only fetchable via `GET /auth/notifications` (poll-based) — this socket event is what makes them feel instant instead of "check back after reloading."
 
-Presence (`onlineUsers`) is in-memory on the server — it resets on backend restarts. Use the HTTP fallback (`POST /auth/users/status`, `GET /auth/messages/:receiverId` auto-marks-read) for cases where the socket isn't connected (e.g. app backgrounded), matching what the web app does.
+Presence (`onlineUsers`) is in-memory on the server — it resets on backend restarts. Use the HTTP fallback (`POST /auth/users/status`, `GET /auth/messages/:receiverId` auto-marks-read, `GET /auth/notifications` poll) for cases where the socket isn't connected (e.g. app backgrounded), matching what the web app does.
 
 ---
 
@@ -157,6 +164,14 @@ Mirror these exactly; a mobile client that invents its own status strings will d
 **Project.evaluationPhases[].phase**: `INTERNAL` (20%) / `MIDTERM` (20%) / `FINAL` (60%), each with its own `status: PENDING | SUBMITTED`, `memberGrades`, `rubricScores`.
 
 **Project.vivaDetails.status**: `SCHEDULED | GRADED`; `mode`: `IN_PERSON | ONLINE`. Overall final mark = `supervisorMarks * 0.6 + vivaMarks * 0.4` (hardcoded weighting).
+
+**Project.reportQualityCheck**: `{ score, issues[], suggestions[], originalityConcerns[], aiGenerated: { likelihoodScore, flaggedPassages: [{text, reason}] }, checkedAt }` — an AI (OpenRouter) second-opinion on the submitted final report, shown to the supervisor. `aiGenerated.likelihoodScore` (0-100) and `flaggedPassages` are a **heuristic judgment call from a general chat model, not a certified plagiarism/AI-detector database** — surface this as an advisory flag ("review before raising it with the student"), never as a verdict or something that auto-blocks a submission.
+
+**Project.finalReportRejection**: `{ reason, rejectedAt }` — set when a supervisor rejects a submitted final report (see the `reject-final-report` route above); a snapshot of only the *most recent* rejection, not a history log.
+
+**`Project.finalDeadlineRemindersSent`** / **`Team.proposalDeadlineRemindersSent`**: `[Number]` arrays tracking which day-thresholds (3, 1) have already fired for the final-submission and proposal deadlines respectively — same lazy piggy-backed pattern as `vivaDetails.remindersSent`, not a cron job.
+
+**`Department.mutedMembers`** / **`excludedMembers`**: `[ObjectId]` (untyped — a member may be in the `users` or `Supervisor` collection) — see the department-chat moderation routes above.
 
 **ProgressLog.status**: `PENDING | REVIEWED` (weekly report awaiting/has supervisor feedback)
 
@@ -253,7 +268,7 @@ class StatusColors {
 ### Typography
 Primary stack: `'Segoe UI', Arial, sans-serif`. Code/join-code display: `'Consolas', 'Courier New', monospace`. On mobile, use the platform system font (San Francisco / Roboto) as the closest equivalent, or bundle "Segoe UI"-adjacent (e.g. `Inter`) if exact parity matters.
 
-Font sizes observed: 11-12.5px (badges/meta), 13-14px (body), 15-17px (section titles), 22-24px/weight 800 (hero headings), fractional sizes like `12.5px`/`13.5px` are common (not a strict scale).
+Font sizes observed: 11-12.5px (badges/meta), 13-14px (body), 15-17px (section titles), 22-24px/weight 800 (hero headings), fractional sizes like `12.5px`/`13.5px` are common (not a strict scale). The web app also applies a sitewide `zoom: 1.08` on `<body>` as a blunt "make everything slightly less cramped" pass (since every module hardcodes its own px values with no root-relative sizing to bump instead) — **don't try to replicate this on mobile**; it's a web-only rendering hack. Just pick comfortably-sized text per the scale above directly in your Flutter theme, and let the OS's own text-scaling/accessibility settings work normally (don't hardcode a multiplier the way the web app had to).
 
 ### Spacing & radii
 - Page padding: `28px 26px` (or `32px 28px`)
@@ -304,15 +319,20 @@ Use these as `BoxDecoration(boxShadow: ...)` on `Container`s rather than Materia
 
 Translate the web app's flat, state-driven "module switching within one shell" pattern into proper mobile navigation (`go_router` with a `StatefulShellRoute` per role — bottom-tab or drawer branches, each with its own nested `Navigator` stack for detail screens/modals) — do not literally replicate the web's ad-hoc `activeModule` state switching; that was a web-specific shortcut, not something to preserve for its own sake. Gate the three role-specific route branches behind a `redirect` that checks the relevant secure-storage token, mirroring (but centralizing, unlike the web app — see §5) the per-role auth check.
 
-**Student** modules → Dashboard (stats, team, leaderboard), Proposal (submit/track), Project & Tasks (task board, progress logs, live-review notes, final report, deployment links), Team Chat + 1:1 chat, AI Assistant, Templates, Feedback, Notifications, Viva banner (shown contextually on Dashboard/Project when a viva is scheduled).
+**Student** modules → Dashboard (stats, team, leaderboard), Proposal (submit/track), Project & Tasks (task board, progress logs, live-review notes, final report, deployment links), Team Chat + Department Chat + 1:1 chat (all under one "Chats" section — department chat shows as an entry in the "Groups" list, named after the department, not a separate tab, see below), AI Assistant, Templates, Feedback, Notifications, Viva banner (shown contextually on Dashboard/Project when a viva is scheduled).
 
-**Supervisor** modules → Dashboard, Proposal Review, FYP Projects (table with status/progress/links), Live Project Review tool (open live deployment → screenshot → select region → annotate → repeat → submit batch), Weekly Progress Review, Grading (phased + viva), Upcoming Schedule (vivas + meetings, 3-day inline window + "View All"), Department/Templates/Chat.
+**Supervisor** modules → Dashboard, Proposal Review, FYP Projects (table with status/progress/links; a "Reject Submission" action with a required-reason modal appears on any project currently `UNDER_REVIEW`, next to the AI report-quality/AI-generated-content badges), Live Project Review tool (open live deployment → screenshot → select region → annotate → repeat → submit batch), Weekly Progress Review, Grading (phased + viva), Upcoming Schedule (vivas + meetings, 3-day inline window + "View All"), Department Chat (in the Groups list), Templates/1:1 Chat.
 
-**Admin** modules → Dashboard (institution stats + "needs attention" queue), Department Management (create + join-code regeneration), Proposal Approvals, Grade Approval (release/flag), Supervisor/Student management, Academic Calendar, Template Manager, Upcoming Vivas (department-wide, same 3-day-window + "View All" pattern as Supervisor's widget).
+**Admin** modules → Dashboard (institution stats + "needs attention" queue), Department Management (create + join-code regeneration), Proposal Approvals, Grade Approval (release/flag), Supervisor/Student management, Academic Calendar, Template Manager, Upcoming Vivas (department-wide, same 3-day-window + "View All" pattern as Supervisor's widget), Department Chat for every department (admin's "Groups" list — not a separate "Departments" tab) with a **member-moderation panel** (mute/unmute, exclude/restore) opened from within each department's chat.
 
 **Auth screens** (×3 roles, same shape each time): Login, Signup (join-code field for student/supervisor), Forgot Password, Reset Password, Verify Email, Verify-Pending ("check your inbox").
 
-**Notable feature — viva reminders**: the backend fires a "Viva Reminder" notification at 3-days-out and 1-day-out thresholds to the student team + supervisor + all admins, piggy-backed lazily on whichever role's schedule/viva endpoint loads first (no server cron job). The mobile app doesn't need to implement this logic itself — just render `Notification` documents and the `vivaDetails` countdown the same way the web app's `VivaBanner`/`UpcomingSchedule`/`UpcomingVivas` widgets do.
+**UI convention worth copying exactly**: don't give department chat its own separate tab — the web app tried that, and it looked bolted-on/unpolished. It now lives as just another entry inside the existing "Groups" tab (listed above team groups), labeled with the department's own name. Do the same on mobile — one unified "Groups" list mixing team groups and the department-wide chat, not a 3rd tab.
+
+**Notable feature — advance-warning reminders**: the backend fires reminder notifications at 3-days-out and 1-day-out thresholds for three different deadlines, all piggy-backed lazily on whichever relevant endpoint loads first (no server cron job) — the mobile app doesn't need to implement any of this logic, just render the resulting `Notification` documents (which now also arrive in real time over the socket, see §1):
+- **Viva Reminder** — to the student team + supervisor + all admins, via `GET /my-viva` / `GET /supervisor/schedule` / `GET /admin/viva-schedule`.
+- **Proposal Deadline Reminder** — to any team without an accepted proposal yet, via `GET /proposals/student`.
+- **Final Submission Deadline Reminder** — to the team + supervisor for any project not yet submitted, via `GET /projects/team/:teamId`.
 
 ---
 
