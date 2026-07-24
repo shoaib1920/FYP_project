@@ -548,14 +548,14 @@ const AdminChatBox = () => {
             className={`wa-tab-btn ${sidebarTab === "department" ? "active" : ""}`}
             onClick={() => setSidebarTab("department")}
           >
-            Departments{departments.length > 0 ? ` (${departments.length})` : ""}
+            Groups{departments.length > 0 ? ` (${departments.length})` : ""}
           </button>
         </div>
 
         {sidebarTab === "department" ? (
           <div className="wa-contact-list wa-group-list">
             {departments.length === 0 ? (
-              <div className="wa-empty-tab">No departments yet.</div>
+              <div className="wa-empty-tab">No groups yet.</div>
             ) : (
               departments.map((dept) => (
                 <div

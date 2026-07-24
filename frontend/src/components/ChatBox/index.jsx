@@ -717,42 +717,30 @@ const ChatBox = () => {
             className={`wa-tab-btn ${sidebarTab === "groups" ? "active" : ""}`}
             onClick={() => setSidebarTab("groups")}
           >
-            Groups{groups.length > 0 ? ` (${groups.length})` : ""}
-          </button>
-          <button
-            className={`wa-tab-btn ${sidebarTab === "department" ? "active" : ""}`}
-            onClick={() => setSidebarTab("department")}
-          >
-            Department
+            Groups{(groups.length + departments.length) > 0 ? ` (${groups.length + departments.length})` : ""}
           </button>
         </div>
 
-        {sidebarTab === "department" ? (
+        {sidebarTab === "groups" ? (
           <div className="wa-contact-list wa-group-list">
-            {departments.length === 0 ? (
-              <div className="wa-empty-tab">No department chat available.</div>
-            ) : (
-              departments.map((dept) => (
-                <div
-                  key={dept._id}
-                  className={`wa-contact ${selectedDepartment?._id === dept._id ? "active" : ""}`}
-                  onClick={() => openDepartment(dept)}
-                >
-                  <div className="wa-avatar group-avatar">🏛️</div>
-                  <div className="wa-contact-info">
-                    <span className="wa-contact-name">{dept.name}</span>
-                    <span className="wa-contact-sub">All students, supervisors &amp; admin — {dept.code}</span>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        ) : sidebarTab === "groups" ? (
-          <div className="wa-contact-list wa-group-list">
-            {groups.length === 0 ? (
+            {groups.length === 0 && departments.length === 0 ? (
               <div className="wa-empty-tab">No groups yet.</div>
             ) : (
-              groups.map((group) => (
+              <>
+                {departments.map((dept) => (
+                  <div
+                    key={dept._id}
+                    className={`wa-contact ${selectedDepartment?._id === dept._id ? "active" : ""}`}
+                    onClick={() => openDepartment(dept)}
+                  >
+                    <div className="wa-avatar group-avatar">🏛️</div>
+                    <div className="wa-contact-info">
+                      <span className="wa-contact-name">{dept.name}</span>
+                      <span className="wa-contact-sub">All students, supervisors &amp; admin — {dept.code}</span>
+                    </div>
+                  </div>
+                ))}
+                {groups.map((group) => (
                 <div
                   key={group.teamId}
                   className={`wa-contact ${selectedGroup?.teamId === group.teamId ? "active" : ""}`}
@@ -769,7 +757,8 @@ const ChatBox = () => {
                   </div>
                   {group.unreadCount > 0 && <span className="unread-badge">{group.unreadCount}</span>}
                 </div>
-              ))
+              ))}
+              </>
             )}
           </div>
         ) : (
