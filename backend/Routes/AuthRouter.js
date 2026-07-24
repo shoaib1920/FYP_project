@@ -350,6 +350,7 @@ const {
   requestGradeAppeal,
   resolveGradeAppeal,
 } = require("../Controllers/ProjectController");
+const { getProjectDocuments } = require("../Controllers/ProjectDocumentsController");
 
 const finalReportStorage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, "uploads/final-reports/"),
@@ -371,6 +372,7 @@ route.get("/supervisor/schedule", authenticate, authorize("supervisor"), getSupe
 route.get("/projects/team/:teamId", authenticate, getProjectsByTeam);
 route.get("/projects/supervisor", authenticate, getProjectsBySupervisor);
 route.get("/projects/:projectId", authenticate, getProjectById);
+route.get("/projects/:projectId/documents", authenticate, getProjectDocuments); // Consolidated read-only view of every document tied to this project
 route.put("/projects/:projectId/details", authenticate, updateProjectDetails);
 route.put("/projects/:projectId/progress", authenticate, updateProjectProgress);
 route.put("/projects/:projectId/final-report", authenticate, finalReportUpload.single("finalReport"), submitFinalReport);

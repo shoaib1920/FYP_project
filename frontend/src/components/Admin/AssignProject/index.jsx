@@ -19,6 +19,7 @@ import {
   FaFilePdf,
 } from "react-icons/fa";
 import LivePreview from "../../LivePreview";
+import ProjectDocumentsModal from "../../ProjectDocumentsModal";
 import { exportToCSV, exportToPDF } from "../../../utils/exportUtils";
 
 const EXPORT_COLUMNS = [
@@ -56,6 +57,7 @@ const AdminProjects = () => {
   const [deptFilter, setDeptFilter] = useState("ALL");
   const [supervisorFilter, setSupervisorFilter] = useState("ALL");
   const [selectedProject, setSelectedProject] = useState(null);
+  const [showDocuments, setShowDocuments] = useState(false);
   const [previewUrl, setPreviewUrl] = useState(null);
 
   const apiBase = process.env.REACT_APP_API_URL || "";
@@ -429,8 +431,29 @@ const AdminProjects = () => {
                 </a>
               </div>
             )}
+
+            <div className={styles.sectionBlock}>
+              <button
+                type="button"
+                onClick={() => setShowDocuments(true)}
+                style={{
+                  background: "#eff6ff", border: "1px solid #dbeafe", color: "#1e40af",
+                  borderRadius: "8px", padding: "8px 14px", fontSize: "13px", fontWeight: "700", cursor: "pointer",
+                }}
+              >
+                View All Project Documents
+              </button>
+            </div>
           </div>
         </div>
+      )}
+
+      {showDocuments && selectedProject && (
+        <ProjectDocumentsModal
+          projectId={selectedProject._id}
+          tokenKey="adminToken"
+          onClose={() => setShowDocuments(false)}
+        />
       )}
 
       {previewUrl && (

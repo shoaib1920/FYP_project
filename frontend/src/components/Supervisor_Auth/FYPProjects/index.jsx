@@ -23,6 +23,7 @@ import {
 } from "react-icons/fa";
 import LivePreview from "../../LivePreview";
 import LiveReviewModal from "../../LiveReviewModal";
+import ProjectDocumentsModal from "../../ProjectDocumentsModal";
 
 const STATUS_COLORS = {
   ACTIVE:       { bg: "#f3f4f6", color: "#374151" },
@@ -104,6 +105,7 @@ const FYPProjects = () => {
   const [loading, setLoading] = useState(true);
   const [gradeModal, setGradeModal] = useState(null); // { projectId, title, members, isRegrade }
   const [rejectModal, setRejectModal] = useState(null); // { projectId, title }
+  const [documentsProject, setDocumentsProject] = useState(null);
   const [rejectReason, setRejectReason] = useState("");
   const [rejecting, setRejecting] = useState(false);
   const [rubricScores, setRubricScores] = useState({}); // { [memberId]: [score0, score1, ...] }
@@ -982,6 +984,14 @@ const FYPProjects = () => {
         </div>
       )}
 
+      {documentsProject && (
+        <ProjectDocumentsModal
+          projectId={documentsProject._id}
+          tokenKey="token"
+          onClose={() => setDocumentsProject(null)}
+        />
+      )}
+
       {rejectModal && (
         <div className={styles.overlay}>
           <div className={styles.modal}>
@@ -1161,6 +1171,14 @@ const FYPProjects = () => {
                             title="Review History"
                           >
                             <FaHistory />
+                          </button>
+                          <button
+                            type="button"
+                            className={`${styles.iconToolbarBtn} ${styles.iconToolbarGray}`}
+                            onClick={() => setDocumentsProject(project)}
+                            title="All Project Documents"
+                          >
+                            <FaFolderOpen />
                           </button>
                         </div>
                       </div>

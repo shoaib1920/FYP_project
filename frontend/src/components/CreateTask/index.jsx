@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import DeadlineBanner from "../DeadlineBanner";
 import VivaBanner from "../VivaBanner";
 import LivePreview from "../LivePreview";
+import ProjectDocumentsModal from "../ProjectDocumentsModal";
 import { resolveFileUrl } from "../../utils/resolveFileUrl";
 import { generateCompletionCertificate } from "../../utils/certificateUtils";
 import {
@@ -29,6 +30,7 @@ import {
   FaSearch,
   FaBalanceScale,
   FaCommentAlt,
+  FaFolderOpen,
 } from "react-icons/fa";
 
 const CreateTask = () => {
@@ -38,6 +40,7 @@ const CreateTask = () => {
   const [tasks, setTasks] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState(null); // Track editing task
+  const [documentsProject, setDocumentsProject] = useState(null);
   const [taskData, setTaskData] = useState({
     title: "",
     description: "",
@@ -875,6 +878,14 @@ const CreateTask = () => {
         <LivePreview url={previewUrl} title="Live Preview" onClose={() => setPreviewUrl(null)} />
       )}
 
+      {documentsProject && (
+        <ProjectDocumentsModal
+          projectId={documentsProject._id}
+          tokenKey="token"
+          onClose={() => setDocumentsProject(null)}
+        />
+      )}
+
       {/* Final Report Submission Modal */}
       {showReportModal && (
         <div className={styles.modalOverlay}>
@@ -1534,6 +1545,18 @@ const CreateTask = () => {
                               <FaEdit />
                             </button>
                           )}
+                          <button
+                            type="button"
+                            onClick={() => setDocumentsProject(project)}
+                            title="All Project Documents"
+                            style={{
+                              display: "flex", alignItems: "center", justifyContent: "center",
+                              width: "28px", height: "28px", background: "#f3f4f6", border: "1px solid #e5e7eb",
+                              color: "#374151", borderRadius: "7px", fontSize: "13px", cursor: "pointer",
+                            }}
+                          >
+                            <FaFolderOpen />
+                          </button>
                         </div>
                       </div>
                     </td>
