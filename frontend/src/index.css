@@ -7,6 +7,12 @@ body {
 	-moz-osx-font-smoothing: grayscale;
 
 	overflow-x: hidden;
+
+	/* Every module hardcodes its own px font sizes rather than using rem, so
+	   there's no single root font-size to bump. Zoom scales all existing text,
+	   spacing and icons proportionally instead — a modest, sitewide "less
+	   cramped" bump without redesigning every screen individually. */
+	zoom: 1.08;
 }
 
 code {
