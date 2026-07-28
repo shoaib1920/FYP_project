@@ -75,7 +75,7 @@ const AdminDashboard = ({ setActiveModule }) => {
             axios.get(`${apiBase}/auth/admin/projects`, authHeader),
             axios.get(`${apiBase}/auth/proposals/admin`, authHeader),
             axios.get(`${apiBase}/auth/admin/department`, authHeader),
-            axios.get(`${apiBase}/auth/teams`),
+            axios.get(`${apiBase}/auth/teams`, authHeader),
             axios.get(`${apiBase}/auth/users`),
             axios.get(`${apiBase}/auth/supervisors`),
           ]);

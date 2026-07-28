@@ -219,7 +219,7 @@ route.post("/assign-project", assignProject);  // ✅ Corrected POST
 route.post("/sub-project", subProject);
 
 
-  route.get("/teams", getAllTeams);
+  route.get("/teams", authenticate, getAllTeams);
 
   route.get('/student-project/:userId', authenticate, getProjectsByStudent); // Student's own projects only
 

@@ -313,7 +313,7 @@ const ChatBox = () => {
           axios.get(`${API}/auth/users`),
           axios.get(`${API}/auth/supervisors`),
           axios.get(`${API}/auth/admins`, { headers: { Authorization: `Bearer ${token}` } }),
-          axios.get(`${API}/auth/teams`),
+          axios.get(`${API}/auth/teams`, { headers: { Authorization: `Bearer ${token}` } }),
         ]);
 
         const allUsers = usersRes.data.users || usersRes.data || [];

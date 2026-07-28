@@ -76,10 +76,16 @@ exports.createTeam = async (req, res) => {
   }
 };
 
-// Fetch all teams (used for browsing "other teams" in the department)
+// Fetch all teams (used for browsing "other teams" in the department) —
+// scoped to the caller's own department, otherwise students end up browsing
+// every other department's teams too.
 exports.getAllTeams = async (req, res) => {
   try {
-    const teams = await Team.find().populate("members", "name email");
+    const requester = await Users.findById(req.user._id).populate("department", "name");
+    const departmentName = requester?.department?.name;
+
+    const filter = departmentName ? { department: departmentName } : {};
+    const teams = await Team.find(filter).populate("members", "name email");
 
     res.status(200).json({ teams: teams || [] });
   } catch (error) {

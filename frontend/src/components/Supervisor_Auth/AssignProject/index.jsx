@@ -30,8 +30,11 @@ const AssignProjectForm = () => {
 
   const fetchData = async () => {
     try {
+      const token = localStorage.getItem("token");
       const projectRes = await axios.get(`${process.env.REACT_APP_API_URL}/auth/projects`);
-      const groupRes = await axios.get(`${process.env.REACT_APP_API_URL}/auth/teams`);
+      const groupRes = await axios.get(`${process.env.REACT_APP_API_URL}/auth/teams`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
       setProjects(projectRes.data);
       setGroups(groupRes.data);

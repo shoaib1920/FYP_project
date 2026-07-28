@@ -203,7 +203,10 @@ const AssignTask = () => {
       const loggedInUser = JSON.parse(localStorage.getItem("user"));
       if (!loggedInUser || !loggedInUser.id) return;
       const userId = loggedInUser.id;
-      const response = await axios.get(`${process.env.REACT_APP_API_URL}/auth/teams`);
+      const token = localStorage.getItem("token");
+      const response = await axios.get(`${process.env.REACT_APP_API_URL}/auth/teams`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       const allTeams = Array.isArray(response.data.teams) ? response.data.teams : [];
 
       const leaderTeam = allTeams.some(

@@ -95,7 +95,10 @@ const Dashboard = ({ setActiveModule }) => {
 
   const fetchTeams = async () => {
     try {
-      const response = await axios.get(`${process.env.REACT_APP_API_URL}/auth/teams`);
+      const token = localStorage.getItem("token");
+      const response = await axios.get(`${process.env.REACT_APP_API_URL}/auth/teams`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       const teams = response.data.teams;
       const teamMemberIds = teams.flatMap((team) => team.members.map((member) => member._id));
       const responseuser = await axios.get(`${process.env.REACT_APP_API_URL}/auth/users`);
