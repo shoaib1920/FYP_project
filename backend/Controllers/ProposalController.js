@@ -314,10 +314,11 @@ exports.getAdminProposals = async (req, res) => {
     if (academicSession) filter.academicSession = academicSession;
 
     const proposals = await Proposal.find(filter)
-      .populate('teamId', 'subject members')
+      .populate({ path: 'teamId', select: 'subject members', populate: { path: 'members', select: 'name email' } })
       .populate('teamLeaderId', 'name email')
       .populate('preferredSupervisorId', 'name email')
       .populate('assignedSupervisorId', 'name email')
+      .populate('departmentId', 'name')
       .sort({ createdAt: -1 });
 
     res.json({ proposals });
@@ -331,9 +332,10 @@ exports.getSupervisorProposals = async (req, res) => {
   try {
     const supervisorId = req.user._id;
     const proposals = await Proposal.find({ assignedSupervisorId: supervisorId })
-      .populate('teamId', 'subject')
+      .populate({ path: 'teamId', select: 'subject members', populate: { path: 'members', select: 'name email' } })
       .populate('teamLeaderId', 'name email')
       .populate('preferredSupervisorId', 'name email')
+      .populate('departmentId', 'name')
       .sort({ createdAt: -1 });
 
     res.json({ proposals });

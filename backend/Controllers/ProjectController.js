@@ -9,7 +9,7 @@ const Admin = require("../Models/Admin/AdminAuth");
 const sendEmail = require("../utils/emailService");
 const { logAction } = require("./AuditLogController");
 const fs = require("fs");
-const pdfParse = require("pdf-parse");
+const { PDFParse } = require("pdf-parse");
 const { analyzeFinalReportQuality } = require("../utils/geminiService");
 
 // Deletes a previously-uploaded file from local disk — best-effort, must
@@ -28,9 +28,11 @@ const deleteUploadedFile = (relativePath) => {
 // Extracts text from a locally-stored report PDF and runs it through the AI
 // quality check — best-effort, must never throw or block report submission.
 const runReportQualityCheck = async (localFilePath) => {
+  let parser;
   try {
     const buffer = fs.readFileSync(localFilePath);
-    const parsed = await pdfParse(buffer);
+    parser = new PDFParse({ data: buffer });
+    const parsed = await parser.getText();
     const text = (parsed.text || "").trim();
     if (!text) return null; // scanned/image-only PDF, nothing to analyze
     const result = await analyzeFinalReportQuality(text);
@@ -38,6 +40,8 @@ const runReportQualityCheck = async (localFilePath) => {
   } catch (err) {
     console.error("Final report AI quality check failed:", err.message);
     return null;
+  } finally {
+    if (parser) await parser.destroy();
   }
 };
 
@@ -305,10 +309,17 @@ exports.submitFinalReport = async (req, res) => {
 
     await project.save();
 
+    const analyzedFileUrl = project.finalReportUrl;
     const qualityCheck = await runReportQualityCheck(req.file.path);
     if (qualityCheck) {
-      project.reportQualityCheck = qualityCheck;
-      await project.save();
+      // The check can take 10-40s; if the report was rejected or resubmitted
+      // while it was running, finalReportUrl has since moved on — don't
+      // stamp a stale result onto whatever the project now points to.
+      const latest = await Project.findById(projectId).select("finalReportUrl");
+      if (latest && latest.finalReportUrl === analyzedFileUrl) {
+        project.reportQualityCheck = qualityCheck;
+        await project.save();
+      }
     }
 
     await createNotification({

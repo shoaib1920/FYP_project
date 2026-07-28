@@ -9,6 +9,9 @@ import {
   FaHistory,
   FaSearch,
   FaTimes,
+  FaUsers,
+  FaBuilding,
+  FaUserGraduate,
 } from "react-icons/fa";
 
 const STATUS_FILTER_LABEL = {
@@ -304,6 +307,18 @@ const ProposalApprovals = () => {
                   </div>
                 </div>
 
+                <div className={styles.groupMeta}>
+                  <span className={styles.groupMetaChip} title="Team / group name">
+                    <FaUsers /> {proposal.teamId?.subject || "Unknown team"}
+                  </span>
+                  <span className={`${styles.groupMetaChip} ${styles.groupMetaChipDept}`} title="Department">
+                    <FaBuilding /> {proposal.departmentId?.name || "No department"}
+                  </span>
+                  <span className={`${styles.groupMetaChip} ${styles.groupMetaChipMembers}`} title="Team leader">
+                    <FaUserGraduate /> {proposal.teamLeaderId?.name || "Unknown leader"}
+                  </span>
+                </div>
+
                 {expandedProposalId === proposal._id ? (
                   <div className={styles.cardDetails}>
                     <p>
@@ -316,7 +331,10 @@ const ProposalApprovals = () => {
                       <strong>Technologies:</strong> {proposal.technologies}
                     </p>
                     <p>
-                      <strong>Team Leader:</strong> {proposal.teamLeaderId?.name}
+                      <strong>Team Members:</strong>{" "}
+                      {proposal.teamId?.members?.length
+                        ? proposal.teamId.members.map((m) => m.name).join(", ")
+                        : "N/A"}
                     </p>
                     <p>
                       <strong>Category:</strong> {proposal.category || "N/A"}
@@ -379,9 +397,6 @@ const ProposalApprovals = () => {
                   </div>
                 ) : (
                   <div className={styles.cardPreview}>
-                    <p>
-                      <strong>Team Leader:</strong> {proposal.teamLeaderId?.name}
-                    </p>
                     <p>
                       <strong>Category:</strong> {proposal.category || "N/A"}
                     </p>

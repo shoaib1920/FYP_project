@@ -222,6 +222,38 @@
   border: 1px solid #e5e7eb;
 }
 
+.groupMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: -0.5rem 0 1rem;
+}
+
+.groupMetaChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.7rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: #f0f9ff;
+  color: #0369a1;
+  border: 1px solid #e0f2fe;
+}
+
+.groupMetaChipDept {
+  background: #f5f3ff;
+  color: #6d28d9;
+  border-color: #ede9fe;
+}
+
+.groupMetaChipMembers {
+  background: #f0fdf4;
+  color: #15803d;
+  border-color: #dcfce7;
+}
+
 .cardPreview {
   color: #4b5563;
 }

@@ -161,9 +161,7 @@ async function analyzeFinalReportQuality(reportText) {
   // Cap input to stay within the free model's context/cost budget and keep
   // response times low enough to avoid the free tier's request timeout — a
   // report can run to dozens of pages, so this is a representative sample
-  // (opening pages), not the full document. Kept intentionally small since
-  // this call now also does AI-generated-content analysis on top of the
-  // original quality check, which already pushes response time up.
+  // (opening pages), not the full document.
   const MAX_CHARS = 6000;
   const truncated = reportText.length > MAX_CHARS;
   const userText = `${truncated ? "[Note: report truncated to the first ~6,000 characters for review]\n\n" : ""}${reportText.slice(0, MAX_CHARS)}`;
@@ -179,7 +177,11 @@ async function analyzeFinalReportQuality(reportText) {
           { role: "user", content: userText },
         ],
         temperature: 0.3,
-        max_tokens: 900,
+        // issues + suggestions + originalityConcerns + aiGenerated.flaggedPassages
+        // (added later) routinely pushed the old 900-token cap past
+        // finish_reason:"length", truncating the JSON mid-object and silently
+        // falling back to the empty default below on every single report.
+        max_tokens: 2500,
       },
       { headers: buildHeaders(apiKey), timeout: 45000 }
     );
@@ -210,7 +212,8 @@ async function analyzeFinalReportQuality(reportText) {
           : [],
       },
     };
-  } catch {
+  } catch (err) {
+    console.error("Final report quality check: failed to parse AI response as JSON —", err.message, "| finish_reason:", response.data?.choices?.[0]?.finish_reason, "| raw:", raw.slice(0, 300));
     return { score: 50, issues: [], suggestions: [], originalityConcerns: [], aiGenerated: defaultAiGenerated };
   }
 }
