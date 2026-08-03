@@ -451,7 +451,7 @@ const FYPProjects = () => {
       setGradeModal((g) => ({ ...g, copyleaksCheck: res.data.copyleaksCheck }));
       setProjects((prev) => prev.map((p) => (p._id === projectId ? { ...p, copyleaksCheck: res.data.copyleaksCheck } : p)));
     } catch (err) {
-      alert(err.response?.data?.message || "Copyleaks check failed.");
+      alert(err.response?.data?.message || "Plagiarism check failed.");
     } finally {
       setCheckingCopyleaks(false);
     }

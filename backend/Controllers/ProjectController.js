@@ -315,6 +315,9 @@ exports.submitFinalReport = async (req, res) => {
     deleteUploadedFile(project.finalReportUrl); // clean up whatever was there before this resubmission
     project.finalReportUrl = req.file.path.replace(/\\/g, "/");
     project.status = "UNDER_REVIEW";
+    // This is a new file — any plagiarism result on record belongs to whatever
+    // was submitted before, not this one. Clear it so it reads as unchecked.
+    project.copyleaksCheck = { aiPercentage: null, humanPercentage: null, checkedAt: null };
 
     await project.save();
 
@@ -385,6 +388,9 @@ exports.rejectFinalReport = async (req, res) => {
       aiGenerated: { likelihoodScore: null, flaggedPassages: [] },
       checkedAt: null,
     };
+    // The plagiarism result is tied to the file that's being discarded — clear
+    // it so the next submission isn't shown a stale result from this one.
+    project.copyleaksCheck = { aiPercentage: null, humanPercentage: null, checkedAt: null };
 
     await project.save();
 
@@ -952,7 +958,7 @@ exports.checkCopyleaksAI = async (req, res) => {
     const text = await extractReportText(project.finalReportUrl);
     const copyleaksCheck = await checkAiContent(text, String(project._id));
     if (!copyleaksCheck) {
-      return res.status(500).json({ message: "Copyleaks check failed — the report may be too short, image-only, or the service is unavailable." });
+      return res.status(500).json({ message: "Plagiarism check failed — the report may be too short, image-only, or the service is unavailable." });
     }
 
     project.copyleaksCheck = copyleaksCheck;
