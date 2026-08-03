@@ -113,6 +113,7 @@ const FYPProjects = () => {
   const [completing, setCompleting] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
   const [reanalyzing, setReanalyzing] = useState(false);
+  const [checkingCopyleaks, setCheckingCopyleaks] = useState(false);
   const [draftLoaded, setDraftLoaded] = useState(false);
   const [toast, setToast] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -389,6 +390,7 @@ const FYPProjects = () => {
       isRegrade,
       flaggedReason: project.flaggedReason,
       reportQualityCheck: project.reportQualityCheck || null,
+      copyleaksCheck: project.copyleaksCheck || null,
     });
     setEvalRemarks(useDraft ? (draft.remarks || "") : (isRegrade || phase !== "FINAL" ? (project.remarks || "") : ""));
     setDraftLoaded(useDraft);
@@ -454,6 +456,24 @@ const FYPProjects = () => {
       alert(err.response?.data?.message || "AI re-check failed.");
     } finally {
       setReanalyzing(false);
+    }
+  };
+
+  const handleCopyleaksCheck = async () => {
+    const { projectId } = gradeModal;
+    setCheckingCopyleaks(true);
+    try {
+      const res = await axios.post(
+        `${apiBase}/auth/projects/${projectId}/copyleaks-check`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setGradeModal((g) => ({ ...g, copyleaksCheck: res.data.copyleaksCheck }));
+      setProjects((prev) => prev.map((p) => (p._id === projectId ? { ...p, copyleaksCheck: res.data.copyleaksCheck } : p)));
+    } catch (err) {
+      alert(err.response?.data?.message || "Copyleaks check failed.");
+    } finally {
+      setCheckingCopyleaks(false);
     }
   };
 
@@ -793,6 +813,33 @@ const FYPProjects = () => {
                 ) : (
                   <p style={{ fontSize: "12px", color: "#6b21a8", marginTop: "6px" }}>
                     No AI check has run for this report yet. Click "Analyze Report" to get a second opinion before grading.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {gradeModal.phase === "FINAL" && (
+              <div style={{ background: "#ecfdf5", border: "1px solid #a7f3d0", borderRadius: "10px", padding: "12px 14px", margin: "14px 0" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <strong style={{ fontSize: "12.5px", color: "#065f46" }}>Copyleaks AI Content Check</strong>
+                  <button
+                    type="button"
+                    onClick={handleCopyleaksCheck}
+                    disabled={checkingCopyleaks}
+                    style={{ background: "transparent", border: "1px solid #a7f3d0", color: "#065f46", borderRadius: "6px", padding: "3px 9px", fontSize: "11px", fontWeight: "600", cursor: "pointer" }}
+                  >
+                    {checkingCopyleaks ? "Checking..." : gradeModal.copyleaksCheck ? "Re-check" : "Run Copyleaks Check"}
+                  </button>
+                </div>
+                {gradeModal.copyleaksCheck ? (
+                  <p style={{ fontSize: "12px", color: "#065f46", margin: "8px 0 2px" }}>
+                    AI-generated: <strong>{gradeModal.copyleaksCheck.aiPercentage}%</strong>
+                    {" "}· Human-written: <strong>{gradeModal.copyleaksCheck.humanPercentage}%</strong>
+                    {" "}— an independent, dedicated AI-detector model (separate from the OpenRouter heuristic above), not a plagiarism-database match.
+                  </p>
+                ) : (
+                  <p style={{ fontSize: "12px", color: "#047857", marginTop: "6px" }}>
+                    No Copyleaks check has run for this report yet. Click "Run Copyleaks Check" for a second, independent AI-detection signal.
                   </p>
                 )}
               </div>

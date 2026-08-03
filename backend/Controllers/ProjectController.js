@@ -11,6 +11,7 @@ const { logAction } = require("./AuditLogController");
 const fs = require("fs");
 const { PDFParse } = require("pdf-parse");
 const { analyzeFinalReportQuality } = require("../utils/geminiService");
+const { checkAiContent } = require("../utils/copyleaksService");
 
 // Deletes a previously-uploaded file from local disk — best-effort, must
 // never throw or block the caller. Used so superseded/rejected final reports
@@ -25,23 +26,31 @@ const deleteUploadedFile = (relativePath) => {
   }
 };
 
-// Extracts text from a locally-stored report PDF and runs it through the AI
-// quality check — best-effort, must never throw or block report submission.
-const runReportQualityCheck = async (localFilePath) => {
+// Extracts plain text from a locally-stored report PDF — shared by both the
+// OpenRouter quality check and the Copyleaks AI check below. Returns "" (not
+// null) for a scanned/image-only PDF with nothing to extract.
+const extractReportText = async (localFilePath) => {
   let parser;
   try {
     const buffer = fs.readFileSync(localFilePath);
     parser = new PDFParse({ data: buffer });
     const parsed = await parser.getText();
-    const text = (parsed.text || "").trim();
+    return (parsed.text || "").trim();
+  } finally {
+    if (parser) await parser.destroy();
+  }
+};
+
+// Runs the AI quality check — best-effort, must never throw or block report submission.
+const runReportQualityCheck = async (localFilePath) => {
+  try {
+    const text = await extractReportText(localFilePath);
     if (!text) return null; // scanned/image-only PDF, nothing to analyze
     const result = await analyzeFinalReportQuality(text);
     return { ...result, checkedAt: new Date() };
   } catch (err) {
     console.error("Final report AI quality check failed:", err.message);
     return null;
-  } finally {
-    if (parser) await parser.destroy();
   }
 };
 
@@ -917,6 +926,41 @@ exports.analyzeFinalReport = async (req, res) => {
     res.json({ success: true, reportQualityCheck: qualityCheck });
   } catch (err) {
     console.error("analyzeFinalReport error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// POST /projects/:projectId/copyleaks-check — supervisor-triggered, on-demand
+// AI-content check via Copyleaks' AI Detector model, as a second, independent
+// source alongside the OpenRouter-based reportQualityCheck.aiGenerated
+// heuristic. On-demand rather than automatic since this runs on a trial
+// account with limited credits.
+exports.checkCopyleaksAI = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const supervisorId = req.user._id;
+
+    const project = await Project.findById(projectId);
+    if (!project) return res.status(404).json({ message: "Project not found" });
+    if (String(project.supervisorId) !== String(supervisorId)) {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+    if (!project.finalReportUrl) {
+      return res.status(400).json({ message: "No final report has been submitted for this project yet" });
+    }
+
+    const text = await extractReportText(project.finalReportUrl);
+    const copyleaksCheck = await checkAiContent(text, String(project._id));
+    if (!copyleaksCheck) {
+      return res.status(500).json({ message: "Copyleaks check failed — the report may be too short, image-only, or the service is unavailable." });
+    }
+
+    project.copyleaksCheck = copyleaksCheck;
+    await project.save();
+
+    res.json({ success: true, copyleaksCheck });
+  } catch (err) {
+    console.error("checkCopyleaksAI error:", err);
     res.status(500).json({ message: "Server error" });
   }
 };

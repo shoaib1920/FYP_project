@@ -135,6 +135,16 @@ const projectSchema = new mongoose.Schema(
       checkedAt: { type: Date, default: null },
     },
 
+    // Supervisor-triggered (on-demand, not automatic — trial credits are
+    // limited) AI-content check via Copyleaks' dedicated AI Detector model,
+    // as a second, independent source alongside the OpenRouter-based
+    // reportQualityCheck.aiGenerated heuristic above.
+    copyleaksCheck: {
+      aiPercentage: { type: Number, default: null },
+      humanPercentage: { type: Number, default: null },
+      checkedAt: { type: Date, default: null },
+    },
+
     // Supervisor-initiated rejection of a submitted final report (e.g. AI
     // plagiarism concern, incomplete work). Reopens submission by resetting
     // status/finalReportUrl/reportQualityCheck — this is a snapshot of the

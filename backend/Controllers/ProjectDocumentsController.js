@@ -81,6 +81,7 @@ exports.getProjectDocuments = async (req, res) => {
           url: project.finalReportUrl || null,
           status: project.finalReportUrl ? "SUBMITTED" : project.finalReportRejection?.reason ? "REJECTED" : "NOT_SUBMITTED",
           reportQualityCheck: project.reportQualityCheck || null,
+          copyleaksCheck: project.copyleaksCheck || null,
           rejection: project.finalReportRejection?.reason ? project.finalReportRejection : null,
         },
         reviewNotes: reviewNotes.map((n) => ({

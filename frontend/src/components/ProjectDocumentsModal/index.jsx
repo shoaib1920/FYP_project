@@ -112,6 +112,12 @@ const ProjectDocumentsModal = ({ projectId, tokenKey = "token", onClose }) => {
                         )}
                       </p>
                     )}
+                    {documents.finalReport.copyleaksCheck?.aiPercentage != null && (
+                      <p className={styles.note}>
+                        Copyleaks AI-generated: <strong>{documents.finalReport.copyleaksCheck.aiPercentage}%</strong>
+                        {" "}· Human-written: <strong>{documents.finalReport.copyleaksCheck.humanPercentage}%</strong>
+                      </p>
+                    )}
                     {documents.finalReport.rejection && (
                       <p className={styles.warnNote}>
                         <FaExclamationTriangle /> Previously rejected ({new Date(documents.finalReport.rejection.rejectedAt).toLocaleDateString()}): {documents.finalReport.rejection.reason}
