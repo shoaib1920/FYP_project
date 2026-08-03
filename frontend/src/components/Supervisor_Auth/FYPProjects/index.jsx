@@ -112,7 +112,6 @@ const FYPProjects = () => {
   const [evalRemarks, setEvalRemarks] = useState("");
   const [completing, setCompleting] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
-  const [reanalyzing, setReanalyzing] = useState(false);
   const [checkingCopyleaks, setCheckingCopyleaks] = useState(false);
   const [draftLoaded, setDraftLoaded] = useState(false);
   const [toast, setToast] = useState("");
@@ -389,7 +388,6 @@ const FYPProjects = () => {
       phase,
       isRegrade,
       flaggedReason: project.flaggedReason,
-      reportQualityCheck: project.reportQualityCheck || null,
       copyleaksCheck: project.copyleaksCheck || null,
     });
     setEvalRemarks(useDraft ? (draft.remarks || "") : (isRegrade || phase !== "FINAL" ? (project.remarks || "") : ""));
@@ -438,24 +436,6 @@ const FYPProjects = () => {
       alert(err.response?.data?.message || "Failed to reject final report.");
     } finally {
       setRejecting(false);
-    }
-  };
-
-  const handleReanalyzeReport = async () => {
-    const { projectId } = gradeModal;
-    setReanalyzing(true);
-    try {
-      const res = await axios.post(
-        `${apiBase}/auth/projects/${projectId}/analyze-report`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      setGradeModal((g) => ({ ...g, reportQualityCheck: res.data.reportQualityCheck }));
-      setProjects((prev) => prev.map((p) => (p._id === projectId ? { ...p, reportQualityCheck: res.data.reportQualityCheck } : p)));
-    } catch (err) {
-      alert(err.response?.data?.message || "AI re-check failed.");
-    } finally {
-      setReanalyzing(false);
     }
   };
 
@@ -748,98 +728,26 @@ const FYPProjects = () => {
             )}
 
             {gradeModal.phase === "FINAL" && (
-              <div style={{ background: "#f5f3ff", border: "1px solid #ddd6fe", borderRadius: "10px", padding: "12px 14px", margin: "14px 0" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <strong style={{ fontSize: "12.5px", color: "#5b21b6" }}>AI Report Quality Check</strong>
-                  <button
-                    type="button"
-                    onClick={handleReanalyzeReport}
-                    disabled={reanalyzing}
-                    style={{ background: "transparent", border: "1px solid #ddd6fe", color: "#5b21b6", borderRadius: "6px", padding: "3px 9px", fontSize: "11px", fontWeight: "600", cursor: "pointer" }}
-                  >
-                    {reanalyzing ? "Analyzing..." : gradeModal.reportQualityCheck ? "Re-analyze" : "Analyze Report"}
-                  </button>
-                </div>
-                {gradeModal.reportQualityCheck ? (
-                  <>
-                    <p style={{ fontSize: "12px", color: "#4c1d95", margin: "8px 0 2px" }}>
-                      Score: <strong>{gradeModal.reportQualityCheck.score}/100</strong>
-                      {" "}— an AI-generated content-quality signal, not a plagiarism-database match. Use as a second opinion, not the final word.
-                    </p>
-                    {gradeModal.reportQualityCheck.issues?.length > 0 && (
-                      <div style={{ marginTop: "6px" }}>
-                        <strong style={{ fontSize: "11.5px", color: "#5b21b6" }}>Issues:</strong>
-                        <ul style={{ margin: "3px 0 0", paddingLeft: "18px", fontSize: "12px", color: "#4c1d95" }}>
-                          {gradeModal.reportQualityCheck.issues.map((s, i) => <li key={i}>{s}</li>)}
-                        </ul>
-                      </div>
-                    )}
-                    {gradeModal.reportQualityCheck.originalityConcerns?.length > 0 && (
-                      <div style={{ marginTop: "6px" }}>
-                        <strong style={{ fontSize: "11.5px", color: "#b91c1c" }}>Originality Concerns:</strong>
-                        <ul style={{ margin: "3px 0 0", paddingLeft: "18px", fontSize: "12px", color: "#991b1b" }}>
-                          {gradeModal.reportQualityCheck.originalityConcerns.map((s, i) => <li key={i}>{s}</li>)}
-                        </ul>
-                      </div>
-                    )}
-                    {gradeModal.reportQualityCheck.suggestions?.length > 0 && (
-                      <div style={{ marginTop: "6px" }}>
-                        <strong style={{ fontSize: "11.5px", color: "#5b21b6" }}>Suggestions:</strong>
-                        <ul style={{ margin: "3px 0 0", paddingLeft: "18px", fontSize: "12px", color: "#4c1d95" }}>
-                          {gradeModal.reportQualityCheck.suggestions.map((s, i) => <li key={i}>{s}</li>)}
-                        </ul>
-                      </div>
-                    )}
-                    {gradeModal.reportQualityCheck.aiGenerated?.likelihoodScore != null && (
-                      <div style={{ marginTop: "6px" }}>
-                        <strong style={{ fontSize: "11.5px", color: "#b45309" }}>
-                          AI-Generated Content Likelihood: {gradeModal.reportQualityCheck.aiGenerated.likelihoodScore}%
-                        </strong>
-                        <p style={{ fontSize: "11px", color: "#92400e", margin: "2px 0 4px" }}>
-                          A heuristic AI judgment, not a certified detector — review the flagged passages yourself before raising it with the student.
-                        </p>
-                        {gradeModal.reportQualityCheck.aiGenerated.flaggedPassages?.length > 0 && (
-                          <ul style={{ margin: "3px 0 0", paddingLeft: "18px", fontSize: "12px", color: "#78350f" }}>
-                            {gradeModal.reportQualityCheck.aiGenerated.flaggedPassages.map((p, i) => (
-                              <li key={i} style={{ marginBottom: "4px" }}>
-                                <em>"{p.text}"</em> — {p.reason}
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <p style={{ fontSize: "12px", color: "#6b21a8", marginTop: "6px" }}>
-                    No AI check has run for this report yet. Click "Analyze Report" to get a second opinion before grading.
-                  </p>
-                )}
-              </div>
-            )}
-
-            {gradeModal.phase === "FINAL" && (
               <div style={{ background: "#ecfdf5", border: "1px solid #a7f3d0", borderRadius: "10px", padding: "12px 14px", margin: "14px 0" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <strong style={{ fontSize: "12.5px", color: "#065f46" }}>Copyleaks AI Content Check</strong>
+                  <strong style={{ fontSize: "12.5px", color: "#065f46" }}>Plagiarism Detection</strong>
                   <button
                     type="button"
                     onClick={handleCopyleaksCheck}
                     disabled={checkingCopyleaks}
                     style={{ background: "transparent", border: "1px solid #a7f3d0", color: "#065f46", borderRadius: "6px", padding: "3px 9px", fontSize: "11px", fontWeight: "600", cursor: "pointer" }}
                   >
-                    {checkingCopyleaks ? "Checking..." : gradeModal.copyleaksCheck ? "Re-check" : "Run Copyleaks Check"}
+                    {checkingCopyleaks ? "Checking..." : gradeModal.copyleaksCheck ? "Re-check" : "Run Plagiarism Check"}
                   </button>
                 </div>
                 {gradeModal.copyleaksCheck ? (
                   <p style={{ fontSize: "12px", color: "#065f46", margin: "8px 0 2px" }}>
                     AI-generated: <strong>{gradeModal.copyleaksCheck.aiPercentage}%</strong>
                     {" "}· Human-written: <strong>{gradeModal.copyleaksCheck.humanPercentage}%</strong>
-                    {" "}— an independent, dedicated AI-detector model (separate from the OpenRouter heuristic above), not a plagiarism-database match.
                   </p>
                 ) : (
                   <p style={{ fontSize: "12px", color: "#047857", marginTop: "6px" }}>
-                    No Copyleaks check has run for this report yet. Click "Run Copyleaks Check" for a second, independent AI-detection signal.
+                    No plagiarism check has run for this report yet. Click "Run Plagiarism Check" before grading.
                   </p>
                 )}
               </div>
@@ -1286,22 +1194,13 @@ const FYPProjects = () => {
                           <a href={resolveFileUrl(project.finalReportUrl)} target="_blank" rel="noopener noreferrer" className={styles.viewLink}>
                             View PDF
                           </a>
-                          {project.reportQualityCheck?.score != null && (
+                          {project.copyleaksCheck?.aiPercentage != null && (
                             <span style={{
                               fontSize: "10.5px", fontWeight: "700", padding: "2px 7px", borderRadius: "999px",
-                              background: project.reportQualityCheck.score >= 70 ? "#dcfce7" : project.reportQualityCheck.score >= 40 ? "#fef3c7" : "#fee2e2",
-                              color: project.reportQualityCheck.score >= 70 ? "#15803d" : project.reportQualityCheck.score >= 40 ? "#92400e" : "#b91c1c",
+                              background: project.copyleaksCheck.aiPercentage >= 50 ? "#fef3c7" : "#dcfce7",
+                              color: project.copyleaksCheck.aiPercentage >= 50 ? "#92400e" : "#15803d",
                             }}>
-                              AI Check: {project.reportQualityCheck.score}/100
-                            </span>
-                          )}
-                          {project.reportQualityCheck?.aiGenerated?.likelihoodScore >= 50 && (
-                            <span style={{
-                              fontSize: "10.5px", fontWeight: "700", padding: "2px 7px", borderRadius: "999px",
-                              background: "#fef3c7", color: "#92400e",
-                              display: "inline-flex", alignItems: "center", gap: "4px",
-                            }}>
-                              <FaExclamationTriangle size={9} /> AI-Written: {project.reportQualityCheck.aiGenerated.likelihoodScore}%
+                              Plagiarism Check: {project.copyleaksCheck.aiPercentage}% AI
                             </span>
                           )}
                           {project.status === "UNDER_REVIEW" && (

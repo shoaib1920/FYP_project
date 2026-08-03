@@ -104,17 +104,9 @@ const ProjectDocumentsModal = ({ projectId, tokenKey = "token", onClose }) => {
                         View submitted report
                       </a>
                     )}
-                    {documents.finalReport.reportQualityCheck?.score != null && (
-                      <p className={styles.note}>
-                        AI quality score: <strong>{documents.finalReport.reportQualityCheck.score}/100</strong>
-                        {documents.finalReport.reportQualityCheck.aiGenerated?.likelihoodScore != null && (
-                          <> · AI-generated likelihood: <strong>{documents.finalReport.reportQualityCheck.aiGenerated.likelihoodScore}%</strong></>
-                        )}
-                      </p>
-                    )}
                     {documents.finalReport.copyleaksCheck?.aiPercentage != null && (
                       <p className={styles.note}>
-                        Copyleaks AI-generated: <strong>{documents.finalReport.copyleaksCheck.aiPercentage}%</strong>
+                        Plagiarism Detection — AI-generated: <strong>{documents.finalReport.copyleaksCheck.aiPercentage}%</strong>
                         {" "}· Human-written: <strong>{documents.finalReport.copyleaksCheck.humanPercentage}%</strong>
                       </p>
                     )}
