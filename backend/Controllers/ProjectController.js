@@ -12,7 +12,7 @@ const fs = require("fs");
 const { PDFParse } = require("pdf-parse");
 const mammoth = require("mammoth");
 const { analyzeFinalReportQuality } = require("../utils/geminiService");
-const { checkAiContent } = require("../utils/copyleaksService");
+const { checkAiContent, MIN_CHARS: COPYLEAKS_MIN_CHARS } = require("../utils/copyleaksService");
 
 // Deletes a previously-uploaded file from local disk — best-effort, must
 // never throw or block the caller. Used so superseded/rejected final reports
@@ -968,9 +968,16 @@ exports.checkCopyleaksAI = async (req, res) => {
     }
 
     const text = await extractReportText(project.finalReportUrl);
+    if (text.trim().length < COPYLEAKS_MIN_CHARS) {
+      console.error(`Plagiarism check skipped for project ${projectId}: only extracted ${text.trim().length} chars (need ${COPYLEAKS_MIN_CHARS}) from ${project.finalReportUrl}`);
+      return res.status(400).json({
+        message: `Couldn't extract enough readable text from this file (found ${text.trim().length} characters, need at least ${COPYLEAKS_MIN_CHARS}). This happens with image-only/scanned pages, or a Word document with content mainly in text boxes, headers, or embedded objects rather than regular paragraphs.`,
+      });
+    }
+
     const copyleaksCheck = await checkAiContent(text, String(project._id));
     if (!copyleaksCheck) {
-      return res.status(500).json({ message: "Plagiarism check failed — the report may be too short, image-only, or the service is unavailable." });
+      return res.status(500).json({ message: "Plagiarism check failed — the Copyleaks service is unavailable or the trial account is out of credits. Please try again shortly." });
     }
 
     project.copyleaksCheck = copyleaksCheck;

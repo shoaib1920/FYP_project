@@ -59,4 +59,4 @@ async function checkAiContent(text, scanId) {
   }
 }
 
-module.exports = { checkAiContent };
+module.exports = { checkAiContent, MIN_CHARS };
