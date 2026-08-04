@@ -646,7 +646,7 @@ const CreateTask = () => {
 
   const handleSubmitFinalReport = async () => {
     if (!reportFile) {
-      alert("Please select a PDF file.");
+      alert("Please select a report file (PDF or Word).");
       return;
     }
     setReportSubmitting(true);
@@ -893,15 +893,15 @@ const CreateTask = () => {
             <span className={styles.closeButton} onClick={() => setShowReportModal(false)}><FaTimes /></span>
             <h2 className={styles.card_heading}>Submit Final Report</h2>
             <p style={{ color: "#555", marginTop: "8px" }}>
-              Upload your final FYP report as a PDF (max 20MB). Once submitted, your supervisor will review it.
+              Upload your final FYP report as a PDF or Word document (max 20MB). Once submitted, your supervisor will review it.
             </p>
             <div style={{ marginTop: "16px" }}>
               <label style={{ fontWeight: "600", display: "block", marginBottom: "6px" }}>
-                Select PDF File:
+                Select Report File (PDF or Word):
               </label>
               <input
                 type="file"
-                accept=".pdf,application/pdf"
+                accept=".pdf,application/pdf,.doc,application/msword,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                 onChange={(e) => setReportFile(e.target.files[0])}
                 style={{ width: "100%", padding: "8px", border: "1px solid #ccc", borderRadius: "6px" }}
               />

@@ -357,11 +357,19 @@ const finalReportStorage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, "uploads/final-reports/"),
   filename:    (req, file, cb) => cb(null, Date.now() + "-" + file.originalname),
 });
+const ALLOWED_FINAL_REPORT_MIMES = [
+  "application/pdf",
+  "application/msword", // .doc
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // .docx
+];
 const finalReportUpload = multer({
   storage: finalReportStorage,
   fileFilter: (req, file, cb) => {
-    if (file.mimetype !== "application/pdf") {
-      return cb(new Error("Only PDF files are allowed for final report."));
+    // Some browsers send a generic mimetype for .doc/.docx — fall back to extension.
+    const ext = (file.originalname.split(".").pop() || "").toLowerCase();
+    const allowedByExt = ["pdf", "doc", "docx"].includes(ext);
+    if (!ALLOWED_FINAL_REPORT_MIMES.includes(file.mimetype) && !allowedByExt) {
+      return cb(new Error("Only PDF or Word (.doc/.docx) files are allowed for the final report."));
     }
     cb(null, true);
   },

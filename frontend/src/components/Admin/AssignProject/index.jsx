@@ -427,7 +427,7 @@ const AdminProjects = () => {
                   rel="noopener noreferrer"
                   className={styles.linkRow}
                 >
-                  View PDF
+                  View Report
                 </a>
               </div>
             )}

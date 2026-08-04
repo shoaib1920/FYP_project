@@ -248,6 +248,7 @@
 
 .table {
   width: 100%;
+  min-width: 920px; /* below this, columns get illegibly squeezed — scroll instead */
   border-collapse: collapse;
 }
 
@@ -257,16 +258,17 @@
 
 .table th {
   color: white;
-  font-size: 14px;
+  font-size: 12.5px;
   font-weight: 600;
-  padding: 14px 16px;
+  padding: 12px 14px;
   text-align: left;
+  white-space: nowrap;
 }
 
 .table td {
-  padding: 14px 16px;
+  padding: 12px 14px;
   border-bottom: 1px solid #f3f4f6;
-  font-size: 14px;
+  font-size: 13px;
   color: #374151;
   vertical-align: middle;
 }
@@ -275,38 +277,28 @@
   background: #f9fafb;
 }
 
+/* Truncate to one line with an ellipsis; pair with a title="" attribute on
+   the element for the full value on hover, same convention as the icon
+   buttons' title tooltips elsewhere in this table. */
+.truncateText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+}
+
 .titleCell {
   font-weight: 600;
   color: #1f2937;
-  max-width: 220px;
+  max-width: 200px;
 }
 
-.progressWrap {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 120px;
+.teamCell {
+  max-width: 140px;
 }
 
-.progressBar {
-  flex: 1;
-  height: 8px;
-  background: #e5e7eb;
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.progressFill {
-  height: 100%;
-  background: #4caf50;
-  border-radius: 4px;
-  transition: width 0.3s ease;
-}
-
-.progressText {
-  font-size: 12px;
-  color: #6b7280;
-  min-width: 34px;
+.leaderCell {
+  max-width: 130px;
 }
 
 .badge {
@@ -333,24 +325,31 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  min-width: 110px;
+  min-width: 100px;
 }
 
 .githubLink {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
   color: #1f2937;
-  font-size: 12.5px;
-  font-weight: 600;
+  border-radius: 7px;
+  font-size: 13px;
   text-decoration: none;
+  transition: background 0.15s, transform 0.15s;
 }
 
-.githubLink:hover { color: #2563eb; }
+.githubLink:hover { background: #e5e7eb; transform: translateY(-1px); }
 
-/* ── Compact icon toolbar (View Live / Mark Issues / Review History) ── */
+/* ── Compact icon toolbar (Repo / View Live / Mark Issues / Review History) ── */
 .iconToolbar {
   display: flex;
+  flex-wrap: wrap;
   gap: 5px;
 }
 
@@ -979,5 +978,46 @@
   font-size: 12px;
   color: #b91c1c;
   margin: 4px 0 0;
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .container {
+    padding: 16px 12px;
+  }
+
+  .hero {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 20px;
+    gap: 12px;
+  }
+
+  .heading {
+    font-size: 19px;
+  }
+
+  .statsRow {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+  }
+
+  .statCard {
+    padding: 12px 14px;
+  }
+
+  .filterBar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .searchBox {
+    min-width: 0;
+  }
+
+  .modal {
+    padding: 18px;
+    width: 96%;
+  }
 }
 

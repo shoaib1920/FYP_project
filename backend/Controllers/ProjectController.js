@@ -10,6 +10,7 @@ const sendEmail = require("../utils/emailService");
 const { logAction } = require("./AuditLogController");
 const fs = require("fs");
 const { PDFParse } = require("pdf-parse");
+const mammoth = require("mammoth");
 const { analyzeFinalReportQuality } = require("../utils/geminiService");
 const { checkAiContent } = require("../utils/copyleaksService");
 
@@ -26,13 +27,24 @@ const deleteUploadedFile = (relativePath) => {
   }
 };
 
-// Extracts plain text from a locally-stored report PDF — shared by both the
-// OpenRouter quality check and the Copyleaks AI check below. Returns "" (not
-// null) for a scanned/image-only PDF with nothing to extract.
+// Extracts plain text from a locally-stored report file (PDF or Word) —
+// shared by both the OpenRouter quality check and the Copyleaks AI check
+// below. Returns "" (not null) for a scanned/image-only PDF, or a legacy
+// .doc file mammoth can't parse, with nothing to extract.
 const extractReportText = async (localFilePath) => {
+  const ext = (localFilePath.split(".").pop() || "").toLowerCase();
+  const buffer = fs.readFileSync(localFilePath);
+
+  if (ext === "docx") {
+    const result = await mammoth.extractRawText({ buffer });
+    return (result.value || "").trim();
+  }
+  if (ext === "doc") {
+    return ""; // legacy binary .doc format — not supported by mammoth, skip analysis
+  }
+
   let parser;
   try {
-    const buffer = fs.readFileSync(localFilePath);
     parser = new PDFParse({ data: buffer });
     const parsed = await parser.getText();
     return (parsed.text || "").trim();

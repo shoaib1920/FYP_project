@@ -1060,7 +1060,6 @@ const FYPProjects = () => {
                 <th>Links</th>
                 <th>Weekly Updates</th>
                 <th>Meetings</th>
-                <th>Progress</th>
                 <th>Status</th>
                 <th>Grades Status</th>
                 <th>Final Report</th>
@@ -1076,21 +1075,22 @@ const FYPProjects = () => {
 
                 return (
                   <tr key={project._id}>
-                    <td className={styles.titleCell}>{project.title}</td>
-                    <td>{project.teamId?.subject || "N/A"}</td>
-                    <td>{project.teamLeaderId?.name || "N/A"}</td>
+                    <td className={styles.titleCell}>
+                      <span className={styles.truncateText} title={project.title}>{project.title}</span>
+                    </td>
+                    <td className={styles.teamCell}>
+                      <span className={styles.truncateText} title={project.teamId?.subject || "N/A"}>
+                        {project.teamId?.subject || "N/A"}
+                      </span>
+                    </td>
+                    <td className={styles.leaderCell}>
+                      <span className={styles.truncateText} title={project.teamLeaderId?.name || "N/A"}>
+                        {project.teamLeaderId?.name || "N/A"}
+                      </span>
+                    </td>
                     <td>
                       <div className={styles.linksCell}>
-                        {project.githubRepository ? (
-                          <a
-                            href={project.githubRepository}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className={styles.githubLink}
-                          >
-                            <FaGithub /> Repo
-                          </a>
-                        ) : (
+                        {!project.githubRepository && (
                           <span className={styles.linkMissing}>No repo</span>
                         )}
 
@@ -1099,6 +1099,17 @@ const FYPProjects = () => {
                         )}
 
                         <div className={styles.iconToolbar}>
+                          {project.githubRepository && (
+                            <a
+                              href={project.githubRepository}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className={styles.githubLink}
+                              title="View GitHub Repository"
+                            >
+                              <FaGithub />
+                            </a>
+                          )}
                           {project.deploymentLink && (
                             <>
                               <button
@@ -1167,14 +1178,6 @@ const FYPProjects = () => {
                       </button>
                     </td>
                     <td>
-                      <div className={styles.progressWrap}>
-                        <div className={styles.progressBar}>
-                          <div className={styles.progressFill} style={{ width: `${project.progress || 0}%` }} />
-                        </div>
-                        <span className={styles.progressText}>{project.progress || 0}%</span>
-                      </div>
-                    </td>
-                    <td>
                       <span className={styles.badge} style={{ background: sc.bg, color: sc.color }}>
                         {STATUS_LABEL[project.status] || project.status || "Active"}
                       </span>
@@ -1192,7 +1195,7 @@ const FYPProjects = () => {
                       {project.finalReportUrl ? (
                         <div style={{ display: "flex", flexDirection: "column", gap: "4px", alignItems: "flex-start" }}>
                           <a href={resolveFileUrl(project.finalReportUrl)} target="_blank" rel="noopener noreferrer" className={styles.viewLink}>
-                            View PDF
+                            View Report
                           </a>
                           {project.copyleaksCheck?.aiPercentage != null && (
                             <span style={{
