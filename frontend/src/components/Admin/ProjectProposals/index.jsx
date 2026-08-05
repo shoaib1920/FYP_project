@@ -11,6 +11,8 @@ import {
   FaUsers,
   FaBuilding,
   FaUserGraduate,
+  FaSearch,
+  FaTimes,
 } from "react-icons/fa";
 
 const ProposalApprovals = () => {
@@ -21,6 +23,8 @@ const ProposalApprovals = () => {
   const [selectedSupervisor, setSelectedSupervisor] = useState("");
   const [supervisors, setSupervisors] = useState([]);
   const [filterStatus, setFilterStatus] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [departmentFilter, setDepartmentFilter] = useState("");
   const [expandedProposalId, setExpandedProposalId] = useState(null);
   const [actionLoading, setActionLoading] = useState("");
 
@@ -58,9 +62,33 @@ const ProposalApprovals = () => {
     return counts;
   }, [proposals]);
 
-  const displayedProposals = filterStatus
-    ? proposals.filter((p) => p.status === filterStatus)
-    : proposals;
+  const departmentOptions = useMemo(() => {
+    const names = new Set(proposals.map((p) => p.departmentId?.name).filter(Boolean));
+    return Array.from(names).sort();
+  }, [proposals]);
+
+  const displayedProposals = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    return proposals.filter((p) => {
+      if (filterStatus && p.status !== filterStatus) return false;
+      if (departmentFilter && p.departmentId?.name !== departmentFilter) return false;
+      if (!term) return true;
+      return (
+        p.title?.toLowerCase().includes(term) ||
+        p.teamLeaderId?.name?.toLowerCase().includes(term) ||
+        p.category?.toLowerCase().includes(term) ||
+        p.teamId?.subject?.toLowerCase().includes(term) ||
+        p.departmentId?.name?.toLowerCase().includes(term)
+      );
+    });
+  }, [proposals, searchTerm, filterStatus, departmentFilter]);
+
+  const hasActiveFilters = searchTerm.trim() !== "" || filterStatus !== "" || departmentFilter !== "";
+  const clearFilters = () => {
+    setSearchTerm("");
+    setFilterStatus("");
+    setDepartmentFilter("");
+  };
 
   const fetchSupervisors = async () => {
     try {
@@ -235,20 +263,59 @@ const ProposalApprovals = () => {
       )}
 
       {/* Filter */}
-      <div className={styles.filterSection}>
-        <label className={styles.filterLabel}>Filter by Status:</label>
-        <select
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-          className={styles.filterSelect}
-        >
-          <option value="">All Statuses</option>
-          <option value="PENDING_ADMIN_REVIEW">Pending Review</option>
-          <option value="APPROVED_BY_ADMIN">Approved</option>
-          <option value="REVISION_REQUESTED_BY_ADMIN">Revision Requested</option>
-          <option value="REJECTED">Rejected</option>
-        </select>
-      </div>
+      {!loading && proposals.length > 0 && (
+        <div className={styles.filterSection}>
+          <div className={styles.searchBox}>
+            <FaSearch className={styles.searchIcon} />
+            <input
+              type="text"
+              placeholder="Search by title, team leader, category, team, or department..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className={styles.searchInput}
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                className={styles.searchClearBtn}
+                onClick={() => setSearchTerm("")}
+                aria-label="Clear search"
+              >
+                <FaTimes />
+              </button>
+            )}
+          </div>
+
+          <select
+            value={departmentFilter}
+            onChange={(e) => setDepartmentFilter(e.target.value)}
+            className={styles.filterSelect}
+          >
+            <option value="">All Departments</option>
+            {departmentOptions.map((name) => (
+              <option key={name} value={name}>{name}</option>
+            ))}
+          </select>
+
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className={styles.filterSelect}
+          >
+            <option value="">All Statuses</option>
+            <option value="PENDING_ADMIN_REVIEW">Pending Review</option>
+            <option value="APPROVED_BY_ADMIN">Approved</option>
+            <option value="REVISION_REQUESTED_BY_ADMIN">Revision Requested</option>
+            <option value="REJECTED">Rejected</option>
+          </select>
+
+          {hasActiveFilters && (
+            <button type="button" className={styles.clearFiltersBtn} onClick={clearFilters}>
+              Clear
+            </button>
+          )}
+        </div>
+      )}
 
       {!loading && proposals.length > 0 && (
         <p className={styles.resultsCount}>
@@ -259,7 +326,16 @@ const ProposalApprovals = () => {
       {loading ? (
         <Loader text="Loading proposals..." />
       ) : displayedProposals.length === 0 ? (
-        <div className={styles.message}>No proposals found.</div>
+        <div className={styles.message}>
+          {proposals.length === 0 ? "No proposals found." : "No proposals match your search/filters."}
+          {hasActiveFilters && (
+            <div>
+              <button type="button" className={styles.clearFiltersBtn} onClick={clearFilters} style={{ marginTop: "12px" }}>
+                Clear filters
+              </button>
+            </div>
+          )}
+        </div>
       ) : (
         <div className={styles.cardGrid}>
           {displayedProposals.map((proposal) => (
