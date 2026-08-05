@@ -36,17 +36,6 @@
 .heading { font-size: 22px; font-weight: 800; color: white; margin: 0 0 4px; letter-spacing: -0.3px; }
 .subheading { font-size: 13px; color: rgba(255, 255, 255, 0.82); margin: 0; }
 
-.toast {
-  background: #d1fae5;
-  color: #065f46;
-  border: 1px solid #6ee7b7;
-  padding: 12px 18px;
-  border-radius: 10px;
-  margin-bottom: 16px;
-  font-weight: 600;
-  font-size: 13.5px;
-}
-
 /* ── Stats ── */
 .statsRow {
   display: grid;

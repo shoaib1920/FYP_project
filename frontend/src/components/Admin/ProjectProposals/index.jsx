@@ -3,6 +3,7 @@ import axios from "axios";
 import styles from "./styles.module.css";
 import Loader from "../../Loader";
 import { resolveFileUrl } from "../../../utils/resolveFileUrl";
+import { showToast } from "../../../utils/toastStore";
 import {
   FaClipboardList,
   FaHourglassHalf,
@@ -109,13 +110,13 @@ const ProposalApprovals = () => {
         { status: "APPROVED_BY_ADMIN", adminRemarks },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      alert("Proposal approved successfully!");
+      showToast("Proposal approved successfully!", "success");
       setSelectedProposal(null);
       setAdminRemarks("");
       fetchProposals();
     } catch (error) {
       console.error("Error approving proposal:", error);
-      alert("Failed to approve proposal");
+      showToast("Failed to approve proposal", "error");
     } finally {
       setActionLoading("");
     }
@@ -129,13 +130,13 @@ const ProposalApprovals = () => {
         { status: "REJECTED", adminRemarks },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      alert("Proposal rejected!");
+      showToast("Proposal rejected.", "success");
       setSelectedProposal(null);
       setAdminRemarks("");
       fetchProposals();
     } catch (error) {
       console.error("Error rejecting proposal:", error);
-      alert("Failed to reject proposal");
+      showToast("Failed to reject proposal", "error");
     } finally {
       setActionLoading("");
     }
@@ -149,13 +150,13 @@ const ProposalApprovals = () => {
         { status: "REVISION_REQUESTED_BY_ADMIN", adminRemarks },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      alert("Revision request sent!");
+      showToast("Revision request sent!", "success");
       setSelectedProposal(null);
       setAdminRemarks("");
       fetchProposals();
     } catch (error) {
       console.error("Error requesting revision:", error);
-      alert("Failed to request revision");
+      showToast("Failed to request revision", "error");
     } finally {
       setActionLoading("");
     }
@@ -163,7 +164,7 @@ const ProposalApprovals = () => {
 
   const handleAssignSupervisor = async (proposalId) => {
     if (!selectedSupervisor) {
-      alert("Please select a supervisor");
+      showToast("Please select a supervisor", "warning");
       return;
     }
 
@@ -174,13 +175,13 @@ const ProposalApprovals = () => {
         { supervisorId: selectedSupervisor },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      alert("Supervisor assigned successfully!");
+      showToast("Supervisor assigned successfully!", "success");
       setSelectedProposal(null);
       setSelectedSupervisor("");
       fetchProposals();
     } catch (error) {
       console.error("Error assigning supervisor:", error);
-      alert("Failed to assign supervisor");
+      showToast("Failed to assign supervisor", "error");
     } finally {
       setActionLoading("");
     }

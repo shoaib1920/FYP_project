@@ -4,6 +4,7 @@ import styles from "./styles.module.css";
 import { useNavigate } from "react-router-dom";
 import { Bar, Line } from "react-chartjs-2";
 import VivaBanner from "../VivaBanner";
+import { showToast } from "../../utils/toastStore";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -208,7 +209,7 @@ const Dashboard = ({ setActiveModule }) => {
 
   const handleCreateTeam = async () => {
     if (selectedUsers.length === 0) {
-      alert("Invite at least one teammate to your team.");
+      showToast("Invite at least one teammate to your team.", "warning");
       return;
     }
     setCreatingTeam(true);
@@ -228,7 +229,7 @@ const Dashboard = ({ setActiveModule }) => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       if (response.data.success) {
-        alert("Team created! Invites have been sent to the selected students — they'll need to accept before joining.");
+        showToast("Team created! Invites have been sent to the selected students — they'll need to accept before joining.", "success");
         setShowTeamModal(false);
         setTeamSubject("");
         setSelectedUsers([]);
@@ -238,7 +239,7 @@ const Dashboard = ({ setActiveModule }) => {
       }
     } catch (error) {
       console.error("Error creating team:", error);
-      alert(error.response?.data?.message || "Error creating team");
+      showToast(error.response?.data?.message || "Error creating team", "error");
     } finally {
       setCreatingTeam(false);
     }
@@ -258,7 +259,7 @@ const Dashboard = ({ setActiveModule }) => {
       }
     } catch (error) {
       console.error("Error responding to invite:", error);
-      alert(error.response?.data?.message || "Error responding to invite");
+      showToast(error.response?.data?.message || "Error responding to invite", "error");
     } finally {
       setRespondingInvite(null);
     }
@@ -278,7 +279,7 @@ const Dashboard = ({ setActiveModule }) => {
       }
     } catch (error) {
       console.error("Error removing member:", error);
-      alert(error.response?.data?.message || "Error removing member");
+      showToast(error.response?.data?.message || "Error removing member", "error");
     } finally {
       setRemovingMemberId(null);
     }
@@ -297,7 +298,7 @@ const Dashboard = ({ setActiveModule }) => {
       }
     } catch (error) {
       console.error("Error cancelling invite:", error);
-      alert(error.response?.data?.message || "Error cancelling invite");
+      showToast(error.response?.data?.message || "Error cancelling invite", "error");
     } finally {
       setCancelingInviteId(null);
     }
@@ -305,7 +306,7 @@ const Dashboard = ({ setActiveModule }) => {
 
   const handleInviteMore = async (teamId) => {
     if (addMemberSelected.length === 0) {
-      alert("Pick at least one student to invite.");
+      showToast("Pick at least one student to invite.", "warning");
       return;
     }
     setInvitingMore(true);
@@ -324,7 +325,7 @@ const Dashboard = ({ setActiveModule }) => {
       }
     } catch (error) {
       console.error("Error inviting more members:", error);
-      alert(error.response?.data?.message || "Error inviting more members");
+      showToast(error.response?.data?.message || "Error inviting more members", "error");
     } finally {
       setInvitingMore(false);
     }

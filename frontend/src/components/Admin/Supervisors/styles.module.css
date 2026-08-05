@@ -47,17 +47,6 @@
   margin: 0;
 }
 
-/* ── Toast ── */
-.toast {
-  background: #d1fae5;
-  color: #065f46;
-  border: 1px solid #6ee7b7;
-  padding: 12px 18px;
-  border-radius: 10px;
-  margin-bottom: 16px;
-  font-weight: 600;
-  font-size: 13.5px;
-}
 
 /* ── Stats ── */
 .statsRow {

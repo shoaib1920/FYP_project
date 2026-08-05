@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import styles from "./styles.module.css";
 import Loader from "../../Loader";
+import { showToast } from "../../../utils/toastStore";
 import {
   FaClipboardList,
   FaHourglassHalf,
@@ -65,7 +66,7 @@ const ProposalApprovals = () => {
         { decision: "SUPERVISOR_ACCEPTED", supervisorRemarks },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      alert("Proposal accepted successfully!");
+      showToast("Proposal accepted successfully!", "success");
       setSupervisorRemarks("");
       setExpandedProposalId(null);
       fetchProposals();
@@ -75,7 +76,7 @@ const ProposalApprovals = () => {
         error.response?.data?.message ||
         error.message ||
         "Failed to accept proposal";
-      alert(message);
+      showToast(message, "error");
     } finally {
       setActionLoading(null);
     }
@@ -89,7 +90,7 @@ const ProposalApprovals = () => {
         { decision: "REVISION_REQUESTED_BY_SUPERVISOR", supervisorRemarks },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      alert("Revision request sent!");
+      showToast("Revision request sent!", "success");
       setSupervisorRemarks("");
       setExpandedProposalId(null);
       fetchProposals();
@@ -99,7 +100,7 @@ const ProposalApprovals = () => {
         error.response?.data?.message ||
         error.message ||
         "Failed to request revision";
-      alert(message);
+      showToast(message, "error");
     } finally {
       setActionLoading(null);
     }

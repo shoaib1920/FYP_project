@@ -8,6 +8,7 @@ import LivePreview from "../LivePreview";
 import ProjectDocumentsModal from "../ProjectDocumentsModal";
 import { resolveFileUrl } from "../../utils/resolveFileUrl";
 import { generateCompletionCertificate } from "../../utils/certificateUtils";
+import { showToast } from "../../utils/toastStore";
 import {
   FaProjectDiagram,
   FaClipboardList,
@@ -422,7 +423,7 @@ const CreateTask = () => {
 
   const handleSaveLinks = async () => {
     if (!linksForm.githubRepository.trim()) {
-      alert("GitHub repository link is required.");
+      showToast("GitHub repository link is required.", "warning");
       return;
     }
     setLinksSaving(true);
@@ -443,7 +444,7 @@ const CreateTask = () => {
       setLinksModalProject(null);
     } catch (err) {
       console.error("Error saving project links:", err);
-      alert(err.response?.data?.message || "Failed to save project links.");
+      showToast(err.response?.data?.message || "Failed to save project links.", "error");
     } finally {
       setLinksSaving(false);
       setTimeout(() => setMessage(""), 3000);
@@ -482,7 +483,7 @@ const CreateTask = () => {
       return;
     }
     if (!newLog.workDone.trim()) {
-      alert("Please describe the work done this week.");
+      showToast("Please describe the work done this week.", "warning");
       return;
     }
     setSubmittingLog(true);
@@ -501,7 +502,7 @@ const CreateTask = () => {
       setNewLog({ workDone: "", plannedNext: "", challenges: "" });
       fetchProgressLogs(progressModalProject._id);
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to submit progress log.");
+      showToast(err.response?.data?.message || "Failed to submit progress log.", "error");
     } finally {
       setSubmittingLog(false);
     }
@@ -556,7 +557,7 @@ const CreateTask = () => {
 
   const handleRequestAppeal = async () => {
     if (!appealReason.trim()) {
-      alert("Please explain why you're requesting a grade review.");
+      showToast("Please explain why you're requesting a grade review.", "warning");
       return;
     }
     setSubmittingAppeal(true);
@@ -570,7 +571,7 @@ const CreateTask = () => {
       setGroupProjects((prev) => prev.map((p) => (p._id === gradeModalProject._id ? { ...p, gradeAppeal: res.data.gradeAppeal } : p)));
       setAppealReason("");
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to submit appeal.");
+      showToast(err.response?.data?.message || "Failed to submit appeal.", "error");
     } finally {
       setSubmittingAppeal(false);
     }
@@ -590,7 +591,7 @@ const CreateTask = () => {
       );
       fetchReviewNotes(reviewNotesModalProject._id);
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to mark review note as resolved.");
+      showToast(err.response?.data?.message || "Failed to mark review note as resolved.", "error");
     } finally {
       setResolvingNoteId(null);
     }
@@ -646,7 +647,7 @@ const CreateTask = () => {
 
   const handleSubmitFinalReport = async () => {
     if (!reportFile) {
-      alert("Please select a report file (PDF or Word).");
+      showToast("Please select a report file (PDF or Word).", "warning");
       return;
     }
     setReportSubmitting(true);
@@ -663,7 +664,7 @@ const CreateTask = () => {
           },
         }
       );
-      alert("Final report submitted! Project is now under review by your supervisor.");
+      showToast("Final report submitted! Project is now under review by your supervisor.", "success");
       setShowReportModal(false);
       setGroupProjects((prev) =>
         prev.map((p) =>
@@ -672,7 +673,7 @@ const CreateTask = () => {
       );
     } catch (err) {
       console.error("Final report submission error:", err);
-      alert(err.response?.data?.message || "Submission failed. Please try again.");
+      showToast(err.response?.data?.message || "Submission failed. Please try again.", "error");
     } finally {
       setReportSubmitting(false);
     }
@@ -697,7 +698,7 @@ const CreateTask = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      alert("Project submitted successfully!");
+      showToast("Project submitted successfully!", "success");
       console.log(response.data);
       // Update the project status in groupProjects or relevantAssignments
       setGroupProjects((prevProjects) =>
@@ -709,7 +710,7 @@ const CreateTask = () => {
       );
     } catch (err) {
       console.error("Submit failed", err);
-      alert("Submit failed – check console.");
+      showToast("Submit failed – check console.", "error");
     }
   };
 

@@ -3,6 +3,7 @@ import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { MessageSquareText, Star, Send, Quote } from 'lucide-react';
 import styles from './styles.module.css';
+import { showToast } from '../../utils/toastStore';
 
 dayjs.extend(relativeTime);
 
@@ -35,7 +36,7 @@ const Feedback = () => {
     e.preventDefault();
 
     if (rating === 0 || comment.trim() === '') {
-      alert("Missing rating or comment");
+      showToast("Missing rating or comment", "warning");
       return;
     }
 

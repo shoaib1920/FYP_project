@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import styles from "./styles.module.css";
+import { showToast } from "../../utils/toastStore";
 import {
   FaCheckCircle,
   FaHourglassHalf,
@@ -119,7 +120,7 @@ const MyTasks = () => {
   }, []);
 
   if (!loggedInUser || !loggedInUser.id) {
-    alert("User not found. Please log in again!");
+    showToast("User not found. Please log in again!", "error");
     return null;
   }
 
@@ -157,7 +158,7 @@ const MyTasks = () => {
         fetchTasks();
         setShowModal(false);
       } else {
-        alert(data.message || "❌ Rejection failed");
+        showToast(data.message || "Rejection failed", "error");
       }
     } catch (error) {
       console.error("Error rejecting task:", error);
@@ -183,7 +184,7 @@ const MyTasks = () => {
         fetchTasks();
         setShowModal(false);
       } else {
-        alert(data.message || "❌ Approval failed");
+        showToast(data.message || "Approval failed", "error");
       }
     } catch (error) {
       console.error("Error approving task:", error);

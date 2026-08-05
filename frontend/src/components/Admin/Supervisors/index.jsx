@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import styles from "./styles.module.css";
 import Loader from "../../Loader";
+import { showToast } from "../../../utils/toastStore";
 import {
   FaUserTie,
   FaUserCheck,
@@ -26,16 +27,10 @@ const Supervisors = () => {
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [deptFilter, setDeptFilter] = useState("ALL");
   const [actionLoading, setActionLoading] = useState("");
-  const [toast, setToast] = useState("");
 
   const apiBase = process.env.REACT_APP_API_URL || "";
   const adminToken = localStorage.getItem("adminToken");
   const authHeader = { headers: { Authorization: `Bearer ${adminToken}` } };
-
-  const showToast = (msg) => {
-    setToast(msg);
-    setTimeout(() => setToast(""), 4000);
-  };
 
   const fetchAll = async () => {
     setLoading(true);
@@ -139,9 +134,9 @@ const Supervisors = () => {
       setSupervisors((prev) =>
         prev.map((s) => (s._id === sup._id ? { ...s, status: newStatus } : s))
       );
-      showToast(`${sup.name} ${newStatus === "Active" ? "activated" : "deactivated"} successfully.`);
+      showToast(`${sup.name} ${newStatus === "Active" ? "activated" : "deactivated"} successfully.`, "success");
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to update status.");
+      showToast(err.response?.data?.message || "Failed to update status.", "error");
     } finally {
       setActionLoading("");
     }
@@ -159,9 +154,9 @@ const Supervisors = () => {
       setSupervisors((prev) =>
         prev.map((s) => (s._id === sup._id ? res.data.supervisor : s))
       );
-      showToast(`${sup.name}'s department updated.`);
+      showToast(`${sup.name}'s department updated.`, "success");
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to update department.");
+      showToast(err.response?.data?.message || "Failed to update department.", "error");
     } finally {
       setActionLoading("");
     }
@@ -180,8 +175,6 @@ const Supervisors = () => {
           <p className={styles.subheading}>Manage supervisor accounts, departments, and access.</p>
         </div>
       </div>
-
-      {toast && <div className={styles.toast}>{toast}</div>}
 
       {!loading && !noDataYet && (
         <>

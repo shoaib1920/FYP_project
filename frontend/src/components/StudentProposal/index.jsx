@@ -3,6 +3,7 @@ import axios from "axios";
 import styles from "./styles.module.css";
 import Loader from "../Loader";
 import DeadlineBanner from "../DeadlineBanner";
+import { showToast } from "../../utils/toastStore";
 import {
   FaFileSignature,
   FaClipboardList,
@@ -169,7 +170,7 @@ const StudentProposal = () => {
 
   const handleCheckQuality = async () => {
     if (!formData.title || !formData.abstract || !formData.objectives || !formData.technologies) {
-      alert("Fill in title, abstract, objectives, and technologies before running the quality check.");
+      showToast("Fill in title, abstract, objectives, and technologies before running the quality check.", "warning");
       return;
     }
     setCheckingQuality(true);
@@ -188,7 +189,7 @@ const StudentProposal = () => {
       );
       setQualityCheck(res.data);
     } catch (err) {
-      alert(err.response?.data?.message || "AI quality check failed. You can still submit normally.");
+      showToast(err.response?.data?.message || "AI quality check failed. You can still submit normally.", "error");
     } finally {
       setCheckingQuality(false);
     }

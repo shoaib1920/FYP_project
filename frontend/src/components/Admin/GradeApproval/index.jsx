@@ -3,6 +3,7 @@ import axios from "axios";
 import styles from "./styles.module.css";
 import Loader from "../../Loader";
 import { resolveFileUrl } from "../../../utils/resolveFileUrl";
+import { showToast } from "../../../utils/toastStore";
 import {
   FaStar,
   FaHourglassHalf,
@@ -89,7 +90,6 @@ const GradeApproval = () => {
   const [flagModal, setFlagModal] = useState(null); // { projectId, title }
   const [flagReason, setFlagReason] = useState("");
   const [actionLoading, setActionLoading] = useState("");
-  const [toast, setToast] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [vivaScheduleModal, setVivaScheduleModal] = useState(null); // { project }
   const [vivaGradeModal, setVivaGradeModal]       = useState(null); // { project }
@@ -106,11 +106,6 @@ const GradeApproval = () => {
 
   const token = localStorage.getItem("adminToken");
   const apiBase = process.env.REACT_APP_API_URL || "";
-
-  const showToast = (msg) => {
-    setToast(msg);
-    setTimeout(() => setToast(""), 4000);
-  };
 
   const fetchProjects = async () => {
     try {
@@ -156,7 +151,7 @@ const GradeApproval = () => {
     );
 
     if (deptRows.length === 0) {
-      alert(`No released grades yet for ${deptName} — nothing to report.`);
+      showToast(`No released grades yet for ${deptName} — nothing to report.`, "info");
       return;
     }
 
@@ -203,7 +198,7 @@ const GradeApproval = () => {
       );
       showToast(`Grades released for "${project.title}". Students can now view their marks.`);
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to release grades.");
+      showToast(err.response?.data?.message || "Failed to release grades.", "error");
     } finally {
       setActionLoading("");
     }
@@ -211,7 +206,7 @@ const GradeApproval = () => {
 
   const handleFlagSubmit = async () => {
     if (!flagReason.trim()) {
-      alert("Please provide a reason for flagging.");
+      showToast("Please provide a reason for flagging.", "warning");
       return;
     }
     setActionLoading(flagModal.projectId + "_flag");
@@ -228,7 +223,7 @@ const GradeApproval = () => {
       setFlagModal(null);
       setFlagReason("");
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to flag project.");
+      showToast(err.response?.data?.message || "Failed to flag project.", "error");
     } finally {
       setActionLoading("");
     }
@@ -251,7 +246,7 @@ const GradeApproval = () => {
       setAppealModal(null);
       setAppealResponse("");
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to resolve appeal.");
+      showToast(err.response?.data?.message || "Failed to resolve appeal.", "error");
     } finally {
       setResolvingAppeal(false);
     }
@@ -287,7 +282,7 @@ const GradeApproval = () => {
   };
 
   const handleScheduleViva = async () => {
-    if (!vivaForm.scheduledAt) { alert("Please select a date and time."); return; }
+    if (!vivaForm.scheduledAt) { showToast("Please select a date and time.", "warning"); return; }
     setVivaLoading(true);
     try {
       const res = await axios.put(
@@ -299,7 +294,7 @@ const GradeApproval = () => {
       showToast(`Viva scheduled for "${vivaScheduleModal.project.title}". Team has been notified.`);
       setVivaScheduleModal(null);
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to schedule viva.");
+      showToast(err.response?.data?.message || "Failed to schedule viva.", "error");
     } finally {
       setVivaLoading(false);
     }
@@ -342,7 +337,7 @@ const GradeApproval = () => {
     const { project, members } = vivaGradeModal;
     for (const m of members) {
       const s = calcVivaWeightedScore(String(m.userId));
-      if (s === null) { alert(`Please fill in all scores for ${m.name}.`); return; }
+      if (s === null) { showToast(`Please fill in all scores for ${m.name}.`, "warning"); return; }
     }
     const gradesArray = members.map((m) => {
       const scores = vivaRubricScores[String(m.userId)] || [];
@@ -363,7 +358,7 @@ const GradeApproval = () => {
       showToast(`Viva grades recorded for "${project.title}". Combined avg: ${avg}/100.`);
       setVivaGradeModal(null);
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to save viva grades.");
+      showToast(err.response?.data?.message || "Failed to save viva grades.", "error");
     } finally {
       setVivaLoading(false);
     }
@@ -465,8 +460,6 @@ const GradeApproval = () => {
           </div>
         </div>
       )}
-
-      {toast && <div className={styles.toast}>{toast}</div>}
 
       {/* Flag Modal */}
       {flagModal && (

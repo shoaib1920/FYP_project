@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import styles from "./styles.module.css";
 import Loader from "../../Loader";
+import { showToast } from "../../../utils/toastStore";
 
 const CreateProject = () => {
   const [projects, setProjects] = useState([]);
@@ -25,7 +26,7 @@ const CreateProject = () => {
     setLoading(true);
 
     const supData = localStorage.getItem("supervisorData");
-    if (!supData) return alert("Supervisor not logged in");
+    if (!supData) return showToast("Supervisor not logged in", "error");
 
     const supervisor = JSON.parse(supData);
     const supervisorId = supervisor._id;

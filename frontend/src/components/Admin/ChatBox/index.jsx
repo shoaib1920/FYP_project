@@ -3,6 +3,7 @@ import axios from "axios";
 import { io } from "socket.io-client";
 import { FaComments } from "react-icons/fa";
 import { resolveFileUrl } from "../../../utils/resolveFileUrl";
+import { showToast } from "../../../utils/toastStore";
 import "./Message.css";
 
 const API = process.env.REACT_APP_API_URL || "http://localhost:8000";
@@ -293,7 +294,7 @@ const AdminChatBox = () => {
       );
       fetchModerationMembers();
     } catch (err) {
-      alert(err.response?.data?.message || `Failed to ${action} member.`);
+      showToast(err.response?.data?.message || `Failed to ${action} member.`, "error");
     }
   };
 

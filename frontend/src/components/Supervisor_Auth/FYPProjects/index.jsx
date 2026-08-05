@@ -4,6 +4,7 @@ import styles from "./styles.module.css";
 import Loader from "../../Loader";
 import { resolveFileUrl } from "../../../utils/resolveFileUrl";
 import { generateCompletionCertificate } from "../../../utils/certificateUtils";
+import { showToast } from "../../../utils/toastStore";
 import {
   FaFolderOpen,
   FaProjectDiagram,
@@ -114,7 +115,6 @@ const FYPProjects = () => {
   const [savingDraft, setSavingDraft] = useState(false);
   const [checkingCopyleaks, setCheckingCopyleaks] = useState(false);
   const [draftLoaded, setDraftLoaded] = useState(false);
-  const [toast, setToast] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [gradesFilter, setGradesFilter] = useState("ALL");
@@ -149,7 +149,6 @@ const FYPProjects = () => {
   const token = localStorage.getItem("token");
   const apiBase = process.env.REACT_APP_API_URL || "";
 
-  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(""), 4000); };
 
   const fetchProjects = async () => {
     try {
@@ -233,7 +232,7 @@ const FYPProjects = () => {
 
   const handleScheduleMeeting = async () => {
     if (!newMeeting.scheduledAt) {
-      alert("Please pick a date and time for the meeting.");
+      showToast("Please pick a date and time for the meeting.", "warning");
       return;
     }
     setSchedulingMeeting(true);
@@ -250,9 +249,9 @@ const FYPProjects = () => {
       );
       setNewMeeting({ scheduledAt: "", agenda: "", nextMeetingDate: "" });
       fetchMeetings(meetingsModalProject._id);
-      showToast("Meeting scheduled. The team has been notified.");
+      showToast("Meeting scheduled. The team has been notified.", "success");
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to schedule meeting.");
+      showToast(err.response?.data?.message || "Failed to schedule meeting.", "error");
     } finally {
       setSchedulingMeeting(false);
     }
@@ -261,7 +260,7 @@ const FYPProjects = () => {
   const handleSaveMinutes = async (meetingId) => {
     const text = (minutesDrafts[meetingId] || "").trim();
     if (!text) {
-      alert("Please write the minutes before saving.");
+      showToast("Please write the minutes before saving.", "warning");
       return;
     }
     setSavingMinutesId(meetingId);
@@ -273,7 +272,7 @@ const FYPProjects = () => {
       );
       fetchMeetings(meetingsModalProject._id);
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to save minutes.");
+      showToast(err.response?.data?.message || "Failed to save minutes.", "error");
     } finally {
       setSavingMinutesId(null);
     }
@@ -290,7 +289,7 @@ const FYPProjects = () => {
       );
       fetchMeetings(meetingsModalProject._id);
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to cancel meeting.");
+      showToast(err.response?.data?.message || "Failed to cancel meeting.", "error");
     } finally {
       setUpdatingMeetingStatusId(null);
     }
@@ -299,7 +298,7 @@ const FYPProjects = () => {
   const handleSendFeedback = async (logId) => {
     const text = (feedbackDrafts[logId] || "").trim();
     if (!text) {
-      alert("Please write feedback before sending.");
+      showToast("Please write feedback before sending.", "warning");
       return;
     }
     setSavingFeedbackId(logId);
@@ -311,7 +310,7 @@ const FYPProjects = () => {
       );
       fetchProgressLogs(progressModalProject._id);
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to send feedback.");
+      showToast(err.response?.data?.message || "Failed to send feedback.", "error");
     } finally {
       setSavingFeedbackId(null);
     }
@@ -407,9 +406,9 @@ const FYPProjects = () => {
       setProjects((prev) =>
         prev.map((p) => (p._id === projectId ? { ...p, gradingDraft: { phase, rubricScores, remarks: evalRemarks, savedAt: new Date() } } : p))
       );
-      showToast("Draft saved — you can finish grading later.");
+      showToast("Draft saved — you can finish grading later.", "success");
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to save draft.");
+      showToast(err.response?.data?.message || "Failed to save draft.", "error");
     } finally {
       setSavingDraft(false);
     }
@@ -417,7 +416,7 @@ const FYPProjects = () => {
 
   const handleRejectFinalReport = async () => {
     if (!rejectReason.trim()) {
-      alert("Please enter a reason for rejecting this submission.");
+      showToast("Please enter a reason for rejecting this submission.", "warning");
       return;
     }
     const { projectId } = rejectModal;
@@ -431,9 +430,9 @@ const FYPProjects = () => {
       setProjects((prev) => prev.map((p) => (p._id === projectId ? res.data.project : p)));
       setRejectModal(null);
       setRejectReason("");
-      showToast("Final report rejected — the team has been notified.");
+      showToast("Final report rejected — the team has been notified.", "success");
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to reject final report.");
+      showToast(err.response?.data?.message || "Failed to reject final report.", "error");
     } finally {
       setRejecting(false);
     }
@@ -451,7 +450,7 @@ const FYPProjects = () => {
       setGradeModal((g) => ({ ...g, copyleaksCheck: res.data.copyleaksCheck }));
       setProjects((prev) => prev.map((p) => (p._id === projectId ? { ...p, copyleaksCheck: res.data.copyleaksCheck } : p)));
     } catch (err) {
-      alert(err.response?.data?.message || "Plagiarism check failed.");
+      showToast(err.response?.data?.message || "Plagiarism check failed.", "error");
     } finally {
       setCheckingCopyleaks(false);
     }
@@ -496,7 +495,7 @@ const FYPProjects = () => {
       for (let i = 0; i < rubric.length; i++) {
         const n = Number(scores[i]);
         if (scores[i] === "" || scores[i] === undefined || isNaN(n) || n < 0 || n > 100) {
-          alert(`Please enter valid marks (0–100) for "${m.name}" — ${rubric[i].name}.`);
+          showToast(`Please enter valid marks (0–100) for "${m.name}" — ${rubric[i].name}.`, "warning");
           return;
         }
       }
@@ -561,7 +560,8 @@ const FYPProjects = () => {
           ? (isRegrade
             ? `Re-grading submitted for "${title}". Waiting for admin approval.`
             : `Project "${title}" graded and marked complete. Avg: ${avgMarks}/100.`)
-          : `${phase === "INTERNAL" ? "Internal" : "Mid-term"} grades saved for "${title}". Avg: ${avgMarks}/100.`
+          : `${phase === "INTERNAL" ? "Internal" : "Mid-term"} grades saved for "${title}". Avg: ${avgMarks}/100.`,
+        "success"
       );
 
       setGradeModal(null);
@@ -606,8 +606,6 @@ const FYPProjects = () => {
           <p className={styles.subheading}>Track, grade, and manage every project assigned to you.</p>
         </div>
       </div>
-
-      {toast && <div className={styles.toast}>{toast}</div>}
 
       {!loading && projects.length > 0 && (
         <>
@@ -1285,7 +1283,7 @@ const FYPProjects = () => {
           projectId={reviewProject._id}
           title={`Review: ${reviewProject.title}`}
           onClose={() => setReviewProject(null)}
-          onSent={() => showToast(`Marked issues sent to the team for "${reviewProject.title}".`)}
+          onSent={() => showToast(`Marked issues sent to the team for "${reviewProject.title}".`, "success")}
         />
       )}
 

@@ -1,4 +1,5 @@
 import { Route, Routes, Navigate } from "react-router-dom";
+import ToastContainer from "./components/Toast";
 import Main from "./components/Main";
 import StudentSignup from "./components/StudentSignup";
 import Login from "./components/Login";
@@ -26,6 +27,8 @@ function App() {
 
 	return (
 
+		<>
+		<ToastContainer />
 		<Routes>
 
 
@@ -137,7 +140,7 @@ function App() {
     element={user ? <CreateTask /> : <Navigate to="/student/login" replace />}
   />
 </Routes>
-
+		</>
 
 	);
 }

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import axios from "axios";
 import styles from "./styles.module.css";
+import { showToast } from "../../utils/toastStore";
 import {
   FaTimes,
   FaCamera,
@@ -184,11 +185,11 @@ const LiveReviewModal = ({ url, projectId, title, onClose, onSent }) => {
 
   const handleAddToCollection = () => {
     if (currentSnip.pins.length === 0) {
-      alert("Add at least one pin marking the issue before adding this to the collection.");
+      showToast("Add at least one pin marking the issue before adding this to the collection.", "warning");
       return;
     }
     if (currentSnip.pins.some((p) => !p.text.trim())) {
-      alert("Every pin needs a short comment — remove empty ones or fill them in.");
+      showToast("Every pin needs a short comment — remove empty ones or fill them in.", "warning");
       return;
     }
     setCollectedItems((prev) => [
@@ -205,7 +206,7 @@ const LiveReviewModal = ({ url, projectId, title, onClose, onSent }) => {
 
   const handleSendAll = async () => {
     if (collectedItems.length === 0) {
-      alert("Collect at least one screenshot before sending.");
+      showToast("Collect at least one screenshot before sending.", "warning");
       return;
     }
     setSending(true);
@@ -231,7 +232,7 @@ const LiveReviewModal = ({ url, projectId, title, onClose, onSent }) => {
       onSent && onSent();
       onClose();
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to send review.");
+      showToast(err.response?.data?.message || "Failed to send review.", "error");
     } finally {
       setSending(false);
     }

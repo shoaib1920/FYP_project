@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import styles from "./styles.module.css";
 import Loader from "../../Loader";
+import { showToast } from "../../../utils/toastStore";
 import {
   FaCalendarAlt,
   FaPlus,
@@ -28,16 +29,10 @@ const AcademicCalendar = () => {
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [actionLoading, setActionLoading] = useState("");
-  const [toast, setToast] = useState("");
 
   const apiBase = process.env.REACT_APP_API_URL || "";
   const token = localStorage.getItem("adminToken");
   const authHeader = { headers: { Authorization: `Bearer ${token}` } };
-
-  const showToast = (msg) => {
-    setToast(msg);
-    setTimeout(() => setToast(""), 4000);
-  };
 
   const fetchTerms = async () => {
     setLoading(true);
@@ -77,7 +72,7 @@ const AcademicCalendar = () => {
   const handleSave = async (e) => {
     e.preventDefault();
     if (!form.name.trim() || !form.proposalDeadline || !form.finalSubmissionDeadline) {
-      alert("Please fill in all fields.");
+      showToast("Please fill in all fields.", "warning");
       return;
     }
     setSaving(true);
@@ -92,7 +87,7 @@ const AcademicCalendar = () => {
       setModalOpen(false);
       fetchTerms();
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to save term.");
+      showToast(err.response?.data?.message || "Failed to save term.", "error");
     } finally {
       setSaving(false);
     }
@@ -105,7 +100,7 @@ const AcademicCalendar = () => {
       showToast(`"${term.name}" is now the active term.`);
       fetchTerms();
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to activate term.");
+      showToast(err.response?.data?.message || "Failed to activate term.", "error");
     } finally {
       setActionLoading("");
     }
@@ -119,7 +114,7 @@ const AcademicCalendar = () => {
       showToast("Term deleted.");
       fetchTerms();
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to delete term.");
+      showToast(err.response?.data?.message || "Failed to delete term.", "error");
     } finally {
       setActionLoading("");
     }
@@ -136,8 +131,6 @@ const AcademicCalendar = () => {
           <p className={styles.subheading}>Set proposal and final-submission deadlines for the current term.</p>
         </div>
       </div>
-
-      {toast && <div className={styles.toast}>{toast}</div>}
 
       {!loading && (
         <div className={styles.statsRow}>

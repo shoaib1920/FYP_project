@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import styles from "./styles.module.css";
+import { showToast } from "../../utils/toastStore";
 import {
   FaTasks, FaUserPlus, FaClipboardList, FaEdit, FaTrash,
   FaCheck, FaTimes, FaExclamationCircle,
@@ -47,7 +48,7 @@ const AssignTask = () => {
     try {
       const loggedInUser = JSON.parse(localStorage.getItem("user"));
       if (!loggedInUser || !loggedInUser.id) {
-        alert("User not found. Please log in again!");
+        showToast("User not found. Please log in again!", "error");
         return;
       }
 
@@ -66,7 +67,7 @@ const AssignTask = () => {
       const loggedInUser = JSON.parse(localStorage.getItem("user"));
 
       if (!loggedInUser || !loggedInUser.id) {
-        alert("User not found. Please log in again!");
+        showToast("User not found. Please log in again!", "error");
         return;
       }
 
@@ -95,7 +96,7 @@ const AssignTask = () => {
 
   const handleUpdateTask = async () => {
     if (!editingTask.project || !editingTask.user || !editingTask.role) {
-      alert("All fields are required!");
+      showToast("All fields are required!", "warning");
       return;
     }
 
@@ -112,12 +113,12 @@ const AssignTask = () => {
       };
 
       await axios.put(`${process.env.REACT_APP_API_URL}/auth/assigntask/${editingTask._id}`, updateData);
-      alert("Task updated successfully!");
+      showToast("Task updated successfully!", "success");
       setEditingTask(null);
       fetchAssignedTasks();
     } catch (error) {
       console.error("❌ Error updating task:", error.response?.data || error.message);
-      alert("Error updating task: " + (error.response?.data?.message || error.message));
+      showToast("Error updating task: " + (error.response?.data?.message || error.message), "error");
     } finally {
       setSavingEdit(false);
     }
@@ -142,7 +143,7 @@ const AssignTask = () => {
     try {
       const loggedInUser = JSON.parse(localStorage.getItem("user"));
       if (!loggedInUser || !loggedInUser.id) {
-        alert("User not found. Please log in again!");
+        showToast("User not found. Please log in again!", "error");
         return;
       }
 
@@ -156,19 +157,19 @@ const AssignTask = () => {
 
   const handleSubmit = async () => {
     if (!isTeamLeader) {
-      alert("Only the group leader can assign tasks.");
+      showToast("Only the group leader can assign tasks.", "warning");
       return;
     }
 
     try {
       if (!selectedProject || !selectedUser || !selectedRole) {
-        alert("Please select all fields before assigning the task!");
+        showToast("Please select all fields before assigning the task!", "warning");
         return;
       }
 
       const loggedInUser = JSON.parse(localStorage.getItem("user"));
       if (!loggedInUser || !loggedInUser.id) {
-        alert("User not found. Please log in again!");
+        showToast("User not found. Please log in again!", "error");
         return;
       }
 
