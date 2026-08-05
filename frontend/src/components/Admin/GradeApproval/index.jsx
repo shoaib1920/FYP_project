@@ -204,6 +204,29 @@ const GradeApproval = () => {
     }
   };
 
+  const handleArchiveCode = async (project) => {
+    setActionLoading(project._id + "_archive");
+    try {
+      const res = await axios.post(
+        `${apiBase}/auth/projects/${project._id}/archive-code`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setProjects((prev) =>
+        prev.map((p) => p._id === project._id ? { ...p, codeArchive: res.data.codeArchive } : p)
+      );
+      if (res.data.success) {
+        showToast(`Source code archived for "${project.title}" — full commit history preserved.`, "success");
+      } else {
+        showToast(res.data.message || "Couldn't clone the repository automatically.", "warning");
+      }
+    } catch (err) {
+      showToast(err.response?.data?.message || "Failed to archive source code.", "error");
+    } finally {
+      setActionLoading("");
+    }
+  };
+
   const handleFlagSubmit = async () => {
     if (!flagReason.trim()) {
       showToast("Please provide a reason for flagging.", "warning");
@@ -855,6 +878,7 @@ const GradeApproval = () => {
               onScheduleViva={openVivaScheduleModal}
               onGradeViva={openVivaGradeModal}
               onOpenAppeal={(p) => setAppealModal({ project: p })}
+              onArchiveCode={handleArchiveCode}
             />
           ))}
         </div>
@@ -863,7 +887,7 @@ const GradeApproval = () => {
   );
 };
 
-const ProjectCard = ({ project, activeTab, actionLoading, onRelease, onFlag, apiBase, onScheduleViva, onGradeViva, onOpenAppeal }) => {
+const ProjectCard = ({ project, activeTab, actionLoading, onRelease, onFlag, apiBase, onScheduleViva, onGradeViva, onOpenAppeal, onArchiveCode }) => {
   const [expanded, setExpanded] = useState(false);
 
   const avgMarks = project.evaluationMarks ?? (
@@ -985,6 +1009,50 @@ const ProjectCard = ({ project, activeTab, actionLoading, onRelease, onFlag, api
           <strong>Supervisor remarks:</strong> {project.remarks}
         </p>
       )}
+
+      {/* Source code archive */}
+      <div className={styles.archiveBox}>
+        <div className={styles.archiveHeader}>
+          <span className={styles.archiveLabel}>Source Code Archive</span>
+          {project.codeArchive?.status !== "ARCHIVED" && (
+            <button
+              type="button"
+              className={styles.archiveBtn}
+              disabled={actionLoading === project._id + "_archive"}
+              onClick={() => onArchiveCode(project)}
+            >
+              {actionLoading === project._id + "_archive"
+                ? "Archiving..."
+                : project.codeArchive?.status === "FAILED" ? "Retry Archive" : "Archive Source Code"}
+            </button>
+          )}
+        </div>
+
+        {project.codeArchive?.status === "ARCHIVED" ? (
+          <div className={styles.archiveArchived}>
+            {project.codeArchive.method === "GIT_CLONE" ? (
+              <span>
+                <FaCheckCircle className={styles.archiveOkIcon} /> Full history archived —{" "}
+                <strong>{project.codeArchive.commitCount}</strong> commit{project.codeArchive.commitCount === 1 ? "" : "s"} preserved
+              </span>
+            ) : (
+              <span>
+                <FaCheckCircle className={styles.archiveOkIcon} /> Archived from a team-uploaded ZIP (snapshot only, no history)
+              </span>
+            )}
+            <span className={styles.archiveMeta}>
+              {new Date(project.codeArchive.archivedAt).toLocaleDateString()}
+              {project.codeArchive.checksum && ` · ${project.codeArchive.checksum.slice(0, 10)}`}
+            </span>
+          </div>
+        ) : project.codeArchive?.status === "FAILED" ? (
+          <p className={styles.archiveFailed}>
+            {project.codeArchive.failureReason || "Could not clone the repository."} The team has been prompted to upload a ZIP instead.
+          </p>
+        ) : (
+          <p className={styles.archiveNote}>Not archived yet — preserves the team's code independently of their GitHub account.</p>
+        )}
+      </div>
 
       {/* Viva Defense Section */}
       <div className={styles.vivaSection}>

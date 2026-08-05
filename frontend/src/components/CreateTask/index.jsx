@@ -32,6 +32,7 @@ import {
   FaBalanceScale,
   FaCommentAlt,
   FaFolderOpen,
+  FaFileArchive,
 } from "react-icons/fa";
 
 const CreateTask = () => {
@@ -63,6 +64,10 @@ const CreateTask = () => {
   const [reportProjectId, setReportProjectId] = useState(null);
   const [reportFile, setReportFile] = useState(null);
   const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [showCodeZipModal, setShowCodeZipModal] = useState(false);
+  const [codeZipProjectId, setCodeZipProjectId] = useState(null);
+  const [codeZipFile, setCodeZipFile] = useState(null);
+  const [codeZipSubmitting, setCodeZipSubmitting] = useState(false);
   const [linksModalProject, setLinksModalProject] = useState(null);
   const [linksForm, setLinksForm] = useState({ githubRepository: "", deploymentLink: "" });
   const [linksSaving, setLinksSaving] = useState(false);
@@ -679,6 +684,38 @@ const CreateTask = () => {
     }
   };
 
+  const handleUploadCodeZip = async () => {
+    if (!codeZipFile) {
+      showToast("Please select a .zip file of your source code.", "warning");
+      return;
+    }
+    setCodeZipSubmitting(true);
+    try {
+      const formData = new FormData();
+      formData.append("codeZip", codeZipFile);
+      const res = await axios.put(
+        `${process.env.REACT_APP_API_URL}/auth/projects/${codeZipProjectId}/upload-code-zip`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      showToast("Source code archived successfully.", "success");
+      setShowCodeZipModal(false);
+      setCodeZipFile(null);
+      setGroupProjects((prev) =>
+        prev.map((p) => (p._id === codeZipProjectId ? { ...p, codeArchive: res.data.codeArchive } : p))
+      );
+    } catch (err) {
+      showToast(err.response?.data?.message || "Upload failed. Please try again.", "error");
+    } finally {
+      setCodeZipSubmitting(false);
+    }
+  };
+
   const handleSubmitProject = async (projectId, groupId) => {
     if (!isTeamLeader) {
       setMessage("Only the team leader can submit the project.");
@@ -919,6 +956,45 @@ const CreateTask = () => {
               style={{ marginTop: "20px" }}
             >
               {reportSubmitting ? "Submitting..." : "Submit Final Report"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Source Code ZIP Upload Modal — fallback when the admin's automatic
+          repo archive attempt failed (private/unreachable repo) */}
+      {showCodeZipModal && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modalContent}>
+            <span className={styles.closeButton} onClick={() => setShowCodeZipModal(false)}><FaTimes /></span>
+            <h2 className={styles.card_heading}>Upload Source Code</h2>
+            <p style={{ color: "#555", marginTop: "8px" }}>
+              Your admin couldn't automatically archive your GitHub repository (it may be private or no longer reachable).
+              Please upload a .zip of your final source code so it's preserved as part of your project record — max 100MB.
+            </p>
+            <div style={{ marginTop: "16px" }}>
+              <label style={{ fontWeight: "600", display: "block", marginBottom: "6px" }}>
+                Select ZIP File:
+              </label>
+              <input
+                type="file"
+                accept=".zip,application/zip,application/x-zip-compressed"
+                onChange={(e) => setCodeZipFile(e.target.files[0])}
+                style={{ width: "100%", padding: "8px", border: "1px solid #ccc", borderRadius: "6px" }}
+              />
+              {codeZipFile && (
+                <p style={{ marginTop: "8px", color: "#374151", fontSize: "13px" }}>
+                  Selected: {codeZipFile.name} ({(codeZipFile.size / 1024 / 1024).toFixed(2)} MB)
+                </p>
+              )}
+            </div>
+            <button
+              className={styles.button}
+              onClick={handleUploadCodeZip}
+              disabled={codeZipSubmitting || !codeZipFile}
+              style={{ marginTop: "20px" }}
+            >
+              {codeZipSubmitting ? "Uploading..." : "Upload Source Code"}
             </button>
           </div>
         </div>
@@ -1559,6 +1635,29 @@ const CreateTask = () => {
                             <FaFolderOpen />
                           </button>
                         </div>
+
+                        {project.codeArchive?.status === "FAILED" && (
+                          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                            <span style={{ fontSize: "11px", color: "#b45309" }}>Code archive needed</span>
+                            {isTeamLeader && (
+                              <button
+                                type="button"
+                                onClick={() => { setCodeZipProjectId(project._id); setCodeZipFile(null); setShowCodeZipModal(true); }}
+                                title="Upload a ZIP of your source code"
+                                style={{
+                                  display: "flex", alignItems: "center", gap: "4px",
+                                  background: "#fffbeb", border: "1px solid #fde68a", color: "#92400e",
+                                  borderRadius: "6px", padding: "2px 8px", fontSize: "11px", fontWeight: "600", cursor: "pointer",
+                                }}
+                              >
+                                <FaFileArchive size={10} /> Upload ZIP
+                              </button>
+                            )}
+                          </div>
+                        )}
+                        {project.codeArchive?.status === "ARCHIVED" && (
+                          <span style={{ fontSize: "11px", color: "#15803d" }}>✓ Code archived</span>
+                        )}
                       </div>
                     </td>
                     <td>

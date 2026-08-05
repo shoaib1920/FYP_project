@@ -352,6 +352,7 @@ const {
   resolveGradeAppeal,
 } = require("../Controllers/ProjectController");
 const { getProjectDocuments } = require("../Controllers/ProjectDocumentsController");
+const { archiveProjectCode, uploadCodeZip } = require("../Controllers/CodeArchiveController");
 
 const finalReportStorage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, "uploads/final-reports/"),
@@ -376,6 +377,26 @@ const finalReportUpload = multer({
   limits: { fileSize: 20 * 1024 * 1024 },
 });
 
+const codeZipStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = `uploads/code-archives/${req.params.projectId}`;
+    require("fs").mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => cb(null, "source-" + Date.now() + ".zip"),
+});
+const codeZipUpload = multer({
+  storage: codeZipStorage,
+  fileFilter: (req, file, cb) => {
+    const ext = (file.originalname.split(".").pop() || "").toLowerCase();
+    if (ext !== "zip" && file.mimetype !== "application/zip" && file.mimetype !== "application/x-zip-compressed") {
+      return cb(new Error("Only a .zip file is allowed for the source code archive."));
+    }
+    cb(null, true);
+  },
+  limits: { fileSize: 100 * 1024 * 1024 }, // source code can run larger than a report
+});
+
 route.get("/my-viva", authenticate, getMyViva); // The logged-in student's own upcoming/recent viva, if any
 route.get("/supervisor/schedule", authenticate, authorize("supervisor"), getSupervisorSchedule); // Consolidated upcoming vivas + meetings
 route.get("/projects/team/:teamId", authenticate, getProjectsByTeam);
@@ -388,6 +409,8 @@ route.put("/projects/:projectId/final-report", authenticate, finalReportUpload.s
 route.put("/projects/:projectId/reject-final-report", authenticate, authorize("supervisor"), rejectFinalReport); // Supervisor sends a submitted report back with a reason
 route.post("/projects/:projectId/analyze-report", authenticate, authorize("supervisor"), analyzeFinalReport); // On-demand AI re-check of the final report
 route.post("/projects/:projectId/copyleaks-check", authenticate, authorize("supervisor"), checkCopyleaksAI); // On-demand Copyleaks AI-content check
+route.post("/projects/:projectId/archive-code", authenticate, authorize("admin"), archiveProjectCode); // On-demand full-history git mirror of the team's repo
+route.put("/projects/:projectId/upload-code-zip", authenticate, codeZipUpload.single("codeZip"), uploadCodeZip); // Fallback when the clone attempt fails
 route.put("/projects/:projectId/complete", authenticate, authorize("supervisor"), completeProject);
 route.put("/projects/:projectId/regrade", authenticate, authorize("supervisor"), reGradeProject);
 route.put("/projects/:projectId/request-appeal", authenticate, requestGradeAppeal); // Team leader appeals a released grade

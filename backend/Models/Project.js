@@ -110,6 +110,21 @@ const projectSchema = new mongoose.Schema(
       default: "",
     },
 
+    // Permanent, admin-triggered preservation of the team's source code —
+    // independent of whether their GitHub repo stays public/exists later.
+    // Preferred method is a full server-side git mirror clone (keeps commit
+    // history); falls back to a plain ZIP the student uploads themselves
+    // when the repo can't be cloned (private/unreachable).
+    codeArchive: {
+      method: { type: String, enum: ["GIT_CLONE", "ZIP_UPLOAD"], default: null },
+      status: { type: String, enum: ["ARCHIVED", "FAILED"], default: null },
+      archivedAt: { type: Date, default: null },
+      commitCount: { type: Number, default: null }, // git-clone only
+      checksum: { type: String, default: null },     // HEAD commit SHA (git-clone) or SHA-256 (zip)
+      filePath: { type: String, default: "" },
+      failureReason: { type: String, default: "" },
+    },
+
     // Which final-submission-deadline reminder thresholds (days-out) have
     // already fired for this project — same lazy piggy-backed pattern as
     // vivaDetails.remindersSent below, since there's no cron job here.

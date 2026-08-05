@@ -577,6 +577,80 @@
   border-radius: 6px;
 }
 
+/* Source code archive */
+.archiveBox {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+}
+
+.archiveHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.archiveLabel {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.archiveBtn {
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+  color: #4338ca;
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+
+.archiveBtn:hover { background: #e0e7ff; }
+.archiveBtn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.archiveArchived {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 12.5px;
+  color: #166534;
+}
+
+.archiveOkIcon {
+  color: #16a34a;
+  margin-right: 3px;
+}
+
+.archiveMeta {
+  font-size: 11.5px;
+  color: #94a3b8;
+  font-family: monospace;
+}
+
+.archiveFailed {
+  margin: 6px 0 0;
+  font-size: 12.5px;
+  color: #92400e;
+}
+
+.archiveNote {
+  margin: 6px 0 0;
+  font-size: 12.5px;
+  color: #94a3b8;
+}
+
 /* Card Actions */
 .cardActions {
   display: flex;
