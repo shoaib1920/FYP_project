@@ -9,7 +9,11 @@
 /coverage
 
 # production
-/build
+# NOTE: /build is intentionally NOT ignored — this project commits the built
+# frontend and serves it directly from Express (see backend/index.js), rather
+# than running a build step on deploy. An earlier /build ignore rule here
+# silently hid any newly-hashed bundle filename from `git add`, which is why
+# a rebuilt main.*.js could go missing from a commit without any error.
 
 # misc
 .DS_Store
