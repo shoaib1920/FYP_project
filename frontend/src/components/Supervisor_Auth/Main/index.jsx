@@ -12,10 +12,14 @@ import ProposalApprovals from "../ProjectProposals";
 import SupervisorDepartments from "../DepartmentManagement";
 import FYPProjects from "../FYPProjects";
 import SupervisorTemplateManager from "../TemplateManager";
+import ManageMeetings from "../ManageMeetings";
+import MarkAttendance from "../MarkAttendance";
+import PhaseEvaluation from "../PhaseEvaluation";
+import MyPanel from "../MyPanel";
 // import Students from "../Students";
 
 // Icons
-import { FaHome, FaTasks, FaUserGraduate, FaComments, FaSignOutAlt, FaBuilding, FaClipboardList, FaFolderOpen } from "react-icons/fa";
+import { FaHome, FaTasks, FaUserGraduate, FaComments, FaSignOutAlt, FaBuilding, FaClipboardList, FaFolderOpen, FaCalendarPlus, FaCheckSquare, FaClipboardCheck, FaGavel } from "react-icons/fa";
 
 const Main = ({ defaultModule = "Dashboard" }) => {
   const navigate = useNavigate();
@@ -86,6 +90,22 @@ const Main = ({ defaultModule = "Dashboard" }) => {
             <FaUserGraduate /> Students
           </button>
 
+          <div className={styles.nav_section_label}>Attendance</div>
+          <button onClick={() => ShowModule("MarkAttendance")} className={activeModule === "MarkAttendance" ? styles.active : ""}>
+            <FaCheckSquare /> Mark Attendance
+          </button>
+          <button onClick={() => ShowModule("ManageMeetings")} className={activeModule === "ManageMeetings" ? styles.active : ""}>
+            <FaCalendarPlus /> Manage Meetings
+          </button>
+
+          <div className={styles.nav_section_label}>Evaluation</div>
+          <button onClick={() => ShowModule("PhaseEvaluation")} className={activeModule === "PhaseEvaluation" ? styles.active : ""}>
+            <FaClipboardCheck /> Phase Evaluation
+          </button>
+          <button onClick={() => ShowModule("MyPanel")} className={activeModule === "MyPanel" ? styles.active : ""}>
+            <FaGavel /> My Panel
+          </button>
+
           <div className={styles.nav_section_label}>Resources</div>
           <button
             onClick={() => ShowModule("DepartmentManagement")}
@@ -117,7 +137,11 @@ const Main = ({ defaultModule = "Dashboard" }) => {
       {activeModule === "proposal-approval" && <ProposalApprovals />}
       {activeModule === "fyp-projects"       && <FYPProjects />}
       {activeModule === "fyp-templates"     && <SupervisorTemplateManager />}
-           {activeModule === "AllUserGroups" && <AllUserGroups />} 
+           {activeModule === "AllUserGroups" && <AllUserGroups />}
+        {activeModule === "ManageMeetings" && <ManageMeetings />}
+        {activeModule === "MarkAttendance" && <MarkAttendance />}
+        {activeModule === "PhaseEvaluation" && <PhaseEvaluation />}
+        {activeModule === "MyPanel" && <MyPanel />}
         {activeModule === "ChatBox" && <ChatBox />}
        {activeModule === "Feedback" && <Feedback />} 
       </main>

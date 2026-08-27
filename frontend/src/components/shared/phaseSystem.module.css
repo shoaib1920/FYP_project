@@ -1,0 +1,97 @@
+/* Shared styles for the evaluation-phase subsystem (panels, phases, schedules,
+   marks, results, attendance, documents) across Admin/Faculty/Student — kept
+   in one place since these screens all share the same table/form/badge shapes,
+   matching the visual language of DepartmentManagement etc. */
+
+.container { padding: 28px 26px; font-family: 'Segoe UI', Arial, sans-serif; background: #f8fafc; min-height: 100vh; }
+
+.hero {
+  background: linear-gradient(135deg, #4338ca 0%, #4f46e5 60%, #6366f1 100%);
+  border-radius: 18px; padding: 26px 30px; margin-bottom: 22px;
+  display: flex; align-items: center; gap: 18px;
+  box-shadow: 0 8px 32px rgba(79, 70, 229, 0.28);
+}
+.heroIconWrap {
+  width: 52px; height: 52px; flex-shrink: 0;
+  background: rgba(255,255,255,0.18); border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; color: white;
+}
+.heroBody { flex: 1; min-width: 0; }
+.heroTitle { font-size: 22px; font-weight: 800; color: white; margin: 0 0 4px; }
+.heroSub { font-size: 13px; color: rgba(255,255,255,0.8); margin: 0; }
+
+.message { display: flex; align-items: center; gap: 10px; padding: 12px 18px; margin-bottom: 16px; border-radius: 10px; font-weight: 600; font-size: 14px; }
+.success { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
+.error { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+
+.statsRow { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 14px; margin-bottom: 22px; }
+.statCard { background: white; border: 1px solid #e5e7eb; border-radius: 14px; padding: 14px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,.05); }
+.statCard strong { display: block; font-size: 22px; font-weight: 800; color: #1f2937; }
+.statCard span { font-size: 11px; color: #6b7280; font-weight: 600; text-transform: uppercase; }
+
+.card { background: white; border: 1px solid #e5e7eb; border-radius: 16px; padding: 20px 22px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,.05); }
+.cardTitle { font-size: 15px; font-weight: 800; color: #1f2937; margin: 0 0 16px; display: flex; align-items: center; gap: 8px; }
+
+.formRow { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 14px; }
+.formGroup label { display: block; margin-bottom: 6px; font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: .3px; }
+.formGroup input, .formGroup select, .formGroup textarea {
+  width: 100%; padding: 10px 12px; border: 1.5px solid #e5e7eb; border-radius: 9px;
+  font-size: 14px; font-family: inherit; color: #1f2937; background: #fafafa; box-sizing: border-box;
+}
+.formGroup input:focus, .formGroup select:focus, .formGroup textarea:focus {
+  outline: none; border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79,70,229,.12); background: white;
+}
+
+.btn {
+  display: inline-flex; align-items: center; gap: 7px; padding: 10px 18px;
+  border: none; border-radius: 9px; font-size: 13.5px; font-weight: 700; cursor: pointer;
+  transition: opacity .15s, transform .15s;
+}
+.btnPrimary { background: linear-gradient(135deg, #4f46e5, #4338ca); color: white; box-shadow: 0 4px 14px rgba(79,70,229,.3); }
+.btnPrimary:hover:not(:disabled) { opacity: .92; }
+.btnSecondary { background: #eef2ff; color: #4338ca; }
+.btnSecondary:hover:not(:disabled) { background: #e0e7ff; }
+.btnDanger { background: #fef2f2; color: #b91c1c; }
+.btnDanger:hover:not(:disabled) { background: #fee2e2; }
+.btn:disabled { opacity: .55; cursor: not-allowed; }
+
+.tableWrap { overflow-x: auto; }
+table.table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+table.table th {
+  text-align: left; padding: 10px 12px; background: #f9fafb; color: #6b7280;
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .3px;
+  border-bottom: 2px solid #e5e7eb; white-space: nowrap;
+}
+table.table td { padding: 11px 12px; border-bottom: 1px solid #f3f4f6; color: #1f2937; }
+table.table tr:hover td { background: #fafafa; }
+
+.badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 11px; border-radius: 20px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.badgeGreen { background: #d1fae5; color: #065f46; }
+.badgeRed { background: #fee2e2; color: #991b1b; }
+.badgeYellow { background: #fef3c7; color: #92400e; }
+.badgeBlue { background: #dbeafe; color: #1e40af; }
+.badgeGray { background: #f3f4f6; color: #4b5563; }
+
+.emptyBox { text-align: center; padding: 50px 24px; background: white; border: 2px dashed #e5e7eb; border-radius: 16px; color: #9ca3af; }
+
+.loadingWrap { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 70px 24px; gap: 12px; }
+.spinner { width: 38px; height: 38px; border: 4px solid #e5e7eb; border-top-color: #4f46e5; border-radius: 50%; animation: spin .75s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.groupItem { border: 1px solid #e5e7eb; border-radius: 14px; margin-bottom: 12px; overflow: hidden; }
+.groupHeader { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; cursor: pointer; background: white; }
+.groupHeader:hover { background: #fafafa; }
+.groupBody { padding: 16px 18px; border-top: 1px solid #f3f4f6; background: #fcfcfd; }
+
+.filterBar { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; align-items: flex-end; }
+.filterBar .formGroup { min-width: 160px; }
+
+.chipRow { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { padding: 6px 14px; border-radius: 20px; font-size: 12.5px; font-weight: 700; cursor: pointer; background: #f3f4f6; color: #4b5563; border: 1px solid transparent; }
+.chipActive { background: #eef2ff; color: #4338ca; border-color: #c7d2fe; }
+
+@media (max-width: 700px) {
+  .container { padding: 16px 12px; }
+  .hero { flex-direction: column; text-align: center; }
+}

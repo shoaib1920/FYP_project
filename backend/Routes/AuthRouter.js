@@ -544,4 +544,147 @@ route.delete("/admin/academic-terms/:id", authenticate, deleteTerm);
 route.put("/admin/academic-terms/:id/activate", authenticate, activateTerm);
 route.get("/academic-terms/current", authenticate, getCurrentTerm);
 
+// ─────────────────────────────────────────────
+// 🗓️ ACADEMIC SESSIONS (admin-managed list of session tags, e.g. "2022-2026")
+// ─────────────────────────────────────────────
+const {
+  createSession,
+  getAllSessions,
+  updateSession,
+  deleteSession,
+} = require("../Controllers/AcademicSessionController");
+route.post("/admin/sessions", authenticate, authorize("admin"), createSession);
+route.get("/sessions", authenticate, getAllSessions);
+route.put("/admin/sessions/:id", authenticate, authorize("admin"), updateSession);
+route.delete("/admin/sessions/:id", authenticate, authorize("admin"), deleteSession);
+
+// ─────────────────────────────────────────────
+// 🧑‍⚖️ EVALUATION PANELS (admin-defined groups of faculty evaluators)
+// ─────────────────────────────────────────────
+const {
+  createPanel,
+  getAllPanels,
+  getMyPanels,
+  updatePanel,
+  deletePanel,
+} = require("../Controllers/EvaluationPanelController");
+route.post("/admin/panels", authenticate, authorize("admin"), createPanel);
+route.get("/panels", authenticate, getAllPanels);
+route.get("/faculty/my-panels", authenticate, authorize("supervisor"), getMyPanels);
+route.put("/admin/panels/:id", authenticate, authorize("admin"), updatePanel);
+route.delete("/admin/panels/:id", authenticate, authorize("admin"), deletePanel);
+
+// ─────────────────────────────────────────────
+// 📐 EVALUATION PHASES (admin-defined phase templates — flexible replacement
+// for the old fixed INTERNAL/MIDTERM/FINAL enum; that old data model on
+// Project.evaluationPhases is untouched and keeps working for old projects)
+// ─────────────────────────────────────────────
+const {
+  createPhase,
+  getAllPhases,
+  updatePhase,
+  deletePhase,
+} = require("../Controllers/EvaluationPhaseController");
+route.post("/admin/phases", authenticate, authorize("admin"), createPhase);
+route.get("/phases", authenticate, getAllPhases);
+route.put("/admin/phases/:id", authenticate, authorize("admin"), updatePhase);
+route.delete("/admin/phases/:id", authenticate, authorize("admin"), deletePhase);
+
+// ─────────────────────────────────────────────
+// 📅 PHASE SCHEDULES (a phase assigned to a group, for one attempt)
+// ─────────────────────────────────────────────
+const {
+  createSchedule,
+  getAllSchedules,
+  getMySchedulesAsEvaluator,
+  getTeamSchedules,
+  updateSchedule,
+  deleteSchedule,
+  retrySchedule,
+} = require("../Controllers/PhaseScheduleController");
+route.post("/admin/phase-schedules", authenticate, authorize("admin"), createSchedule);
+route.get("/admin/phase-schedules", authenticate, authorize("admin"), getAllSchedules);
+route.get("/faculty/phase-schedules", authenticate, authorize("supervisor"), getMySchedulesAsEvaluator);
+route.get("/student/phase-schedules/:teamId", authenticate, getTeamSchedules);
+route.put("/admin/phase-schedules/:id", authenticate, authorize("admin"), updateSchedule);
+route.delete("/admin/phase-schedules/:id", authenticate, authorize("admin"), deleteSchedule);
+route.post("/admin/phase-schedules/:id/retry", authenticate, authorize("admin"), retrySchedule);
+
+// ─────────────────────────────────────────────
+// 📝 PHASE MARKS (evaluator marks submission, admin adjustment, pass/fail results)
+// ─────────────────────────────────────────────
+const {
+  submitMarks,
+  getAllMarks,
+  adjustMark,
+  getResults,
+} = require("../Controllers/PhaseMarkController");
+route.post("/faculty/phase-marks", authenticate, authorize("supervisor"), submitMarks);
+route.get("/admin/phase-marks", authenticate, authorize("admin"), getAllMarks);
+route.put("/admin/phase-marks/:id", authenticate, authorize("admin"), adjustMark);
+route.get("/phase-results", authenticate, getResults);
+
+// ─────────────────────────────────────────────
+// 📎 PHASE DOCUMENTS (student uploads tied to a phase schedule)
+// ─────────────────────────────────────────────
+const {
+  uploadDocument,
+  getDocuments,
+  getTeamDocuments,
+} = require("../Controllers/PhaseDocumentController");
+const phaseDocumentStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, "uploads/phase-documents/"),
+  filename:    (req, file, cb) => cb(null, Date.now() + "-" + file.originalname),
+});
+const phaseDocumentUpload = multer({ storage: phaseDocumentStorage, limits: { fileSize: 20 * 1024 * 1024 } });
+route.post("/student/phase-documents", authenticate, authorize("student"), phaseDocumentUpload.single("document"), uploadDocument);
+route.get("/phase-documents", authenticate, getDocuments);
+route.get("/student/phase-documents/:teamId", authenticate, getTeamDocuments);
+
+// ─────────────────────────────────────────────
+// ✅ MEETING ATTENDANCE (Present/Late/Absent per student, per meeting)
+// ─────────────────────────────────────────────
+const {
+  markAttendance,
+  getMyAttendance,
+  getAttendanceSummary,
+} = require("../Controllers/AttendanceController");
+route.put("/faculty/meetings/:meetingId/attendance", authenticate, authorize("supervisor"), markAttendance);
+route.get("/student/my-attendance", authenticate, authorize("student"), getMyAttendance);
+route.get("/admin/attendance-summary", authenticate, authorize("admin"), getAttendanceSummary);
+
+// ─────────────────────────────────────────────
+// 🔑 PASSWORD RESET REQUESTS (manual admin-resolved queue, supplementary to
+// the email-token forgot/reset-password flow above)
+// ─────────────────────────────────────────────
+const {
+  createRequest,
+  getAllRequests,
+  resolveRequest,
+} = require("../Controllers/PasswordResetRequestController");
+route.post("/password-reset-requests", createRequest);
+route.get("/admin/password-reset-requests", authenticate, authorize("admin"), getAllRequests);
+route.put("/admin/password-reset-requests/:id/resolve", authenticate, authorize("admin"), resolveRequest);
+
+// ─────────────────────────────────────────────
+// ⚙️ SYSTEM SETTINGS (currently: group-formation on/off switch)
+// ─────────────────────────────────────────────
+const { getSettings, updateSettings } = require("../Controllers/SettingsController");
+route.get("/settings", authenticate, getSettings);
+route.put("/admin/settings", authenticate, authorize("admin"), updateSettings);
+
+// ─────────────────────────────────────────────
+// 📈 REPORTS (printable/exportable — Print via jsPDF client-side, Export via CSV client-side)
+// ─────────────────────────────────────────────
+const { getStudentsReport, getMarksReport } = require("../Controllers/ReportsController");
+route.get("/admin/reports/students", authenticate, authorize("admin"), getStudentsReport);
+route.get("/admin/reports/marks", authenticate, authorize("admin"), getMarksReport);
+
+// ─────────────────────────────────────────────
+// 🕵️ GROUP TRACKING (full per-group FYP history, admin only)
+// ─────────────────────────────────────────────
+const { getAllGroupsSummary, getGroupHistory } = require("../Controllers/GroupTrackingController");
+route.get("/admin/group-tracking", authenticate, authorize("admin"), getAllGroupsSummary);
+route.get("/admin/group-tracking/:teamId", authenticate, authorize("admin"), getGroupHistory);
+
 module.exports = route;

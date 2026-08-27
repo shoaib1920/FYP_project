@@ -11,6 +11,9 @@ import Feedback from "../Feedbacks";
 import StudentProposal from "../StudentProposal";
 import Notifications from "../Notifications";
 import AIAssistant from "../AIAssistant";
+import PhaseDocuments from "../PhaseDocuments";
+import MyProgress from "../MyProgress";
+import StudentMeetings from "../StudentMeetings";
 import {
 	FaGraduationCap,
 	FaHome,
@@ -21,6 +24,7 @@ import {
 	FaComments,
 	FaCommentDots,
 	FaSignOutAlt,
+	FaCalendarCheck,
 } from "react-icons/fa";
 // import ManageTeams from "../Teams";
 
@@ -110,6 +114,24 @@ const Main = ({ defaultModule = "Dashboard" }) => {
 						<FaFileUpload /> <span>Templates</span>
 					</button>
 					<button
+						onClick={() => ShowModule("PhaseDocuments")}
+						className={activeModule === "PhaseDocuments" ? styles.active : ""}
+					>
+						<FaFileUpload /> <span>Phase Docs</span>
+					</button>
+					<button
+						onClick={() => ShowModule("MyProgress")}
+						className={activeModule === "MyProgress" ? styles.active : ""}
+					>
+						<FaChartLine /> <span>My Progress</span>
+					</button>
+					<button
+						onClick={() => ShowModule("StudentMeetings")}
+						className={activeModule === "StudentMeetings" ? styles.active : ""}
+					>
+						<FaCalendarCheck /> <span>Meetings</span>
+					</button>
+					<button
 						onClick={() => ShowModule("Chats")}
 						className={activeModule === "ChatBox" ? styles.active : ""}
 					>
@@ -145,6 +167,9 @@ const Main = ({ defaultModule = "Dashboard" }) => {
 				{activeModule === "CreateTask" && <CreateTask />}
 				{activeModule === "AssignTask" && <AssignTask />}
 				{activeModule === "Template-manager" && <TemplateManager />}
+				{activeModule === "PhaseDocuments" && <PhaseDocuments />}
+				{activeModule === "MyProgress" && <MyProgress />}
+				{activeModule === "StudentMeetings" && <StudentMeetings />}
 
 				{activeModule === "ChatBox" && <ChatBox />}
 				{activeModule === "Feedback" && <Feedback />}

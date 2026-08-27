@@ -133,6 +133,9 @@ function App() {
   <Route path="/student/Assign-task"  element={<Main defaultModule="AssignTask" />} />
 
   <Route path="/student/StudentProposal"  element={<Main defaultModule="StudentProposal" />} />
+  <Route path="/student/PhaseDocuments"  element={<Main defaultModule="PhaseDocuments" />} />
+  <Route path="/student/MyProgress"  element={<Main defaultModule="MyProgress" />} />
+  <Route path="/student/StudentMeetings"  element={<Main defaultModule="StudentMeetings" />} />
 
   {/* You can also protect /create-task if needed */}
   <Route

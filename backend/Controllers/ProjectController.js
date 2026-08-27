@@ -9,7 +9,6 @@ const Admin = require("../Models/Admin/AdminAuth");
 const sendEmail = require("../utils/emailService");
 const { logAction } = require("./AuditLogController");
 const fs = require("fs");
-const { PDFParse } = require("pdf-parse");
 const mammoth = require("mammoth");
 const { analyzeFinalReportQuality } = require("../utils/geminiService");
 const { checkAiContent, MIN_CHARS: COPYLEAKS_MIN_CHARS } = require("../utils/copyleaksService");
@@ -45,6 +44,11 @@ const extractReportText = async (localFilePath) => {
 
   let parser;
   try {
+    // Required lazily, not at module load — pdf-parse's bundle touches
+    // browser-only canvas globals (DOMMatrix) on import in some Node
+    // versions, which would otherwise crash the whole server at startup
+    // just from requiring this controller, not from ever calling it.
+    const { PDFParse } = require("pdf-parse");
     parser = new PDFParse({ data: buffer });
     const parsed = await parser.getText();
     return (parsed.text || "").trim();

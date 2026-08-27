@@ -13,13 +13,24 @@ import ProposalApprovals from "../ProjectProposals";
 import DepartmentManagement from "../DepartmentManagement";
 import GradeApproval from "../GradeApproval";
 import AcademicCalendar from "../AcademicCalendar";
+import EvaluationPanels from "../EvaluationPanels";
+import PhaseManagement from "../PhaseManagement";
+import PhaseScheduling from "../PhaseScheduling";
+import MarksManagement from "../MarksManagement";
+import PhaseResults from "../PhaseResults";
+import AcademicSessions from "../AcademicSessions";
+import SystemSettings from "../SystemSettings";
+import PasswordResetRequests from "../PasswordResetRequests";
+import GroupTracking from "../GroupTracking";
+import StudentsReport from "../StudentsReport";
+import MarksReport from "../MarksReport";
 // Hidden for now (not deleted) — see ShowModule nav below.
 // import AuditLog from "../AuditLog";
 // import Analytics from "../Analytics";
 
 
 // Icons
-import { FaHome, FaTasks, FaUserGraduate, FaUserTie, FaProjectDiagram, FaComments, FaSignOutAlt, FaFileUpload, FaFileSignature, FaBuilding, FaStar, FaShieldAlt, FaCalendarAlt } from "react-icons/fa";
+import { FaHome, FaTasks, FaUserGraduate, FaUserTie, FaProjectDiagram, FaComments, FaSignOutAlt, FaFileUpload, FaFileSignature, FaBuilding, FaStar, FaShieldAlt, FaCalendarAlt, FaGavel, FaLayerGroup, FaClipboardList, FaTrophy, FaCog, FaKey, FaSearch, FaFileAlt, FaChartBar } from "react-icons/fa";
 
 const Main = ({ defaultModule = "Dashboard" }) => {
   const navigate = useNavigate();
@@ -84,6 +95,23 @@ const Main = ({ defaultModule = "Dashboard" }) => {
         <FaCalendarAlt /> Academic Calendar
       </button>
 
+      <div className={styles.nav_section_label}>FYP Phases</div>
+      <button onClick={() => ShowModule("EvaluationPanels")} className={activeModule === "EvaluationPanels" ? styles.active : ""}>
+        <FaGavel /> Evaluation Panels
+      </button>
+      <button onClick={() => ShowModule("PhaseManagement")} className={activeModule === "PhaseManagement" ? styles.active : ""}>
+        <FaLayerGroup /> Phase Management
+      </button>
+      <button onClick={() => ShowModule("PhaseScheduling")} className={activeModule === "PhaseScheduling" ? styles.active : ""}>
+        <FaCalendarAlt /> Phase Scheduling
+      </button>
+      <button onClick={() => ShowModule("MarksManagement")} className={activeModule === "MarksManagement" ? styles.active : ""}>
+        <FaClipboardList /> Manage Marks
+      </button>
+      <button onClick={() => ShowModule("PhaseResults")} className={activeModule === "PhaseResults" ? styles.active : ""}>
+        <FaTrophy /> Phase Results
+      </button>
+
       <div className={styles.nav_section_label}>Resources</div>
       <button
         onClick={() => ShowModule("DepartmentManagement")}
@@ -121,6 +149,30 @@ const Main = ({ defaultModule = "Dashboard" }) => {
 
       {/* Analytics / Audit Trail nav hidden for now — not deleted, see AdminMain imports */}
 
+      <div className={styles.nav_section_label}>Tracking</div>
+      <button onClick={() => ShowModule("GroupTracking")} className={activeModule === "GroupTracking" ? styles.active : ""}>
+        <FaSearch /> Group Tracking
+      </button>
+
+      <div className={styles.nav_section_label}>Reports</div>
+      <button onClick={() => ShowModule("StudentsReport")} className={activeModule === "StudentsReport" ? styles.active : ""}>
+        <FaFileAlt /> Students Report
+      </button>
+      <button onClick={() => ShowModule("MarksReport")} className={activeModule === "MarksReport" ? styles.active : ""}>
+        <FaChartBar /> Marks Report
+      </button>
+
+      <div className={styles.nav_section_label}>System</div>
+      <button onClick={() => ShowModule("AcademicSessions")} className={activeModule === "AcademicSessions" ? styles.active : ""}>
+        <FaCalendarAlt /> Academic Sessions
+      </button>
+      <button onClick={() => ShowModule("PasswordResetRequests")} className={activeModule === "PasswordResetRequests" ? styles.active : ""}>
+        <FaKey /> Password Resets
+      </button>
+      <button onClick={() => ShowModule("SystemSettings")} className={activeModule === "SystemSettings" ? styles.active : ""}>
+        <FaCog /> Settings
+      </button>
+
       <button onClick={handleLogout} className={styles.logout_btn}>
         <FaSignOutAlt /> Logout
       </button>
@@ -137,6 +189,17 @@ const Main = ({ defaultModule = "Dashboard" }) => {
     {activeModule === "proposal-approval" && <ProposalApprovals />}
     {activeModule === "grade-approval"    && <GradeApproval />}
     {activeModule === "AcademicCalendar"  && <AcademicCalendar />}
+    {activeModule === "EvaluationPanels" && <EvaluationPanels />}
+    {activeModule === "PhaseManagement"  && <PhaseManagement />}
+    {activeModule === "PhaseScheduling"  && <PhaseScheduling />}
+    {activeModule === "MarksManagement"  && <MarksManagement />}
+    {activeModule === "PhaseResults"     && <PhaseResults />}
+    {activeModule === "GroupTracking"    && <GroupTracking />}
+    {activeModule === "StudentsReport"   && <StudentsReport />}
+    {activeModule === "MarksReport"      && <MarksReport />}
+    {activeModule === "AcademicSessions" && <AcademicSessions />}
+    {activeModule === "PasswordResetRequests" && <PasswordResetRequests />}
+    {activeModule === "SystemSettings"   && <SystemSettings />}
     {activeModule === "ChatBox"          && <ChatBox />}
     {activeModule === "Feedback" && <Feedback />}
     {/* AuditLog / Analytics modules hidden for now — not deleted, see imports above */}

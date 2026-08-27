@@ -49,6 +49,16 @@ const meetingLogSchema = new mongoose.Schema(
       },
     ],
 
+    // Per-student Present/Late/Absent, recorded by the supervisor once the
+    // meeting has happened — distinct from `attendees` above (kept for
+    // backward compat with any existing reads of that plain list).
+    attendanceRecords: [
+      {
+        student: { type: mongoose.Schema.Types.ObjectId, ref: "users" },
+        status: { type: String, enum: ["PRESENT", "LATE", "ABSENT"] },
+      },
+    ],
+
     status: {
       type: String,
       enum: ["SCHEDULED", "COMPLETED", "CANCELLED"],

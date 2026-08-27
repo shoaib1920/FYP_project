@@ -4,7 +4,9 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "nodemon index.js"
+    "dev": "nodemon index.js",
+    "dev:local": "node scripts/dev-with-local-db.js",
+    "seed:local": "node scripts/seed-dev-data.js"
   },
   "keywords": [],
   "author": "",
@@ -30,5 +32,8 @@
     "react-tsparticles": "^2.12.2",
     "socket.io": "^4.8.3",
     "tsparticles": "^3.8.1"
+  },
+  "devDependencies": {
+    "mongodb-memory-server": "^11.2.0"
   }
 }

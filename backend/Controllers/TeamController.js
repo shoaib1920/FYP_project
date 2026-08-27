@@ -1,6 +1,7 @@
 // controllers/teamController.js
 const Team = require("../Models/Team");
 const Users = require("../Models/Users");
+const SystemSettings = require("../Models/SystemSettings");
 const { createNotification } = require("../utils/notify");
 
 // Create a new team. The creator joins immediately; everyone else is invited
@@ -12,6 +13,11 @@ exports.createTeam = async (req, res) => {
 
     if (!subject || !memberIds || memberIds.length === 0) {
       return res.status(400).json({ message: "Subject and at least one invited member are required" });
+    }
+
+    const settings = await SystemSettings.findById("singleton");
+    if (settings && settings.groupFormationOpen === false) {
+      return res.status(403).json({ message: "Group formation is currently closed by the admin." });
     }
 
     const creator = await Users.findById(createdBy);

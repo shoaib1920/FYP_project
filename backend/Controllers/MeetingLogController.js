@@ -1,5 +1,6 @@
 const MeetingLog = require("../Models/MeetingLog");
 const Project = require("../Models/Project");
+const Team = require("../Models/Team");
 const { createNotification } = require("../utils/notify");
 
 // POST /meetings
@@ -22,13 +23,22 @@ exports.scheduleMeeting = async (req, res) => {
       return res.status(403).json({ message: "Only the assigned supervisor can schedule meetings" });
     }
 
+    // Default attendees to the whole team so per-student attendance marking
+    // (see AttendanceController) has a roster to work against out of the box;
+    // an explicit `attendees` list still overrides this.
+    let attendeeIds = attendees;
+    if (!attendeeIds || attendeeIds.length === 0) {
+      const team = await Team.findById(project.teamId);
+      attendeeIds = team ? team.members : [];
+    }
+
     const meeting = await MeetingLog.create({
       projectId,
       teamId: project.teamId,
       supervisorId,
       scheduledAt: new Date(scheduledAt),
       agenda: agenda || "",
-      attendees: attendees || [],
+      attendees: attendeeIds,
       nextMeetingDate: nextMeetingDate ? new Date(nextMeetingDate) : null,
       status: "SCHEDULED",
     });
