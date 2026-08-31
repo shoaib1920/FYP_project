@@ -54,6 +54,23 @@
   color: #1f2937;
 }
 
+/* Below ~480px, anchoring to the bell button (which usually isn't near the
+   screen edge — there's a profile chip / logout button after it) pushes the
+   panel's other edge off-screen, where it gets silently clipped by the
+   sitewide `overflow-x: hidden` on body. Anchor to the viewport instead so
+   it's always fully visible regardless of where the bell sits in the navbar. */
+@media screen and (max-width: 480px) {
+  .panel {
+    position: fixed;
+    top: 64px;
+    left: 12px;
+    right: 12px;
+    width: auto;
+    max-width: none;
+    max-height: calc(100vh - 80px);
+  }
+}
+
 .panelHeader {
   display: flex;
   align-items: center;
