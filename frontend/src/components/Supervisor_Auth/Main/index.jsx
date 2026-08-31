@@ -19,12 +19,13 @@ import MyPanel from "../MyPanel";
 // import Students from "../Students";
 
 // Icons
-import { FaHome, FaTasks, FaUserGraduate, FaComments, FaSignOutAlt, FaBuilding, FaClipboardList, FaFolderOpen, FaCalendarPlus, FaCheckSquare, FaClipboardCheck, FaGavel } from "react-icons/fa";
+import { FaHome, FaTasks, FaUserGraduate, FaComments, FaSignOutAlt, FaBuilding, FaClipboardList, FaFolderOpen, FaCalendarPlus, FaCheckSquare, FaClipboardCheck, FaGavel, FaBars, FaTimes } from "react-icons/fa";
 
 const Main = ({ defaultModule = "Dashboard" }) => {
   const navigate = useNavigate();
   const [activeModule, setActiveModule] = useState(defaultModule);
   const [supervisorName, setSupervisorName] = useState("");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     const supervisorData = localStorage.getItem("supervisorData");
@@ -55,15 +56,24 @@ const Main = ({ defaultModule = "Dashboard" }) => {
 
   const ShowModule = (moduleName) => {
     setActiveModule(moduleName);
+    setSidebarOpen(false); // close the mobile drawer after picking a section
     // navigate(`/${moduleName}`);
   };
 
   return (
     <div className={styles.main_wrapper}>
-      <aside className={styles.sidebar}>
+      <button className={styles.menu_btn} onClick={() => setSidebarOpen(true)}>
+        <FaBars /> <span>Menu</span>
+      </button>
+      <div
+        className={`${styles.backdrop} ${sidebarOpen ? styles.open : ""}`}
+        onClick={() => setSidebarOpen(false)}
+      />
+      <aside className={`${styles.sidebar} ${sidebarOpen ? styles.open : ""}`}>
         <div className={styles.sidebar_header}>
           <div className={styles.brand_icon}><FaFolderOpen /></div>
           <h2>Supervisor Panel</h2>
+          <button className={styles.close_btn} onClick={() => setSidebarOpen(false)}><FaTimes /></button>
         </div>
 
         {/* <div className={styles.profile_card}>

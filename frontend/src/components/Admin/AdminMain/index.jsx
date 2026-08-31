@@ -30,11 +30,12 @@ import MarksReport from "../MarksReport";
 
 
 // Icons
-import { FaHome, FaTasks, FaUserGraduate, FaUserTie, FaProjectDiagram, FaComments, FaSignOutAlt, FaFileUpload, FaFileSignature, FaBuilding, FaStar, FaShieldAlt, FaCalendarAlt, FaGavel, FaLayerGroup, FaClipboardList, FaTrophy, FaCog, FaKey, FaSearch, FaFileAlt, FaChartBar } from "react-icons/fa";
+import { FaHome, FaTasks, FaUserGraduate, FaUserTie, FaProjectDiagram, FaComments, FaSignOutAlt, FaFileUpload, FaFileSignature, FaBuilding, FaStar, FaShieldAlt, FaCalendarAlt, FaGavel, FaLayerGroup, FaClipboardList, FaTrophy, FaCog, FaKey, FaSearch, FaFileAlt, FaChartBar, FaBars, FaTimes } from "react-icons/fa";
 
 const Main = ({ defaultModule = "Dashboard" }) => {
   const navigate = useNavigate();
   const [activeModule, setActiveModule] = useState(defaultModule);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
 	setActiveModule(defaultModule);
@@ -45,20 +46,29 @@ const Main = ({ defaultModule = "Dashboard" }) => {
 	localStorage.removeItem("adminToken");  // remove token
 	navigate("/");     // redirect to login
   };
-  
+
 
   const ShowModule = (moduleName) => {
 	setActiveModule(moduleName);
+	setSidebarOpen(false); // close the mobile drawer after picking a section
 	// navigate(`/${moduleName}`);
   };
 
   return (
 	/* ...inside your component's return */
 <div className={styles.main_wrapper}>
-  <aside className={styles.sidebar}>
+  <button className={styles.menu_btn} onClick={() => setSidebarOpen(true)}>
+    <FaBars /> <span>Menu</span>
+  </button>
+  <div
+    className={`${styles.backdrop} ${sidebarOpen ? styles.open : ""}`}
+    onClick={() => setSidebarOpen(false)}
+  />
+  <aside className={`${styles.sidebar} ${sidebarOpen ? styles.open : ""}`}>
     <div className={styles.sidebar_header}>
       <div className={styles.brand_icon}><FaShieldAlt /></div>
       <h2>Admin Panel</h2>
+      <button className={styles.close_btn} onClick={() => setSidebarOpen(false)}><FaTimes /></button>
     </div>
 
     <nav className={styles.sidebar_nav}>

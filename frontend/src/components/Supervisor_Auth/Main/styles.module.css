@@ -177,4 +177,90 @@
 .content_area {
   flex: 1;
   overflow-y: auto;
+  min-width: 0;
+}
+
+/* ── Mobile hamburger toggle (hidden on desktop) ── */
+.menu_btn {
+  display: none;
+}
+
+/* ── Drawer close button (hidden on desktop) ── */
+.close_btn {
+  display: none;
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: #cbd5e1;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 6px;
+}
+
+/* ── Backdrop behind the drawer on mobile ── */
+.backdrop {
+  display: none;
+}
+
+/* 📱 Responsive: sidebar becomes an off-canvas drawer below 900px */
+@media screen and (max-width: 900px) {
+  .main_wrapper {
+    display: block;
+    height: auto;
+    min-height: 100vh;
+  }
+
+  .menu_btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: sticky;
+    top: 0;
+    left: 0;
+    z-index: 30;
+    width: 100%;
+    height: 56px;
+    background: linear-gradient(135deg, #0f1b3d 0%, #111827 100%);
+    color: #fff;
+    border: none;
+    font-size: 20px;
+    gap: 10px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.18);
+  }
+  .menu_btn span {
+    font-size: 15px;
+    font-weight: 700;
+  }
+
+  .close_btn {
+    display: block;
+  }
+
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 50;
+    width: 82vw;
+    max-width: 300px;
+    height: 100vh;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+  }
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .backdrop.open {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 40;
+  }
+
+  .content_area {
+    overflow-y: visible;
+  }
 }
