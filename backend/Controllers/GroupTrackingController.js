@@ -16,7 +16,10 @@ exports.getAllGroupsSummary = async (req, res) => {
         return {
           teamId: team._id,
           subject: team.subject,
+          groupCode: team.groupCode,
           department: team.department,
+          academicSession: team.academicSession,
+          shift: team.shift,
           members: team.members.length,
           supervisor: project?.supervisorId?.name || "Not assigned",
           status: project ? project.status : "Open",

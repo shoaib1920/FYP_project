@@ -601,6 +601,7 @@ const {
   updateSchedule,
   deleteSchedule,
   retrySchedule,
+  assignSupervisorFromSchedule,
 } = require("../Controllers/PhaseScheduleController");
 route.post("/admin/phase-schedules", authenticate, authorize("admin"), createSchedule);
 route.get("/admin/phase-schedules", authenticate, authorize("admin"), getAllSchedules);
@@ -609,6 +610,7 @@ route.get("/student/phase-schedules/:teamId", authenticate, getTeamSchedules);
 route.put("/admin/phase-schedules/:id", authenticate, authorize("admin"), updateSchedule);
 route.delete("/admin/phase-schedules/:id", authenticate, authorize("admin"), deleteSchedule);
 route.post("/admin/phase-schedules/:id/retry", authenticate, authorize("admin"), retrySchedule);
+route.post("/admin/phase-schedules/:id/assign-supervisor", authenticate, authorize("admin"), assignSupervisorFromSchedule);
 
 // ─────────────────────────────────────────────
 // 📝 PHASE MARKS (evaluator marks submission, admin adjustment, pass/fail results)

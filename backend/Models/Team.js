@@ -9,6 +9,14 @@ const teamSchema = new mongoose.Schema(
     creatorJoinCode: { type: String, required: true },
     memberNames: [{ type: String }],
      department:{ type: String, required: true },
+    // Structured facets matching the reference system's Department × Session
+    // × Shift model — optional/nullable so existing teams (created before
+    // this existed) aren't affected. groupCode is auto-generated at creation
+    // time only when department/session/shift are all known (see
+    // TeamController.generateGroupCode); left null otherwise.
+    academicSession: { type: String, default: "" },
+    shift: { type: String, enum: ["Morning", "Evening", null], default: null },
+    groupCode: { type: String, default: null },
     // Invited students who haven't accepted/declined yet — see respondToInvite.
     // A student only moves into `members` once they accept. A proposal can't
     // be submitted for this team while any invite here is still unanswered.

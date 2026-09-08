@@ -55,8 +55,11 @@ const GroupTracking = () => {
         {groups.map((g) => (
           <div key={g.teamId} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderTop: "1px solid #f3f4f6" }}>
             <div>
-              <strong>{g.subject}</strong>
-              <div style={{ fontSize: 12.5, color: "#6b7280" }}>Supervisor: {g.supervisor} • Members: {g.members}</div>
+              <strong>{g.subject}</strong>{g.groupCode && <span style={{ marginLeft: 8, fontFamily: "monospace", fontSize: 12, color: "#4338ca" }}>{g.groupCode}</span>}
+              <div style={{ fontSize: 12.5, color: "#6b7280" }}>
+                Supervisor: {g.supervisor} • Members: {g.members}
+                {g.academicSession && ` • ${g.academicSession}`}{g.shift && ` • ${g.shift}`}
+              </div>
             </div>
             <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
               <span className={`${styles.badge} ${g.status === "Open" ? styles.badgeGray : styles.badgeBlue}`}>{g.status}</span>

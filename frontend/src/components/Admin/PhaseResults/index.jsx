@@ -2,26 +2,33 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import styles from "../../shared/phaseSystem.module.css";
 import Loader from "../../Loader";
-import { FaTrophy, FaRedo } from "react-icons/fa";
+import { FaTrophy, FaRedo, FaUserTie } from "react-icons/fa";
 
 const API_URL = process.env.REACT_APP_API_URL;
 
 const PhaseResults = () => {
   const [schedules, setSchedules] = useState([]);
+  const [supervisors, setSupervisors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState(null);
   const [retryTarget, setRetryTarget] = useState(null);
   const [retryDate, setRetryDate] = useState("");
   const [retryTime, setRetryTime] = useState("");
   const [retryRoom, setRetryRoom] = useState("");
+  const [assignTarget, setAssignTarget] = useState(null);
+  const [assignSupervisorId, setAssignSupervisorId] = useState("");
 
   const authHeader = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem("adminToken")}` } });
 
   const fetchResults = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(`${API_URL}/auth/phase-results`, authHeader());
-      setSchedules(res.data.schedules || []);
+      const [resultsRes, supsRes] = await Promise.all([
+        axios.get(`${API_URL}/auth/phase-results`, authHeader()),
+        axios.get(`${API_URL}/auth/admin/supervisors`, authHeader()),
+      ]);
+      setSchedules(resultsRes.data.schedules || []);
+      setSupervisors(supsRes.data.supervisors || []);
     } catch (err) {
       setMessage({ type: "error", text: "Failed to load results" });
     } finally {
@@ -57,6 +64,23 @@ const PhaseResults = () => {
       fetchResults();
     } catch (err) {
       setMessage({ type: "error", text: err.response?.data?.message || "Failed to schedule retry" });
+    }
+  };
+
+  const submitAssign = async () => {
+    if (!assignSupervisorId) return;
+    try {
+      await axios.post(
+        `${API_URL}/auth/admin/phase-schedules/${assignTarget._id}/assign-supervisor`,
+        { supervisorId: assignSupervisorId },
+        authHeader()
+      );
+      setMessage({ type: "success", text: "Supervisor assigned successfully" });
+      setAssignTarget(null);
+      setAssignSupervisorId("");
+      fetchResults();
+    } catch (err) {
+      setMessage({ type: "error", text: err.response?.data?.message || "Failed to assign supervisor" });
     }
   };
 
@@ -97,6 +121,11 @@ const PhaseResults = () => {
                       <FaRedo /> Retry
                     </button>
                   )}
+                  {s.result === "PASS" && (
+                    <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setAssignTarget(s)}>
+                      <FaUserTie /> Assign Supervisor
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -123,6 +152,27 @@ const PhaseResults = () => {
             <div style={{ display: "flex", gap: 10 }}>
               <button className={`${styles.btn} ${styles.btnPrimary}`} onClick={submitRetry}>Schedule Retry</button>
               <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setRetryTarget(null)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {assignTarget && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
+          <div className={styles.card} style={{ width: 380 }}>
+            <h3 className={styles.cardTitle}>Assign Supervisor — {assignTarget.teamId?.subject}</h3>
+            <p style={{ fontSize: 12.5, color: "#6b7280", marginBottom: 14 }}>
+              This group passed "{assignTarget.phaseId?.name}". Assigning a supervisor here creates (or updates) their project directly.
+            </p>
+            <div className={styles.formGroup} style={{ marginBottom: 14 }}>
+              <label>Supervisor</label>
+              <select value={assignSupervisorId} onChange={(e) => setAssignSupervisorId(e.target.value)}>
+                <option value="">-- Select Supervisor --</option>
+                {supervisors.map((s) => <option key={s._id} value={s._id}>{s.name}</option>)}
+              </select>
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button className={`${styles.btn} ${styles.btnPrimary}`} onClick={submitAssign}>Assign</button>
+              <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setAssignTarget(null)}>Cancel</button>
             </div>
           </div>
         </div>

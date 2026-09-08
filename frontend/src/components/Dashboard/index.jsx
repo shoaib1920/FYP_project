@@ -36,6 +36,9 @@ const Dashboard = ({ setActiveModule }) => {
   const [recentTasks, setRecentTasks] = useState([]);
   const [showTeamModal, setShowTeamModal] = useState(false);
   const [teamSubject, setTeamSubject] = useState("");
+  const [teamSession, setTeamSession] = useState("");
+  const [teamShift, setTeamShift] = useState("");
+  const [availableSessions, setAvailableSessions] = useState([]);
   const [selectedUsers, setSelectedUsers] = useState([]);
   const [availableStudents, setAvailableStudents] = useState([]);
   const [allTeams, setAllTeams] = useState([]);
@@ -205,6 +208,19 @@ const Dashboard = ({ setActiveModule }) => {
       setLoading(false);
     };
     init();
+
+    const fetchSessions = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await axios.get(`${process.env.REACT_APP_API_URL}/auth/sessions`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setAvailableSessions((res.data.sessions || []).filter((s) => s.isActive));
+      } catch (error) {
+        console.error("Error fetching sessions:", error);
+      }
+    };
+    fetchSessions();
   }, []);
 
   const handleCreateTeam = async () => {
@@ -220,6 +236,8 @@ const Dashboard = ({ setActiveModule }) => {
         memberIds: selectedUsers.map((user) => user.id),
         memberNames: selectedUsers.map((user) => user.name),
         department: departmentName,
+        academicSession: teamSession,
+        shift: teamShift,
         creatorJoinCode: studentJoinCode,
         creatorName: userName,
       };
@@ -232,6 +250,8 @@ const Dashboard = ({ setActiveModule }) => {
         showToast("Team created! Invites have been sent to the selected students — they'll need to accept before joining.", "success");
         setShowTeamModal(false);
         setTeamSubject("");
+        setTeamSession("");
+        setTeamShift("");
         setSelectedUsers([]);
         const updatedUser = { ...loggedInUser, designation: "TeamLeader" };
         localStorage.setItem("user", JSON.stringify(updatedUser));
@@ -582,6 +602,17 @@ const Dashboard = ({ setActiveModule }) => {
             <div className={styles.modalBody}>
               <label className={styles.modalLabel}>Subject</label>
               <input type="text" placeholder="Enter Subject Name" value={teamSubject} onChange={(e) => setTeamSubject(e.target.value)} className={styles.modalInput} />
+              <label className={styles.modalLabel}>Academic Session</label>
+              <select value={teamSession} onChange={(e) => setTeamSession(e.target.value)} className={styles.modalInput}>
+                <option value="">-- Select Session (optional) --</option>
+                {availableSessions.map((s) => <option key={s._id} value={s.name}>{s.name}</option>)}
+              </select>
+              <label className={styles.modalLabel}>Shift</label>
+              <select value={teamShift} onChange={(e) => setTeamShift(e.target.value)} className={styles.modalInput}>
+                <option value="">-- Select Shift (optional) --</option>
+                <option value="Morning">Morning</option>
+                <option value="Evening">Evening</option>
+              </select>
               <label className={styles.modalLabel}>Search Team Members</label>
               <div className={styles.searchInputWrap}>
                 <FaSearch className={styles.searchInputIcon} />

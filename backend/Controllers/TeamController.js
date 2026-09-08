@@ -2,14 +2,29 @@
 const Team = require("../Models/Team");
 const Users = require("../Models/Users");
 const SystemSettings = require("../Models/SystemSettings");
+const Department = require("../Models/Department");
 const { createNotification } = require("../utils/notify");
+
+// Matches the reference system's format exactly, e.g. "BSCSF22MG01"
+// (BS + dept code + F + last 2 digits of the session's start year + shift
+// letter + G + a running number scoped to that exact prefix). Only called
+// when department/session/shift are all known — teams created without them
+// (or before this existed) simply have no groupCode.
+async function generateGroupCode(deptCode, academicSession, shift) {
+  const startYear = (academicSession || "").split("-")[0];
+  const yearSuffix = startYear.length >= 2 ? startYear.slice(-2) : "XX";
+  const shiftCode = shift === "Morning" ? "M" : "E";
+  const prefix = `BS${deptCode}F${yearSuffix}${shiftCode}G`;
+  const count = await Team.countDocuments({ groupCode: { $regex: `^${prefix}` } });
+  return `${prefix}${String(count + 1).padStart(2, "0")}`;
+}
 
 // Create a new team. The creator joins immediately; everyone else is invited
 // and only becomes a member once they accept via respondToInvite.
 exports.createTeam = async (req, res) => {
   try {
     const createdBy = req.user._id;
-    const { subject, memberIds, memberNames, creatorJoinCode, department, creatorName } = req.body;
+    const { subject, memberIds, memberNames, creatorJoinCode, department, creatorName, academicSession, shift } = req.body;
 
     if (!subject || !memberIds || memberIds.length === 0) {
       return res.status(400).json({ message: "Subject and at least one invited member are required" });
@@ -44,11 +59,26 @@ exports.createTeam = async (req, res) => {
       });
     }
 
+    // Auto-generate a structured group code (e.g. "BSCSF22MG01") when we have
+    // enough info to — only possible once the department's short code can be
+    // resolved and both session and shift were provided. Never blocks team
+    // creation if any of that is missing.
+    let groupCode = null;
+    if (department && academicSession && shift) {
+      const dept = await Department.findOne({ name: department });
+      if (dept?.code) {
+        groupCode = await generateGroupCode(dept.code, academicSession, shift);
+      }
+    }
+
     const newTeam = new Team({
       subject,
       members: [createdBy],
       memberNames: [creatorName || creator.name],
       department: department || "",
+      academicSession: academicSession || "",
+      shift: shift || null,
+      groupCode,
       creatorJoinCode: creatorJoinCode || "",
       createdBy,
       creatorName: creatorName || creator.name,
