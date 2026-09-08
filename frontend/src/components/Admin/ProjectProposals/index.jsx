@@ -469,7 +469,13 @@ const ProposalApprovals = () => {
                       </div>
                     )}
 
-                    {proposal.status === "APPROVED_BY_ADMIN" && (
+                    {/* Direct supervisor assignment from here is hidden for now — supervisor
+                        assignment now goes exclusively through the evaluation-phase flow:
+                        schedule a "Proposal Defence" phase for this team (Phase Scheduling),
+                        then use "Assign Supervisor" on its passed result (Phase Results).
+                        Nothing was removed — handleAssignSupervisor/the endpoint still work,
+                        this block can be restored by un-commenting if that decision changes. */}
+                    {false && proposal.status === "APPROVED_BY_ADMIN" && (
                       <div className={styles.actionSection}>
                         <label className={styles.supervisorLabel}>Assign Supervisor:</label>
                         <select
@@ -491,6 +497,13 @@ const ProposalApprovals = () => {
                         >
                           {actionLoading === proposal._id + "_assign" ? "Assigning..." : "🔗 Assign Supervisor"}
                         </button>
+                      </div>
+                    )}
+                    {proposal.status === "APPROVED_BY_ADMIN" && (
+                      <div className={styles.actionSection}>
+                        <p style={{ fontSize: 12.5, color: "#6b7280", margin: 0 }}>
+                          To assign a supervisor, schedule a Proposal Defence phase for this group under <strong>Phase Scheduling</strong>, then assign the supervisor from its result under <strong>Phase Results</strong> once it passes.
+                        </p>
                       </div>
                     )}
 
