@@ -11,6 +11,7 @@ const COLUMNS = [
   { key: "studentId", label: "Student ID" },
   { key: "name", label: "Name" },
   { key: "department", label: "Department" },
+  { key: "shift", label: "Shift" },
   { key: "academicSession", label: "Session" },
   { key: "groupCode", label: "Group" },
   { key: "supervisorName", label: "Supervisor" },
@@ -21,6 +22,7 @@ const StudentsReport = () => {
   const [students, setStudents] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [departmentId, setDepartmentId] = useState("");
+  const [shift, setShift] = useState("");
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState(null);
 
@@ -29,7 +31,9 @@ const StudentsReport = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const params = departmentId ? { departmentId } : {};
+      const params = {};
+      if (departmentId) params.departmentId = departmentId;
+      if (shift) params.shift = shift;
       const [res, deptRes] = await Promise.all([
         axios.get(`${API_URL}/auth/admin/reports/students`, { ...authHeader(), params }),
         axios.get(`${API_URL}/auth/admin/department`, authHeader()),
@@ -43,7 +47,15 @@ const StudentsReport = () => {
     }
   };
 
-  useEffect(() => { fetchData(); /* eslint-disable-next-line */ }, [departmentId]);
+  useEffect(() => { fetchData(); /* eslint-disable-next-line */ }, [departmentId, shift]);
+
+  const reportLabel = () => {
+    const deptName = departmentId ? departments.find((d) => d._id === departmentId)?.name : "";
+    if (deptName && shift) return `${deptName} — ${shift}`;
+    if (deptName) return deptName;
+    if (shift) return `All Departments — ${shift}`;
+    return "All Students";
+  };
 
   if (loading) return <div className={styles.container}><Loader text="Building report..." /></div>;
 
@@ -67,7 +79,15 @@ const StudentsReport = () => {
             {departments.map((d) => <option key={d._id} value={d._id}>{d.name}</option>)}
           </select>
         </div>
-        <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => exportToPDF("students-report", "Students Report", COLUMNS, students)}>
+        <div className={styles.formGroup}>
+          <label>Shift</label>
+          <select value={shift} onChange={(e) => setShift(e.target.value)}>
+            <option value="">All Shifts</option>
+            <option value="Morning">Morning</option>
+            <option value="Evening">Evening</option>
+          </select>
+        </div>
+        <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => exportToPDF("students-report", `Students Report — ${reportLabel()}`, COLUMNS, students)}>
           <FaPrint /> Print / PDF
         </button>
         <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => exportToCSV("students-report", COLUMNS, students)}>
@@ -76,7 +96,7 @@ const StudentsReport = () => {
       </div>
 
       <div className={styles.card}>
-        <h3 className={styles.cardTitle}>Students — {students.length}</h3>
+        <h3 className={styles.cardTitle}>Students — {reportLabel()} ({students.length})</h3>
         <div className={styles.tableWrap}>
           <table className={styles.table}>
             <thead><tr>{COLUMNS.map((c) => <th key={c.key}>{c.label}</th>)}</tr></thead>

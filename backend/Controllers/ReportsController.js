@@ -3,6 +3,7 @@ const Team = require("../Models/Team");
 const Proposal = require("../Models/Proposal");
 const Project = require("../Models/Project");
 const PhaseMark = require("../Models/PhaseMark");
+const Department = require("../Models/Department");
 
 // GET /admin/reports/students — filterable by ?departmentId=
 exports.getStudentsReport = async (req, res) => {
@@ -17,6 +18,7 @@ exports.getStudentsReport = async (req, res) => {
       students.map(async (student) => {
         const team = teams.find((t) => t.members.some((m) => String(m) === String(student._id)));
         let groupCode = null, supervisorName = null, status = "No Group", academicSession = null;
+        const shift = team?.shift || null;
 
         if (team) {
           groupCode = team.subject;
@@ -40,6 +42,7 @@ exports.getStudentsReport = async (req, res) => {
           email: student.email,
           department: student.department?.name || null,
           academicSession,
+          shift,
           groupCode,
           supervisorName,
           status,
@@ -47,11 +50,15 @@ exports.getStudentsReport = async (req, res) => {
       })
     );
 
+    let filtered = rows;
     if (req.query.academicSession) {
-      return res.json({ success: true, students: rows.filter((r) => r.academicSession === req.query.academicSession) });
+      filtered = filtered.filter((r) => r.academicSession === req.query.academicSession);
+    }
+    if (req.query.shift) {
+      filtered = filtered.filter((r) => r.shift === req.query.shift);
     }
 
-    res.json({ success: true, students: rows });
+    res.json({ success: true, students: filtered });
   } catch (err) {
     console.error("Error building students report:", err);
     res.status(500).json({ success: false, message: "Server error while building students report" });
@@ -64,20 +71,29 @@ exports.getMarksReport = async (req, res) => {
     let marks = await PhaseMark.find()
       .populate("studentId", "name studentId department")
       .populate("evaluatorId", "name")
-      .populate({ path: "phaseScheduleId", populate: [{ path: "phaseId", select: "name totalMarks" }, { path: "teamId", select: "department" }] })
+      .populate({ path: "phaseScheduleId", populate: [{ path: "phaseId", select: "name totalMarks" }, { path: "teamId", select: "department shift" }] })
       .sort({ createdAt: -1 });
 
     if (req.query.phaseId) {
       marks = marks.filter((m) => String(m.phaseScheduleId?.phaseId?._id) === req.query.phaseId);
     }
     if (req.query.departmentId) {
-      marks = marks.filter((m) => String(m.phaseScheduleId?.teamId?.department) === req.query.departmentId);
+      // Team.department stores the department's *name* (free text), not its
+      // ObjectId — resolve the id to a name first so this actually matches.
+      const dept = await Department.findById(req.query.departmentId);
+      if (dept) {
+        marks = marks.filter((m) => m.phaseScheduleId?.teamId?.department === dept.name);
+      }
+    }
+    if (req.query.shift) {
+      marks = marks.filter((m) => m.phaseScheduleId?.teamId?.shift === req.query.shift);
     }
 
     const rows = marks.map((m) => ({
       studentId: m.studentId?.studentId,
       studentName: m.studentId?.name,
       phase: m.phaseScheduleId?.phaseId?.name,
+      shift: m.phaseScheduleId?.teamId?.shift || null,
       marksObtained: m.marksObtained,
       maxMarks: m.maxMarks,
       convertedMarks: m.convertedMarks,
