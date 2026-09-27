@@ -1,5 +1,6 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { UNIVERSITY_LOGO_DATA_URL } from "../assets/universityLogo";
 
 const resolveCell = (col, row) =>
   typeof col.value === "function" ? col.value(row) : row[col.key];
@@ -23,9 +24,7 @@ const triggerDownload = (blob, filename) => {
   URL.revokeObjectURL(url);
 };
 
-// Letterhead shown at the top of every generated report — text for now;
-// pass a `logoDataUrl` (base64 data: URI) through the `options` below once
-// an actual logo image file is available, and it'll appear next to this.
+// Letterhead shown at the top of every generated report.
 const UNIVERSITY_NAME = "Baba Guru Nanak University, Nankana Sahib";
 
 /**
@@ -91,17 +90,18 @@ export function exportToCSV(filename, columns, rows, groupBy = null) {
  *   title and the table, e.g. totals/averages for a report-style export.
  * @param {{groupBy?:(row:object)=>string, logoDataUrl?:string}} [options] -
  *   `groupBy` splits the table into labeled sections (one autoTable per
- *   group) instead of one flat table; `logoDataUrl` is a base64 image
- *   placed beside the university name once a logo file is available.
+ *   group) instead of one flat table; `logoDataUrl` overrides the default
+ *   university crest (pass `null` explicitly to omit the logo entirely).
  */
 export function exportToPDF(filename, title, columns, rows, summaryLines = [], options = {}) {
   const doc = new jsPDF({ orientation: "landscape" });
-  const { groupBy, logoDataUrl } = options;
+  const { groupBy } = options;
+  const logoDataUrl = options.logoDataUrl !== undefined ? options.logoDataUrl : UNIVERSITY_LOGO_DATA_URL;
 
   if (logoDataUrl) {
-    doc.addImage(logoDataUrl, "PNG", 14, 8, 14, 14);
+    doc.addImage(logoDataUrl, "PNG", 14, 6, 16, 16);
   }
-  const textX = logoDataUrl ? 32 : 14;
+  const textX = logoDataUrl ? 34 : 14;
 
   doc.setFontSize(11);
   doc.setTextColor(31, 41, 55); // #1f2937
