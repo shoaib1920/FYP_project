@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import styles from "../../shared/phaseSystem.module.css";
 import Loader from "../../Loader";
-import { exportToCSV, exportToPDF } from "../../../utils/exportUtils";
+import { exportToCSV, exportToPDF, groupRows } from "../../../utils/exportUtils";
 import { FaFileAlt, FaPrint, FaFileExcel } from "react-icons/fa";
 
 const API_URL = process.env.REACT_APP_API_URL;
@@ -57,6 +57,11 @@ const StudentsReport = () => {
     return "All Students";
   };
 
+  // Department + Shift, e.g. "Computer Science — Morning" — a report never
+  // dumps every class into one mixed list, always broken out per class.
+  const classOf = (row) => `${row.department || "Unspecified Department"} — ${row.shift || "No Shift"}`;
+  const grouped = groupRows(students, classOf);
+
   if (loading) return <div className={styles.container}><Loader text="Building report..." /></div>;
 
   return (
@@ -87,29 +92,38 @@ const StudentsReport = () => {
             <option value="Evening">Evening</option>
           </select>
         </div>
-        <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => exportToPDF("students-report", `Students Report — ${reportLabel()}`, COLUMNS, students)}>
+        <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => exportToPDF("students-report", `Students Report — ${reportLabel()}`, COLUMNS, students, [], { groupBy: classOf })}>
           <FaPrint /> Print / PDF
         </button>
-        <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => exportToCSV("students-report", COLUMNS, students)}>
+        <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => exportToCSV("students-report", COLUMNS, students, classOf)}>
           <FaFileExcel /> Export Excel
         </button>
       </div>
 
-      <div className={styles.card}>
-        <h3 className={styles.cardTitle}>Students — {reportLabel()} ({students.length})</h3>
-        <div className={styles.tableWrap}>
-          <table className={styles.table}>
-            <thead><tr>{COLUMNS.map((c) => <th key={c.key}>{c.label}</th>)}</tr></thead>
-            <tbody>
-              {students.map((s, i) => (
-                <tr key={i}>
-                  {COLUMNS.map((c) => <td key={c.key}>{s[c.key] ?? "—"}</td>)}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <p style={{ fontSize: 13, color: "#6b7280", margin: "0 0 14px" }}>
+        {reportLabel()} &middot; {students.length} student{students.length !== 1 ? "s" : ""} across {grouped.length} class{grouped.length !== 1 ? "es" : ""}
+      </p>
+
+      {grouped.map(({ heading, rows }) => (
+        <div className={styles.card} key={heading}>
+          <h3 className={styles.cardTitle}>{heading} ({rows.length})</h3>
+          <div className={styles.tableWrap}>
+            <table className={styles.table}>
+              <thead><tr>{COLUMNS.map((c) => <th key={c.key}>{c.label}</th>)}</tr></thead>
+              <tbody>
+                {rows.map((s, i) => (
+                  <tr key={i}>
+                    {COLUMNS.map((c) => <td key={c.key}>{s[c.key] ?? "—"}</td>)}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      ))}
+      {grouped.length === 0 && (
+        <div className={styles.card}><div className={styles.emptyBox}>No students match this filter.</div></div>
+      )}
     </div>
   );
 };

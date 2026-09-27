@@ -93,6 +93,7 @@ exports.getMarksReport = async (req, res) => {
       studentId: m.studentId?.studentId,
       studentName: m.studentId?.name,
       phase: m.phaseScheduleId?.phaseId?.name,
+      department: m.phaseScheduleId?.teamId?.department || null,
       shift: m.phaseScheduleId?.teamId?.shift || null,
       marksObtained: m.marksObtained,
       maxMarks: m.maxMarks,

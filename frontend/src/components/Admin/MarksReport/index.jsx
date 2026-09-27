@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import styles from "../../shared/phaseSystem.module.css";
 import Loader from "../../Loader";
-import { exportToCSV, exportToPDF } from "../../../utils/exportUtils";
+import { exportToCSV, exportToPDF, groupRows } from "../../../utils/exportUtils";
 import { FaChartBar, FaPrint, FaFileExcel } from "react-icons/fa";
 
 const API_URL = process.env.REACT_APP_API_URL;
@@ -11,6 +11,7 @@ const COLUMNS = [
   { key: "studentId", label: "Student ID" },
   { key: "studentName", label: "Name" },
   { key: "phase", label: "Phase" },
+  { key: "department", label: "Department" },
   { key: "shift", label: "Shift" },
   { key: "marksObtained", label: "Marks" },
   { key: "maxMarks", label: "Total" },
@@ -63,6 +64,9 @@ const MarksReport = () => {
     return "All Departments";
   };
 
+  const classOf = (row) => `${row.department || "Unspecified Department"} — ${row.shift || "No Shift"}`;
+  const grouped = groupRows(marks, classOf);
+
   if (loading) return <div className={styles.container}><Loader text="Building report..." /></div>;
 
   return (
@@ -100,29 +104,38 @@ const MarksReport = () => {
             {phases.map((p) => <option key={p._id} value={p._id}>{p.name}</option>)}
           </select>
         </div>
-        <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => exportToPDF("marks-report", `Marks Report — ${reportLabel()}`, COLUMNS, marks)}>
+        <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => exportToPDF("marks-report", `Marks Report — ${reportLabel()}`, COLUMNS, marks, [], { groupBy: classOf })}>
           <FaPrint /> Print / PDF
         </button>
-        <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => exportToCSV("marks-report", COLUMNS, marks)}>
+        <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => exportToCSV("marks-report", COLUMNS, marks, classOf)}>
           <FaFileExcel /> Export Excel
         </button>
       </div>
 
-      <div className={styles.card}>
-        <h3 className={styles.cardTitle}>Marks — {reportLabel()} ({marks.length} records)</h3>
-        <div className={styles.tableWrap}>
-          <table className={styles.table}>
-            <thead><tr>{COLUMNS.map((c) => <th key={c.key}>{c.label}</th>)}</tr></thead>
-            <tbody>
-              {marks.map((m, i) => (
-                <tr key={i}>
-                  {COLUMNS.map((c) => <td key={c.key}>{m[c.key] ?? "—"}</td>)}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <p style={{ fontSize: 13, color: "#6b7280", margin: "0 0 14px" }}>
+        {reportLabel()} &middot; {marks.length} record{marks.length !== 1 ? "s" : ""} across {grouped.length} class{grouped.length !== 1 ? "es" : ""}
+      </p>
+
+      {grouped.map(({ heading, rows }) => (
+        <div className={styles.card} key={heading}>
+          <h3 className={styles.cardTitle}>{heading} ({rows.length} record{rows.length !== 1 ? "s" : ""})</h3>
+          <div className={styles.tableWrap}>
+            <table className={styles.table}>
+              <thead><tr>{COLUMNS.map((c) => <th key={c.key}>{c.label}</th>)}</tr></thead>
+              <tbody>
+                {rows.map((m, i) => (
+                  <tr key={i}>
+                    {COLUMNS.map((c) => <td key={c.key}>{m[c.key] ?? "—"}</td>)}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      ))}
+      {grouped.length === 0 && (
+        <div className={styles.card}><div className={styles.emptyBox}>No marks match this filter.</div></div>
+      )}
     </div>
   );
 };
