@@ -25,7 +25,7 @@ const triggerDownload = (blob, filename) => {
 };
 
 // Letterhead shown at the top of every generated report.
-const UNIVERSITY_NAME = "Baba Guru Nanak University, Nankana Sahib";
+const UNIVERSITY_NAME = "Baba Guru Nanak University";
 
 /**
  * Groups rows by a key function, preserving group-appearance order, and
@@ -98,24 +98,32 @@ export function exportToPDF(filename, title, columns, rows, summaryLines = [], o
   const { groupBy } = options;
   const logoDataUrl = options.logoDataUrl !== undefined ? options.logoDataUrl : UNIVERSITY_LOGO_DATA_URL;
 
-  if (logoDataUrl) {
-    doc.addImage(logoDataUrl, "PNG", 14, 6, 16, 16);
-  }
-  const textX = logoDataUrl ? 34 : 14;
+  const generatedAt = new Date().toLocaleString();
+  const logoFormat = logoDataUrl && /^data:image\/jpe?g/i.test(logoDataUrl) ? "JPEG" : "PNG";
 
-  doc.setFontSize(11);
-  doc.setTextColor(31, 41, 55); // #1f2937
-  doc.text(UNIVERSITY_NAME, textX, 13);
+  // University crest + name, then the report title — drawn at the top of the
+  // first page and again wherever a new class section starts its own page.
+  const drawLetterhead = (heading) => {
+    if (logoDataUrl) {
+      doc.addImage(logoDataUrl, logoFormat, 14, 6, 22, 22);
+    }
+    const textX = logoDataUrl ? 40 : 14;
 
-  doc.setFontSize(15);
-  doc.setTextColor(30, 64, 175); // #1e40af
-  doc.text(title, textX, 21);
+    doc.setFontSize(15);
+    doc.setTextColor(31, 41, 55); // #1f2937
+    doc.text(UNIVERSITY_NAME, textX, 14);
 
-  doc.setFontSize(9);
-  doc.setTextColor(107, 114, 128); // #6b7280
-  doc.text(`Generated: ${new Date().toLocaleString()}`, textX, 27);
+    doc.setFontSize(12);
+    doc.setTextColor(30, 64, 175); // #1e40af
+    doc.text(heading, textX, 21);
 
-  let startY = 33;
+    doc.setFontSize(9);
+    doc.setTextColor(107, 114, 128); // #6b7280
+    doc.text(`Generated: ${generatedAt}`, textX, 27);
+  };
+
+  drawLetterhead(title);
+  let startY = 36;
   if (summaryLines.length) {
     doc.setFontSize(10);
     doc.setTextColor(31, 41, 55);
@@ -140,7 +148,15 @@ export function exportToPDF(filename, title, columns, rows, summaryLines = [], o
   };
 
   if (groupBy) {
-    groupRows(rows, groupBy).forEach(({ heading, rows: groupRowsList }) => {
+    // Each class (e.g. "Computer Science — Morning") is its own report: it
+    // starts on a fresh page under the letterhead, never sharing a page with
+    // another class.
+    groupRows(rows, groupBy).forEach(({ heading, rows: groupRowsList }, index) => {
+      if (index > 0) {
+        doc.addPage();
+        drawLetterhead(title);
+        startY = 36;
+      }
       doc.setFontSize(10.5);
       doc.setTextColor(31, 41, 55);
       doc.text(`${heading}  (${groupRowsList.length})`, 14, startY);

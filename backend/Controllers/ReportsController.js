@@ -6,7 +6,18 @@ const PhaseMark = require("../Models/PhaseMark");
 const Department = require("../Models/Department");
 const { STAGE_LABELS } = require("../utils/stageMarks");
 
-// GET /admin/reports/students — filterable by ?departmentId=
+// A student's shift lives on their team, but teams created before the shift
+// field existed (and students with no team yet) have none. Roll numbers
+// encode it — e.g. BSCSF22E04 is an Evening student, BSCSF22M04 a Morning
+// one (same BS + dept + F + year + M/E scheme as TeamController's group
+// codes) — so fall back to that rather than reporting "no shift".
+function shiftFromRollNo(rollNo) {
+  const match = /^BS[A-Z]+F\d{2}([ME])/i.exec(String(rollNo || "").trim());
+  if (!match) return null;
+  return match[1].toUpperCase() === "M" ? "Morning" : "Evening";
+}
+
+// GET /admin/reports/students — filterable by ?departmentId=&shift=&academicSession=
 exports.getStudentsReport = async (req, res) => {
   try {
     const filter = {};
@@ -19,7 +30,7 @@ exports.getStudentsReport = async (req, res) => {
       students.map(async (student) => {
         const team = teams.find((t) => t.members.some((m) => String(m) === String(student._id)));
         let groupCode = null, supervisorName = null, status = "No Group", academicSession = null;
-        const shift = team?.shift || null;
+        const shift = team?.shift || shiftFromRollNo(student.studentId);
 
         if (team) {
           groupCode = team.subject;
@@ -86,8 +97,9 @@ exports.getMarksReport = async (req, res) => {
         marks = marks.filter((m) => m.phaseScheduleId?.teamId?.department === dept.name);
       }
     }
+    const shiftOf = (m) => m.phaseScheduleId?.teamId?.shift || shiftFromRollNo(m.studentId?.studentId);
     if (req.query.shift) {
-      marks = marks.filter((m) => m.phaseScheduleId?.teamId?.shift === req.query.shift);
+      marks = marks.filter((m) => shiftOf(m) === req.query.shift);
     }
 
     const rows = marks.map((m) => ({
@@ -96,7 +108,7 @@ exports.getMarksReport = async (req, res) => {
       phase: m.phaseScheduleId?.phaseId?.name,
       stage: STAGE_LABELS[m.phaseScheduleId?.stage] || "General",
       department: m.phaseScheduleId?.teamId?.department || null,
-      shift: m.phaseScheduleId?.teamId?.shift || null,
+      shift: shiftOf(m),
       marksObtained: m.marksObtained,
       maxMarks: m.maxMarks,
       convertedMarks: m.convertedMarks,
