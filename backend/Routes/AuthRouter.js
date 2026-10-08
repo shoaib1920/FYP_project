@@ -620,11 +620,18 @@ const {
   getAllMarks,
   adjustMark,
   getResults,
+  getAllStageMarks,
+  getSupervisedStageMarks,
+  getTeamStageMarks,
 } = require("../Controllers/PhaseMarkController");
 route.post("/faculty/phase-marks", authenticate, authorize("supervisor"), submitMarks);
 route.get("/admin/phase-marks", authenticate, authorize("admin"), getAllMarks);
 route.put("/admin/phase-marks/:id", authenticate, authorize("admin"), adjustMark);
 route.get("/phase-results", authenticate, getResults);
+// Internal + Supervisor + External breakdown and total per group
+route.get("/admin/stage-marks", authenticate, authorize("admin"), getAllStageMarks);
+route.get("/faculty/supervised-stage-marks", authenticate, authorize("supervisor"), getSupervisedStageMarks);
+route.get("/student/stage-marks/:teamId", authenticate, authorize("student"), getTeamStageMarks);
 
 // ─────────────────────────────────────────────
 // 📎 PHASE DOCUMENTS (student uploads tied to a phase schedule)

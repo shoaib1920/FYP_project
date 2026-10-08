@@ -4,6 +4,7 @@ const Proposal = require("../Models/Proposal");
 const Project = require("../Models/Project");
 const PhaseMark = require("../Models/PhaseMark");
 const Department = require("../Models/Department");
+const { STAGE_LABELS } = require("../utils/stageMarks");
 
 // GET /admin/reports/students — filterable by ?departmentId=
 exports.getStudentsReport = async (req, res) => {
@@ -93,6 +94,7 @@ exports.getMarksReport = async (req, res) => {
       studentId: m.studentId?.studentId,
       studentName: m.studentId?.name,
       phase: m.phaseScheduleId?.phaseId?.name,
+      stage: STAGE_LABELS[m.phaseScheduleId?.stage] || "General",
       department: m.phaseScheduleId?.teamId?.department || null,
       shift: m.phaseScheduleId?.teamId?.shift || null,
       marksObtained: m.marksObtained,

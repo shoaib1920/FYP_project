@@ -2,12 +2,14 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import styles from "../../shared/phaseSystem.module.css";
 import Loader from "../../Loader";
+import { StageBadge, StageTracker } from "../../shared/StageMarks";
 import { FaClipboardCheck } from "react-icons/fa";
 
 const API_URL = process.env.REACT_APP_API_URL;
 
 const PhaseEvaluation = () => {
   const [schedules, setSchedules] = useState([]);
+  const [supervisedGroups, setSupervisedGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState(null);
   const [expandedTeam, setExpandedTeam] = useState(null);
@@ -20,8 +22,15 @@ const PhaseEvaluation = () => {
   const fetchSchedules = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(`${API_URL}/auth/faculty/phase-schedules`, authHeader());
-      setSchedules(res.data.schedules || []);
+      const [res, supervisedRes] = await Promise.all([
+        axios.get(`${API_URL}/auth/faculty/phase-schedules`, authHeader()),
+        axios.get(`${API_URL}/auth/faculty/supervised-stage-marks`, authHeader()),
+      ]);
+      const loaded = res.data.schedules || [];
+      setSchedules(loaded);
+      setSupervisedGroups(supervisedRes.data.groups || []);
+      // Show what this evaluator already submitted, so it can be reviewed or corrected.
+      setMarksForm(Object.fromEntries(loaded.map((s) => [s._id, { ...(s.myMarks || {}) }])));
     } catch (err) {
       setMessage({ type: "error", text: "Failed to load evaluations" });
     } finally {
@@ -86,7 +95,7 @@ const PhaseEvaluation = () => {
         <div className={styles.heroIconWrap}><FaClipboardCheck /></div>
         <div className={styles.heroBody}>
           <h1 className={styles.heroTitle}>Phase Evaluation</h1>
-          <p className={styles.heroSub}>Submit marks for your assigned students</p>
+          <p className={styles.heroSub}>Submit marks for your assigned students and follow your groups through the internal, supervisor and external evaluations</p>
         </div>
       </div>
 
@@ -97,6 +106,22 @@ const PhaseEvaluation = () => {
         <span className={`${styles.chip} ${filter === "ACTION" ? styles.chipActive : ""}`} onClick={() => setFilter("ACTION")}>🟢 Action Needed ({counts.ACTION})</span>
         <span className={`${styles.chip} ${filter === "COMPLETED" ? styles.chipActive : ""}`} onClick={() => setFilter("COMPLETED")}>✅ Completed ({counts.COMPLETED})</span>
       </div>
+
+      {supervisedGroups.length > 0 && (
+        <div className={styles.card}>
+          <h3 className={styles.cardTitle}>My Supervised Groups — Evaluation Progress</h3>
+          <p style={{ fontSize: 12.5, color: "#6b7280", margin: "-8px 0 12px" }}>
+            Each group is marked by the internal team first, then by you, then by the external team. The three parts add up to the group's total.
+          </p>
+          {supervisedGroups.map((g) => (
+            <div key={g.teamId} style={{ padding: "10px 0", borderTop: "1px solid #f3f4f6" }}>
+              <strong>{g.subject}</strong>
+              {g.groupCode && <span style={{ marginLeft: 8, fontFamily: "monospace", fontSize: 12, color: "#4338ca" }}>{g.groupCode}</span>}
+              <StageTracker summary={g} />
+            </div>
+          ))}
+        </div>
+      )}
 
       {Object.keys(grouped).length === 0 ? (
         <div className={styles.emptyBox}>No evaluations assigned to you yet.</div>
@@ -115,7 +140,7 @@ const PhaseEvaluation = () => {
                   {visibleItems.map((s) => (
                     <div key={s._id} style={{ marginBottom: 18, paddingBottom: 16, borderBottom: "1px solid #f3f4f6" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                        <strong>{s.phaseId?.name} <span style={{ fontWeight: 400, color: "#9ca3af" }}>Total: {s.phaseId?.totalMarks} marks</span></strong>
+                        <strong>{s.phaseId?.name} <StageBadge stage={s.stage} /> <span style={{ fontWeight: 400, color: "#9ca3af" }}>Total: {s.phaseId?.totalMarks} marks</span></strong>
                         <span className={`${styles.badge} ${s.status === "COMPLETED" ? styles.badgeGray : styles.badgeBlue}`}>
                           {s.status === "COMPLETED" ? "✅ Completed" : "SCHEDULED"}
                         </span>
@@ -124,12 +149,21 @@ const PhaseEvaluation = () => {
                         {new Date(s.scheduledDate).toLocaleDateString()} {s.scheduledTime}
                       </div>
 
+                      {s.stage && s.stage !== "GENERAL" && <StageTracker summary={s.stageSummary} />}
+
                       {s.status === "COMPLETED" ? (
                         <div style={{ color: "#059669", fontSize: 13, fontWeight: 600 }}>
                           ✅ Evaluation completed — Result: {s.result} ({s.averageMarks}%)
                         </div>
+                      ) : s.gate?.locked ? (
+                        <div className={styles.lockedBox}>🔒 {s.gate.reason}</div>
                       ) : (
                         <>
+                          {Object.keys(s.myMarks || {}).length > 0 && (
+                            <div style={{ fontSize: 12.5, color: "#059669", fontWeight: 600, marginBottom: 6 }}>
+                              Your marks are submitted — waiting for the other evaluators. You can still correct them below.
+                            </div>
+                          )}
                           {(team?.members || []).map((student) => (
                             <div key={student._id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 0" }}>
                               <span>{student.name}</span>

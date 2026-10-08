@@ -91,6 +91,19 @@ table.table tr:hover td { background: #fafafa; }
 .chip { padding: 6px 14px; border-radius: 20px; font-size: 12.5px; font-weight: 700; cursor: pointer; background: #f3f4f6; color: #4b5563; border: 1px solid transparent; }
 .chipActive { background: #eef2ff; color: #4338ca; border-color: #c7d2fe; }
 
+/* Internal → Supervisor → External → Total strip (see shared/StageMarks.jsx) */
+.stageRow { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin: 10px 0 4px; }
+.stageCell { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; }
+.stageCell strong { font-size: 16px; font-weight: 800; color: #1f2937; }
+.stageLabel { font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: .3px; }
+.stageStatus { font-size: 11.5px; color: #9ca3af; font-weight: 600; }
+.stageDone { background: #ecfdf5; border-color: #a7f3d0; }
+.stageDone .stageStatus { color: #059669; }
+.stageTotal { background: #eef2ff; border-color: #c7d2fe; }
+.stageTotal strong { color: #4338ca; }
+
+.lockedBox { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; border-radius: 10px; padding: 10px 14px; font-size: 13px; font-weight: 600; }
+
 @media (max-width: 700px) {
   .container { padding: 16px 12px; }
   .hero { flex-direction: column; text-align: center; }

@@ -1,10 +1,52 @@
 const PhaseMark = require("../Models/PhaseMark");
 const PhaseSchedule = require("../Models/PhaseSchedule");
 const Team = require("../Models/Team");
+const Project = require("../Models/Project");
 const { createNotification } = require("../utils/notify");
+const { STAGE_ORDER, STAGE_LABELS, buildStageSummaries, getStageGate } = require("../utils/stageMarks");
 
 const PASS_THRESHOLD_PERCENT = 50;
 const SUBMISSION_WINDOW_DAYS_AFTER = 2;
+
+// A staged schedule just completed: hand over to whoever marks next, or —
+// if that was the last of the three parts — tell the group its total.
+async function notifyStageProgress(schedule, team) {
+  const summary = (await buildStageSummaries([team._id])).get(String(team._id));
+  if (!summary || summary.stages[schedule.stage].status !== "COMPLETED") return;
+
+  if (summary.total.complete) {
+    // The leader is usually both createdBy and a member — notify them once.
+    const groupUserIds = [...new Set([team.createdBy, ...team.members].filter(Boolean).map(String))];
+    await Promise.all(
+      groupUserIds.map((userId) =>
+        createNotification({
+          userId,
+          title: "Final Marks Available",
+          message: `All three evaluations for "${team.subject}" are complete — total ${summary.total.obtained} / ${summary.total.max}.`,
+          relatedType: "phaseSchedule",
+          relatedId: schedule._id,
+        })
+      )
+    );
+    return;
+  }
+
+  const nextStage = STAGE_ORDER[STAGE_ORDER.indexOf(schedule.stage) + 1];
+  if (!nextStage) return;
+  const nextSchedules = await PhaseSchedule.find({ teamId: team._id, stage: nextStage, status: "SCHEDULED" });
+  const recipients = new Set(nextSchedules.flatMap((s) => s.evaluatorIds.map(String)));
+  await Promise.all(
+    Array.from(recipients).map((userId) =>
+      createNotification({
+        userId,
+        title: `${STAGE_LABELS[nextStage]} Marks Now Open`,
+        message: `The ${STAGE_LABELS[schedule.stage].toLowerCase()} evaluation of "${team.subject}" is complete — you can now enter your ${STAGE_LABELS[nextStage].toLowerCase()} marks.`,
+        relatedType: "phaseSchedule",
+        relatedId: nextSchedules[0]._id,
+      })
+    )
+  );
+}
 
 // Once every assigned evaluator has submitted marks for every student in the
 // group, average the converted marks into a percentage and finalize
@@ -33,10 +75,15 @@ async function checkAndFinalizeResult(schedule) {
   const averagePercent = maxPossible > 0 ? Math.round((totalConverted / maxPossible) * 10000) / 100 : 0;
   const result = averagePercent >= PASS_THRESHOLD_PERCENT ? "PASS" : "FAIL";
 
+  const justCompleted = schedule.status !== "COMPLETED";
   schedule.status = "COMPLETED";
   schedule.averageMarks = averagePercent;
   schedule.result = result;
   await schedule.save();
+
+  if (justCompleted && STAGE_ORDER.includes(schedule.stage)) {
+    await notifyStageProgress(schedule, team);
+  }
 
   await Promise.all(
     [team.createdBy, ...team.members].filter(Boolean).map((userId) =>
@@ -65,6 +112,14 @@ exports.submitMarks = async (req, res) => {
 
     if (!schedule.evaluatorIds.some((id) => String(id) === String(req.user._id))) {
       return res.status(403).json({ success: false, message: "You are not an evaluator for this schedule" });
+    }
+
+    // The three parts are marked in order: internal team, then the group's
+    // supervisor, then the external team.
+    if (STAGE_ORDER.includes(schedule.stage)) {
+      const summary = (await buildStageSummaries([schedule.teamId])).get(String(schedule.teamId));
+      const gate = getStageGate(schedule.stage, summary);
+      if (gate.locked) return res.status(400).json({ success: false, message: gate.reason });
     }
 
     const scheduledDate = new Date(schedule.scheduledDate);
@@ -169,6 +224,54 @@ exports.adjustMark = async (req, res) => {
   } catch (err) {
     console.error("Error adjusting mark:", err);
     res.status(500).json({ success: false, message: "Server error while adjusting mark" });
+  }
+};
+
+// GET /admin/stage-marks — Internal + Supervisor + External breakdown and
+// total for every group that has at least one staged evaluation scheduled.
+exports.getAllStageMarks = async (req, res) => {
+  try {
+    const teamIds = await PhaseSchedule.distinct("teamId", { stage: { $in: STAGE_ORDER }, status: { $ne: "CANCELLED" } });
+    const summaries = await buildStageSummaries(teamIds);
+    const groups = Array.from(summaries.values()).sort((a, b) => a.subject.localeCompare(b.subject));
+    res.json({ success: true, groups });
+  } catch (err) {
+    console.error("Error fetching stage marks:", err);
+    res.status(500).json({ success: false, message: "Server error while fetching final marks" });
+  }
+};
+
+// GET /faculty/supervised-stage-marks — the same breakdown for the groups the
+// logged-in supervisor supervises, so they can follow each group through the
+// internal evaluation before (and the external one after) giving their own marks.
+exports.getSupervisedStageMarks = async (req, res) => {
+  try {
+    const teamIds = await Project.distinct("teamId", { supervisorId: req.user._id });
+    const summaries = await buildStageSummaries(teamIds);
+    const groups = Array.from(summaries.values()).sort((a, b) => a.subject.localeCompare(b.subject));
+    res.json({ success: true, groups });
+  } catch (err) {
+    console.error("Error fetching supervised stage marks:", err);
+    res.status(500).json({ success: false, message: "Server error while fetching group marks" });
+  }
+};
+
+// GET /student/stage-marks/:teamId — a student's own group: the group's
+// breakdown plus that student's own row (not their teammates').
+exports.getTeamStageMarks = async (req, res) => {
+  try {
+    const team = await Team.findById(req.params.teamId);
+    if (!team) return res.status(404).json({ success: false, message: "Team not found" });
+
+    const isMember = [team.createdBy, ...team.members].some((id) => String(id) === String(req.user._id));
+    if (!isMember) return res.status(403).json({ success: false, message: "You are not a member of this group" });
+
+    const summary = (await buildStageSummaries([team._id])).get(String(team._id));
+    const mine = summary.students.find((s) => String(s.studentId) === String(req.user._id)) || null;
+    res.json({ success: true, summary: { ...summary, students: undefined }, mine });
+  } catch (err) {
+    console.error("Error fetching team stage marks:", err);
+    res.status(500).json({ success: false, message: "Server error while fetching marks" });
   }
 };
 

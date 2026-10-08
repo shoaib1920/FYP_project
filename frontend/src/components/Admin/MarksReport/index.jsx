@@ -11,6 +11,7 @@ const COLUMNS = [
   { key: "studentId", label: "Student ID" },
   { key: "studentName", label: "Name" },
   { key: "phase", label: "Phase" },
+  { key: "stage", label: "Stage" },
   { key: "department", label: "Department" },
   { key: "shift", label: "Shift" },
   { key: "marksObtained", label: "Marks" },

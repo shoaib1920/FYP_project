@@ -2,12 +2,14 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import styles from "../shared/phaseSystem.module.css";
 import Loader from "../Loader";
+import { STAGE_ORDER, STAGE_LABELS, StageBadge, StageTracker } from "../shared/StageMarks";
 import { FaChartLine } from "react-icons/fa";
 
 const API_URL = process.env.REACT_APP_API_URL;
 
 const MyProgress = () => {
   const [schedules, setSchedules] = useState([]);
+  const [stageMarks, setStageMarks] = useState(null); // { summary, mine }
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState(null);
 
@@ -20,8 +22,12 @@ const MyProgress = () => {
         const myTeam = (teamsRes.data.teams || [])[0];
         if (!myTeam) { setLoading(false); return; }
 
-        const res = await axios.get(`${API_URL}/auth/student/phase-schedules/${myTeam._id}`, authHeader());
+        const [res, marksRes] = await Promise.all([
+          axios.get(`${API_URL}/auth/student/phase-schedules/${myTeam._id}`, authHeader()),
+          axios.get(`${API_URL}/auth/student/stage-marks/${myTeam._id}`, authHeader()),
+        ]);
         setSchedules(res.data.schedules || []);
+        setStageMarks(marksRes.data);
       } catch (err) {
         setMessage({ type: "error", text: "Failed to load progress" });
       } finally {
@@ -45,6 +51,22 @@ const MyProgress = () => {
 
       {message && <div className={`${styles.message} ${styles[message.type]}`}>{message.text}</div>}
 
+      {stageMarks?.summary && stageMarks.summary.total.max > 0 && (
+        <div className={styles.card}>
+          <h3 className={styles.cardTitle}>Final Marks</h3>
+          <p style={{ fontSize: 12.5, color: "#6b7280", margin: "-8px 0 0" }}>
+            Your group is marked by the internal team, then your supervisor, then the external team. The three parts add up to your total.
+          </p>
+          <StageTracker summary={stageMarks.summary} />
+          {stageMarks.mine && (
+            <div style={{ fontSize: 13, color: "#374151", marginTop: 10 }}>
+              <strong>Your own marks:</strong>{" "}
+              {STAGE_ORDER.map((s) => `${STAGE_LABELS[s]} ${stageMarks.mine[s] ?? "—"}`).join(" · ")} · Total {stageMarks.mine.total} / {stageMarks.summary.total.max}
+            </div>
+          )}
+        </div>
+      )}
+
       <div className={styles.card}>
         <h3 className={styles.cardTitle}>Evaluation Phases</h3>
         {schedules.length === 0 ? (
@@ -53,7 +75,7 @@ const MyProgress = () => {
           schedules.map((s) => (
             <div key={s._id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderTop: "1px solid #f3f4f6" }}>
               <div>
-                <strong>{s.phaseId?.name}</strong> <span style={{ color: "#9ca3af", fontSize: 12.5 }}>(Attempt #{s.attemptNumber})</span>
+                <strong>{s.phaseId?.name}</strong> <StageBadge stage={s.stage} /> <span style={{ color: "#9ca3af", fontSize: 12.5 }}>(Attempt #{s.attemptNumber})</span>
                 <div style={{ fontSize: 12.5, color: "#6b7280" }}>
                   {new Date(s.scheduledDate).toLocaleDateString()} {s.room && `• Room: ${s.room}`}
                 </div>

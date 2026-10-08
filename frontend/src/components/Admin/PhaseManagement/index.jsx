@@ -2,13 +2,21 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import styles from "../../shared/phaseSystem.module.css";
 import Loader from "../../Loader";
+import { STAGE_ORDER, STAGE_LABELS, StageBadge } from "../../shared/StageMarks";
 import { FaLayerGroup, FaPlus, FaTrash, FaEdit } from "react-icons/fa";
 
 const API_URL = process.env.REACT_APP_API_URL;
 
 const emptyForm = {
   name: "", description: "", totalMarks: "", convertToMarks: "",
-  panelId: "", requiresUpload: false, criteria: [],
+  stage: "GENERAL", panelId: "", requiresUpload: false, criteria: [],
+};
+
+const STAGE_HELP = {
+  GENERAL: "Not part of the final marks split — marked by the panel plus the group's supervisor (e.g. a Proposal Defence).",
+  INTERNAL: "Part 1 of the final marks — marked first, by the internal team.",
+  SUPERVISOR: "Part 2 of the final marks — marked by the group's own supervisor, once the internal team has finished.",
+  EXTERNAL: "Part 3 of the final marks — marked last, by the external team.",
 };
 
 const PhaseManagement = () => {
@@ -59,7 +67,7 @@ const PhaseManagement = () => {
       ...form,
       totalMarks: Number(form.totalMarks),
       convertToMarks: Number(form.convertToMarks),
-      panelId: form.panelId || null,
+      panelId: form.stage === "SUPERVISOR" ? null : form.panelId || null,
       criteria: form.criteria
         .filter((c) => c.name)
         .map((c) => ({ name: c.name, maxMarks: Number(c.maxMarks) || 0 })),
@@ -89,6 +97,7 @@ const PhaseManagement = () => {
       description: phase.description || "",
       totalMarks: phase.totalMarks,
       convertToMarks: phase.convertToMarks,
+      stage: phase.stage || "GENERAL",
       panelId: phase.panelId?._id || "",
       requiresUpload: phase.requiresUpload,
       criteria: phase.criteria || [],
@@ -106,6 +115,14 @@ const PhaseManagement = () => {
       setMessage({ type: "error", text: "Failed to delete phase" });
     }
   };
+
+  // An internal/external phase can only be marked by a panel of that type.
+  const selectablePanels = panels.filter(
+    (p) => form.stage === "GENERAL" || (p.type || "INTERNAL") === form.stage
+  );
+  const stageWeight = (stage) =>
+    phases.filter((p) => p.stage === stage && p.isActive !== false).reduce((sum, p) => sum + (p.convertToMarks || 0), 0);
+  const finalMarksTotal = STAGE_ORDER.reduce((sum, s) => sum + stageWeight(s), 0);
 
   if (loading) return <div className={styles.container}><Loader text="Loading phases..." /></div>;
 
@@ -140,17 +157,33 @@ const PhaseManagement = () => {
           </div>
           <div className={styles.formRow}>
             <div className={styles.formGroup}>
-              <label>Evaluation Panel (optional)</label>
-              <select value={form.panelId} onChange={(e) => setForm({ ...form, panelId: e.target.value })}>
-                <option value="">-- No Panel --</option>
-                {panels.map((p) => <option key={p._id} value={p._id}>{p.name}</option>)}
+              <label>Marked By (Stage)</label>
+              <select value={form.stage} onChange={(e) => setForm({ ...form, stage: e.target.value, panelId: "" })}>
+                <option value="INTERNAL">Internal Team</option>
+                <option value="SUPERVISOR">Supervisor</option>
+                <option value="EXTERNAL">External Team</option>
+                <option value="GENERAL">General (not in final marks)</option>
               </select>
             </div>
+            {form.stage !== "SUPERVISOR" && (
+              <div className={styles.formGroup}>
+                <label>{form.stage === "GENERAL" ? "Evaluation Panel (optional)" : `${STAGE_LABELS[form.stage]} Panel`}</label>
+                <select value={form.panelId} onChange={(e) => setForm({ ...form, panelId: e.target.value })} required={form.stage !== "GENERAL"}>
+                  <option value="">{form.stage === "GENERAL" ? "-- No Panel --" : "-- Select Panel --"}</option>
+                  {selectablePanels.map((p) => <option key={p._id} value={p._id}>{p.name}</option>)}
+                </select>
+              </div>
+            )}
             <div className={styles.formGroup}>
               <label>Description (optional)</label>
               <input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
             </div>
           </div>
+          <p style={{ fontSize: 12.5, color: "#6b7280", margin: "-4px 0 14px" }}>
+            {STAGE_HELP[form.stage]}
+            {form.stage !== "GENERAL" && form.stage !== "SUPERVISOR" && selectablePanels.length === 0 &&
+              ` No ${STAGE_LABELS[form.stage].toLowerCase()} panel exists yet — create one under Evaluation Panels first.`}
+          </p>
 
           <div className={styles.formGroup} style={{ marginBottom: 14 }}>
             <label>Break Marks into Criteria (optional)</label>
@@ -179,6 +212,27 @@ const PhaseManagement = () => {
       </div>
 
       <div className={styles.card}>
+        <h3 className={styles.cardTitle}>Final Marks Distribution</h3>
+        <p style={{ fontSize: 12.5, color: "#6b7280", margin: "-8px 0 0" }}>
+          Each group is marked by the internal team, then its supervisor, then the external team. The three parts add up to the group's total.
+        </p>
+        <div className={styles.stageRow}>
+          {STAGE_ORDER.map((s, i) => (
+            <div key={s} className={styles.stageCell}>
+              <span className={styles.stageLabel}>{i + 1}. {STAGE_LABELS[s]}</span>
+              <strong>{stageWeight(s)}</strong>
+              <span className={styles.stageStatus}>{stageWeight(s) ? "marks" : "No phase yet"}</span>
+            </div>
+          ))}
+          <div className={`${styles.stageCell} ${styles.stageTotal}`}>
+            <span className={styles.stageLabel}>Total</span>
+            <strong>{finalMarksTotal}</strong>
+            <span className={styles.stageStatus}>marks</span>
+          </div>
+        </div>
+      </div>
+
+      <div className={styles.card}>
         <h3 className={styles.cardTitle}>Existing Phases ({phases.length})</h3>
         {phases.length === 0 ? (
           <div className={styles.emptyBox}>No phases created yet.</div>
@@ -187,7 +241,8 @@ const PhaseManagement = () => {
             <div key={p._id} className={styles.groupItem}>
               <div className={styles.groupHeader} style={{ cursor: "default" }}>
                 <div>
-                  <strong>{p.name}</strong>
+                  <strong>{p.name}</strong>{" "}
+                  <StageBadge stage={p.stage} />
                   {p.requiresUpload && <span className={`${styles.badge} ${styles.badgeBlue}`} style={{ marginLeft: 8 }}>Upload Required</span>}
                   {p.panelId && <span style={{ marginLeft: 8, fontSize: 12, color: "#6b7280" }}>Panel: {p.panelId.name}</span>}
                   <div style={{ fontSize: 12.5, color: "#6b7280", marginTop: 4 }}>

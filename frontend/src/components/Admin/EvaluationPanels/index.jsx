@@ -11,7 +11,7 @@ const EvaluationPanels = () => {
   const [supervisors, setSupervisors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState(null); // { type, text }
-  const [form, setForm] = useState({ name: "", description: "", members: [] });
+  const [form, setForm] = useState({ name: "", description: "", type: "INTERNAL", members: [] });
   const [saving, setSaving] = useState(false);
 
   const authHeader = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem("adminToken")}` } });
@@ -52,7 +52,7 @@ const EvaluationPanels = () => {
     try {
       setSaving(true);
       await axios.post(`${API_URL}/auth/admin/panels`, form, authHeader());
-      setForm({ name: "", description: "", members: [] });
+      setForm({ name: "", description: "", type: "INTERNAL", members: [] });
       setMessage({ type: "success", text: "Panel created" });
       fetchAll();
     } catch (err) {
@@ -90,7 +90,7 @@ const EvaluationPanels = () => {
         <div className={styles.heroIconWrap}><FaGavel /></div>
         <div className={styles.heroBody}>
           <h1 className={styles.heroTitle}>Evaluation Panels</h1>
-          <p className={styles.heroSub}>Create groups of faculty evaluators to assign against evaluation phases</p>
+          <p className={styles.heroSub}>Create the internal and external teams of evaluators to assign against evaluation phases</p>
         </div>
       </div>
 
@@ -103,6 +103,13 @@ const EvaluationPanels = () => {
             <div className={styles.formGroup}>
               <label>Panel Name</label>
               <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+            </div>
+            <div className={styles.formGroup}>
+              <label>Panel Type</label>
+              <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
+                <option value="INTERNAL">Internal Team</option>
+                <option value="EXTERNAL">External Team</option>
+              </select>
             </div>
             <div className={styles.formGroup}>
               <label>Description (optional)</label>
@@ -140,6 +147,9 @@ const EvaluationPanels = () => {
               <div className={styles.groupHeader}>
                 <div>
                   <strong>{p.name}</strong>{" "}
+                  <span className={`${styles.badge} ${p.type === "EXTERNAL" ? styles.badgeYellow : styles.badgeBlue}`}>
+                    {p.type === "EXTERNAL" ? "External" : "Internal"}
+                  </span>{" "}
                   <span className={`${styles.badge} ${p.isActive ? styles.badgeGreen : styles.badgeGray}`}>
                     {p.isActive ? "Active" : "Inactive"}
                   </span>

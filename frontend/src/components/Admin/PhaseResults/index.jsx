@@ -2,12 +2,15 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import styles from "../../shared/phaseSystem.module.css";
 import Loader from "../../Loader";
+import { STAGE_ORDER, StageBadge, formatStageScore } from "../../shared/StageMarks";
 import { FaTrophy, FaRedo, FaUserTie } from "react-icons/fa";
 
 const API_URL = process.env.REACT_APP_API_URL;
 
 const PhaseResults = () => {
   const [schedules, setSchedules] = useState([]);
+  const [finalMarks, setFinalMarks] = useState([]);
+  const [expandedGroup, setExpandedGroup] = useState(null);
   const [supervisors, setSupervisors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState(null);
@@ -23,10 +26,12 @@ const PhaseResults = () => {
   const fetchResults = async () => {
     try {
       setLoading(true);
-      const [resultsRes, supsRes] = await Promise.all([
+      const [resultsRes, supsRes, finalRes] = await Promise.all([
         axios.get(`${API_URL}/auth/phase-results`, authHeader()),
         axios.get(`${API_URL}/auth/admin/supervisors`, authHeader()),
+        axios.get(`${API_URL}/auth/admin/stage-marks`, authHeader()),
       ]);
+      setFinalMarks(finalRes.data.groups || []);
       setSchedules(resultsRes.data.schedules || []);
       setSupervisors(supsRes.data.supervisors || []);
     } catch (err) {
@@ -92,11 +97,55 @@ const PhaseResults = () => {
         <div className={styles.heroIconWrap}><FaTrophy /></div>
         <div className={styles.heroBody}>
           <h1 className={styles.heroTitle}>Phase Results</h1>
-          <p className={styles.heroSub}>Pass/Fail results for completed evaluations</p>
+          <p className={styles.heroSub}>Final marks per group and Pass/Fail results for completed evaluations</p>
         </div>
       </div>
 
       {message && <div className={`${styles.message} ${styles[message.type]}`}>{message.text}</div>}
+
+      <div className={styles.card}>
+        <h3 className={styles.cardTitle}>Final Marks — Internal + Supervisor + External</h3>
+        {finalMarks.length === 0 ? (
+          <div className={styles.emptyBox}>No internal, supervisor or external evaluations have been scheduled yet.</div>
+        ) : (
+          <div className={styles.tableWrap}>
+            <table className={styles.table}>
+              <thead>
+                <tr><th>Group</th><th>Internal</th><th>Supervisor</th><th>External</th><th>Total</th><th>Status</th><th></th></tr>
+              </thead>
+              <tbody>
+                {finalMarks.map((g) => (
+                  <React.Fragment key={g.teamId}>
+                    <tr>
+                      <td><strong>{g.subject}</strong>{g.groupCode && <div style={{ fontFamily: "monospace", fontSize: 12, color: "#4338ca" }}>{g.groupCode}</div>}</td>
+                      {STAGE_ORDER.map((s) => <td key={s}>{formatStageScore(g.stages[s])}</td>)}
+                      <td><strong>{g.total.obtained} / {g.total.max}</strong></td>
+                      <td>
+                        <span className={`${styles.badge} ${g.total.complete ? styles.badgeGreen : styles.badgeYellow}`}>
+                          {g.total.complete ? "Final" : "In progress"}
+                        </span>
+                      </td>
+                      <td>
+                        <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setExpandedGroup(expandedGroup === g.teamId ? null : g.teamId)}>
+                          {expandedGroup === g.teamId ? "Hide" : "Students"}
+                        </button>
+                      </td>
+                    </tr>
+                    {expandedGroup === g.teamId && g.students.map((st) => (
+                      <tr key={st.studentId}>
+                        <td style={{ paddingLeft: 28, color: "#6b7280" }}>{st.name}{st.rollNo ? ` (${st.rollNo})` : ""}</td>
+                        {STAGE_ORDER.map((s) => <td key={s} style={{ color: "#6b7280" }}>{st[s] ?? "—"}</td>)}
+                        <td style={{ color: "#6b7280" }}>{st.total}</td>
+                        <td colSpan={2}></td>
+                      </tr>
+                    ))}
+                  </React.Fragment>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
       {Object.keys(grouped).length === 0 ? (
         <div className={styles.emptyBox}>No completed evaluations yet.</div>
@@ -107,7 +156,7 @@ const PhaseResults = () => {
             {items.map((s) => (
               <div key={s._id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 0", borderTop: "1px solid #f3f4f6" }}>
                 <div>
-                  <strong>{s.phaseId?.name}</strong> — Attempt #{s.attemptNumber}
+                  <strong>{s.phaseId?.name}</strong> <StageBadge stage={s.stage} /> — Attempt #{s.attemptNumber}
                   <div style={{ fontSize: 12.5, color: "#6b7280" }}>
                     Evaluated on {new Date(s.updatedAt).toLocaleDateString()} · Average: {s.averageMarks}%
                   </div>

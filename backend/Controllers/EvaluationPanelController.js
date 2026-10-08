@@ -3,7 +3,7 @@ const EvaluationPanel = require("../Models/EvaluationPanel");
 // POST /admin/panels — admin only
 exports.createPanel = async (req, res) => {
   try {
-    const { name, description, members } = req.body;
+    const { name, description, members, type } = req.body;
     if (!name) {
       return res.status(400).json({ success: false, message: "Panel name is required" });
     }
@@ -11,6 +11,7 @@ exports.createPanel = async (req, res) => {
     const panel = await EvaluationPanel.create({
       name,
       description: description || "",
+      type: type === "EXTERNAL" ? "EXTERNAL" : "INTERNAL",
       members: members || [],
       createdBy: req.user._id,
     });
@@ -51,10 +52,11 @@ exports.getMyPanels = async (req, res) => {
 // PUT /admin/panels/:id — admin only
 exports.updatePanel = async (req, res) => {
   try {
-    const { name, description, members, isActive } = req.body;
+    const { name, description, members, isActive, type } = req.body;
     const panel = await EvaluationPanel.findById(req.params.id);
     if (!panel) return res.status(404).json({ success: false, message: "Panel not found" });
 
+    if (type === "INTERNAL" || type === "EXTERNAL") panel.type = type;
     if (name !== undefined) panel.name = name;
     if (description !== undefined) panel.description = description;
     if (members !== undefined) panel.members = members;

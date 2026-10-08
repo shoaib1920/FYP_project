@@ -9,8 +9,14 @@ const phaseScheduleSchema = new mongoose.Schema(
     phaseId: { type: mongoose.Schema.Types.ObjectId, ref: "EvaluationPhase", required: true },
     teamId: { type: mongoose.Schema.Types.ObjectId, ref: "Team", required: true },
     panelId: { type: mongoose.Schema.Types.ObjectId, ref: "EvaluationPanel", default: null },
+    // The phase's marking stage, snapshotted at schedule time for the same
+    // reason evaluatorIds is — the stage order and the group's total stay
+    // stable even if the phase is edited or deleted afterwards.
+    stage: { type: String, enum: ["GENERAL", "INTERNAL", "SUPERVISOR", "EXTERNAL"], default: "GENERAL" },
     // Evaluators for this specific schedule — panel members snapshotted at
-    // schedule time, plus the team's supervisor if any. Kept as its own list
+    // schedule time, plus the team's supervisor if any (GENERAL phases); panel
+    // members only for INTERNAL/EXTERNAL; the supervisor alone for SUPERVISOR
+    // (see PhaseScheduleController.resolveEvaluatorIds). Kept as its own list
     // (rather than re-deriving from panel.members every time) so marks
     // submission windows and per-schedule "who still needs to submit" checks
     // are stable even if the panel's membership changes later.

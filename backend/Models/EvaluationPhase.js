@@ -17,6 +17,12 @@ const evaluationPhaseSchema = new mongoose.Schema(
         maxMarks: { type: Number, required: true, min: 0 },
       },
     ],
+    // Which of the three marking stages this phase belongs to. A group's final
+    // marks are Internal + Supervisor + External, marked in that order (see
+    // utils/stageMarks.js). GENERAL is everything outside that flow — e.g. a
+    // "Proposal Defence" held before the group even has a supervisor — and is
+    // also what phases created before stages existed read back as.
+    stage: { type: String, enum: ["GENERAL", "INTERNAL", "SUPERVISOR", "EXTERNAL"], default: "GENERAL" },
     panelId: { type: mongoose.Schema.Types.ObjectId, ref: "EvaluationPanel", default: null },
     requiresUpload: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true },

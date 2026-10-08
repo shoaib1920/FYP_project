@@ -7,29 +7,42 @@ const Team = require("../Models/Team");
 const Users = require("../Models/Users");
 const AssignedProject = require("../Models/SupervisorModels/AssignedProject");
 const { createNotification } = require("../utils/notify");
+const PhaseMark = require("../Models/PhaseMark");
+const { STAGE_ORDER, getTeamSupervisorId, buildStageSummaries, redactScores, getStageGate } = require("../utils/stageMarks");
 
-// A phase's evaluators are the phase's panel members plus the team's current
-// supervisor (if one is already assigned) — mirrors how the reference system
-// links panel + supervisor as evaluators at schedule time.
+// Who marks a schedule depends on the phase's stage:
+//  - GENERAL: the phase's panel members plus the team's current supervisor
+//    (if one is already assigned) — mirrors how the reference system links
+//    panel + supervisor as evaluators at schedule time.
+//  - INTERNAL / EXTERNAL: the panel members only. The team's own supervisor
+//    is left out even if they sit on that panel — their marks are the
+//    separate SUPERVISOR part of the total.
+//  - SUPERVISOR: the team's supervisor alone.
 async function resolveEvaluatorIds(phase, teamId) {
   const ids = new Set();
+  const stage = phase.stage || "GENERAL";
+  const supervisorId = await getTeamSupervisorId(teamId);
 
-  if (phase.panelId) {
+  if (stage !== "SUPERVISOR" && phase.panelId) {
     const panel = await EvaluationPanel.findById(phase.panelId);
     if (panel) panel.members.forEach((m) => ids.add(String(m)));
   }
 
-  const project = await Project.findOne({ teamId });
-  if (project && project.supervisorId) {
-    ids.add(String(project.supervisorId));
-  } else {
-    const proposal = await Proposal.findOne({ teamId }).sort({ createdAt: -1 });
-    if (proposal && proposal.assignedSupervisorId) {
-      ids.add(String(proposal.assignedSupervisorId));
-    }
+  if (supervisorId) {
+    if (stage === "GENERAL" || stage === "SUPERVISOR") ids.add(supervisorId);
+    else ids.delete(supervisorId);
   }
 
   return Array.from(ids);
+}
+
+// A staged schedule with nobody to mark it could never complete, and would
+// block every later stage for that group — so refuse to create it.
+function missingEvaluatorsMessage(stage, teamName) {
+  if (stage === "SUPERVISOR") {
+    return `"${teamName}" has no supervisor assigned yet, so supervisor marks can't be scheduled for it.`;
+  }
+  return `No evaluators available for "${teamName}" — the phase's panel has no members other than this group's own supervisor.`;
 }
 
 async function notifyTeam(teamId, title, message) {
@@ -61,13 +74,30 @@ exports.createSchedule = async (req, res) => {
     const phase = await EvaluationPhase.findById(phaseId);
     if (!phase) return res.status(404).json({ success: false, message: "Phase not found" });
 
-    const created = [];
+    const staged = STAGE_ORDER.includes(phase.stage);
+
+    // Resolve every team's evaluators before creating anything, so a bulk
+    // assign either schedules all the selected groups or none of them.
+    const resolved = [];
     for (const tId of targetTeamIds) {
       const evaluatorIds = await resolveEvaluatorIds(phase, tId);
+      if (staged && evaluatorIds.length === 0) {
+        const team = await Team.findById(tId);
+        return res.status(400).json({
+          success: false,
+          message: missingEvaluatorsMessage(phase.stage, team?.subject || "This group"),
+        });
+      }
+      resolved.push({ tId, evaluatorIds });
+    }
+
+    const created = [];
+    for (const { tId, evaluatorIds } of resolved) {
       const schedule = await PhaseSchedule.create({
         phaseId,
         teamId: tId,
         panelId: phase.panelId || null,
+        stage: phase.stage || "GENERAL",
         evaluatorIds,
         scheduledDate: new Date(scheduledDate),
         scheduledTime: scheduledTime || "",
@@ -118,7 +148,33 @@ exports.getMySchedulesAsEvaluator = async (req, res) => {
       .populate({ path: "teamId", select: "subject department members", populate: { path: "members", select: "name email" } })
       .sort({ scheduledDate: -1 });
 
-    res.json({ success: true, schedules });
+    // For staged schedules, tell the evaluator whether it's their turn yet
+    // (Internal → Supervisor → External) and where the group stands.
+    const teamIds = [...new Set(schedules.filter((s) => s.teamId).map((s) => String(s.teamId._id)))];
+    const summaries = await buildStageSummaries(teamIds);
+    const supervised = new Set(
+      (await Project.find({ teamId: { $in: teamIds }, supervisorId: req.user._id }).select("teamId")).map((p) => String(p.teamId))
+    );
+    const myMarks = await PhaseMark.find({
+      phaseScheduleId: { $in: schedules.map((s) => s._id) },
+      evaluatorId: req.user._id,
+    });
+
+    const enriched = schedules.map((s) => {
+      const obj = s.toObject();
+      const teamKey = s.teamId ? String(s.teamId._id) : null;
+      const summary = teamKey ? summaries.get(teamKey) : null;
+      obj.gate = getStageGate(s.stage, summary);
+      const isTeamSupervisor = supervised.has(teamKey) || s.stage === "SUPERVISOR";
+      obj.stageSummary = summary ? (isTeamSupervisor ? summary : redactScores(summary)) : null;
+      obj.myMarks = {};
+      myMarks
+        .filter((m) => String(m.phaseScheduleId) === String(s._id))
+        .forEach((m) => { obj.myMarks[String(m.studentId)] = m.marksObtained; });
+      return obj;
+    });
+
+    res.json({ success: true, schedules: enriched });
   } catch (err) {
     console.error("Error fetching evaluator schedules:", err);
     res.status(500).json({ success: false, message: "Server error while fetching schedules" });
@@ -191,12 +247,23 @@ exports.retrySchedule = async (req, res) => {
     // supervisor changed since the first attempt, the retry should reflect
     // that, not silently re-use whoever was assigned at the original attempt.
     const phase = await EvaluationPhase.findById(schedule.phaseId);
+    if (!phase) {
+      return res.status(400).json({ success: false, message: "This schedule's phase has been deleted — it can't be retried" });
+    }
     const evaluatorIds = await resolveEvaluatorIds(phase, schedule.teamId);
+    if (STAGE_ORDER.includes(schedule.stage) && evaluatorIds.length === 0) {
+      const team = await Team.findById(schedule.teamId);
+      return res.status(400).json({
+        success: false,
+        message: missingEvaluatorsMessage(schedule.stage, team?.subject || "This group"),
+      });
+    }
 
     const retry = await PhaseSchedule.create({
       phaseId: schedule.phaseId,
       teamId: schedule.teamId,
       panelId: schedule.panelId,
+      stage: schedule.stage,
       evaluatorIds,
       scheduledDate: new Date(scheduledDate),
       scheduledTime: scheduledTime || "",

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import styles from "../../shared/phaseSystem.module.css";
 import Loader from "../../Loader";
+import { STAGE_LABELS, StageBadge } from "../../shared/StageMarks";
 import { FaCalendarAlt, FaPlus, FaTrash } from "react-icons/fa";
 
 const API_URL = process.env.REACT_APP_API_URL;
@@ -133,7 +134,11 @@ const PhaseScheduling = () => {
               <label>Select Phase</label>
               <select value={form.phaseId} onChange={(e) => setForm({ ...form, phaseId: e.target.value })} required>
                 <option value="">-- Select Phase --</option>
-                {phases.map((p) => <option key={p._id} value={p._id}>{p.name}</option>)}
+                {phases.map((p) => (
+                  <option key={p._id} value={p._id}>
+                    {p.name}{p.stage && p.stage !== "GENERAL" ? ` — ${STAGE_LABELS[p.stage]}` : ""}
+                  </option>
+                ))}
               </select>
             </div>
             {!bulkMode && (
@@ -172,6 +177,11 @@ const PhaseScheduling = () => {
             </div>
           )}
 
+          <p style={{ fontSize: 12.5, color: "#6b7280", margin: "0 0 14px" }}>
+            Final marks are entered in order — internal team, then the group's supervisor, then the external team. You can
+            schedule all three in advance; each stage only opens for marking once the one before it is complete.
+          </p>
+
           <button className={`${styles.btn} ${styles.btnPrimary}`} disabled={saving} type="submit">
             {saving ? "Saving..." : "Add Schedule"}
           </button>
@@ -193,7 +203,7 @@ const PhaseScheduling = () => {
               <tbody>
                 {schedules.map((s) => (
                   <tr key={s._id}>
-                    <td>{s.phaseId?.name}</td>
+                    <td>{s.phaseId?.name} <StageBadge stage={s.stage} /></td>
                     <td>{s.teamId?.subject}{s.attemptNumber > 1 ? ` (Attempt #${s.attemptNumber})` : ""}</td>
                     <td>{new Date(s.scheduledDate).toLocaleDateString()}</td>
                     <td>{s.scheduledTime || "—"}</td>

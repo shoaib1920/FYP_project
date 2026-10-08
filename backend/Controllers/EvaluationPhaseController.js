@@ -1,9 +1,30 @@
 const EvaluationPhase = require("../Models/EvaluationPhase");
+const EvaluationPanel = require("../Models/EvaluationPanel");
+
+const STAGES = ["GENERAL", "INTERNAL", "SUPERVISOR", "EXTERNAL"];
+
+// An INTERNAL/EXTERNAL phase is marked by a panel of the matching type; a
+// SUPERVISOR phase is marked by the group's supervisor and takes no panel.
+// Returns an error message, or null if the stage/panel combination is valid.
+async function validateStagePanel(stage, panelId) {
+  if (!STAGES.includes(stage)) return "Invalid stage";
+  if (stage === "INTERNAL" || stage === "EXTERNAL") {
+    const label = stage === "INTERNAL" ? "internal" : "external";
+    if (!panelId) return `Select the ${label} panel that will mark this phase`;
+    const panel = await EvaluationPanel.findById(panelId);
+    if (!panel) return "Selected panel not found";
+    if ((panel.type || "INTERNAL") !== stage) {
+      return `"${panel.name}" is not an ${label} panel — choose an ${label} panel for this phase`;
+    }
+  }
+  return null;
+}
 
 // POST /admin/phases — admin only
 exports.createPhase = async (req, res) => {
   try {
     const { name, description, totalMarks, convertToMarks, criteria, panelId, requiresUpload } = req.body;
+    const stage = req.body.stage || "GENERAL";
 
     if (!name || totalMarks === undefined || convertToMarks === undefined) {
       return res.status(400).json({
@@ -12,13 +33,17 @@ exports.createPhase = async (req, res) => {
       });
     }
 
+    const stageError = await validateStagePanel(stage, panelId);
+    if (stageError) return res.status(400).json({ success: false, message: stageError });
+
     const phase = await EvaluationPhase.create({
       name,
       description: description || "",
       totalMarks,
       convertToMarks,
       criteria: criteria || [],
-      panelId: panelId || null,
+      stage,
+      panelId: stage === "SUPERVISOR" ? null : panelId || null,
       requiresUpload: !!requiresUpload,
       createdBy: req.user._id,
     });
@@ -33,7 +58,7 @@ exports.createPhase = async (req, res) => {
 // GET /phases — any authenticated role
 exports.getAllPhases = async (req, res) => {
   try {
-    const phases = await EvaluationPhase.find().populate("panelId", "name").sort({ createdAt: -1 });
+    const phases = await EvaluationPhase.find().populate("panelId", "name type").sort({ createdAt: -1 });
     res.json({ success: true, phases });
   } catch (err) {
     console.error("Error fetching phases:", err);
@@ -47,10 +72,18 @@ exports.updatePhase = async (req, res) => {
     const phase = await EvaluationPhase.findById(req.params.id);
     if (!phase) return res.status(404).json({ success: false, message: "Phase not found" });
 
-    const fields = ["name", "description", "totalMarks", "convertToMarks", "criteria", "panelId", "requiresUpload", "isActive"];
+    const fields = ["name", "description", "totalMarks", "convertToMarks", "criteria", "stage", "panelId", "requiresUpload", "isActive"];
     fields.forEach((f) => {
       if (req.body[f] !== undefined) phase[f] = req.body[f];
     });
+
+    // Only re-check the stage/panel pairing when one of them is being changed,
+    // so unrelated edits (e.g. toggling isActive) never trip over it.
+    if (req.body.stage !== undefined || req.body.panelId !== undefined) {
+      const stageError = await validateStagePanel(phase.stage, phase.panelId);
+      if (stageError) return res.status(400).json({ success: false, message: stageError });
+      if (phase.stage === "SUPERVISOR") phase.panelId = null;
+    }
     await phase.save();
 
     res.json({ success: true, phase });
