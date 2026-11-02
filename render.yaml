@@ -1,0 +1,42 @@
+# Render Blueprint — one service serves both the API and the pre-built React
+# frontend (frontend/build is committed; backend/index.js serves it when
+# NODE_ENV=production). Dashboard → New → Blueprint → pick this repo, then fill
+# in the variables marked `sync: false` (secrets are never stored in git).
+services:
+  - type: web
+    name: fyp-portal-bgnu
+    runtime: node
+    plan: free
+    # Run from the repo root (not rootDir) so ../frontend/build stays reachable.
+    # --omit=dev skips mongodb-memory-server, whose install downloads a
+    # ~500MB MongoDB binary that production never needs.
+    buildCommand: cd backend && npm install --omit=dev
+    startCommand: cd backend && node index.js
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      # Must match the service name above; the committed frontend build was
+      # compiled against this exact URL (frontend/.env.production).
+      - key: CLIENT_URL
+        value: https://fyp-portal-bgnu.onrender.com
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: MONGO_CONN
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: MAIL_HOST
+        value: smtp.gmail.com
+      - key: MAIL_PORT
+        value: "465"
+      - key: MAIL_USER
+        sync: false
+      - key: MAIL_PASS
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: ADMIN_SIGNUP_CODE
+        sync: false

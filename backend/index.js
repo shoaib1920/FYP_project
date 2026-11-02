@@ -298,6 +298,13 @@ app.set("io", io);
 app.set("onlineUsers", onlineUsers);
 app.set("lastSeenMap", lastSeenMap);
 
+// uploads/ is gitignored, and multer's diskStorage won't create missing
+// folders — so on a fresh deploy (new host, clean checkout) the first upload
+// would fail with ENOENT. Create every upload folder the routes write to.
+["proposals", "templates", "chat", "final-reports", "review-notes", "phase-documents", "code-archives"].forEach((dir) =>
+  require("fs").mkdirSync(path.join(__dirname, "uploads", dir), { recursive: true })
+);
+
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use(bodyParser.json());
 
