@@ -58,7 +58,11 @@ exports.getSupervisorProjectStats = async (req, res) => {
 // GET /auth/supervisors
 exports.getAllSupervisors = async (req, res) => {
   try {
-    const supervisors = await Supervisor.find({});
+    // Public route (proposal form needs the list before login) — never return
+    // credentials, one-time tokens or contact details.
+    const supervisors = await Supervisor.find({}).select(
+      "-password -phone -resetPasswordToken -resetPasswordExpires -emailVerificationToken -emailVerificationExpires"
+    );
     res.status(200).json({ supervisors });
   } catch (error) {
     console.error("❌ Error fetching supervisors:", error);
